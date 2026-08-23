@@ -9,7 +9,7 @@ mkdir -p "$TOOLS_HOME" "$GO_BIN" "$HOME/.local/bin" "$WORKSPACE/reports"
 LOG="$WORKSPACE/reports/repair-tools-$(date +%Y%m%d-%H%M%S).log"
 exec > >(tee -a "$LOG") 2>&1
 
-printf '\n[+] Repairing AI Security Lab tooling...\n'
+printf '\n[+] Repairing Security Lab tooling...\n'
 printf '[+] Log: %s\n' "$LOG"
 
 sudo apt-get update -y >/dev/null
@@ -32,15 +32,10 @@ if [ "$CURRENT_GO" != "$GO_VERSION" ]; then
 fi
 
 export PATH="/usr/local/go/bin:$GO_BIN:$HOME/.local/bin:$PATH"
-printf '[+] Go: %s\n' "$(/usr/local/go/bin/go version)"
 
-printf '\n[+] Installing ProjectDiscovery Tool Manager (PDTM)...\n'
 GOBIN="$GO_BIN" /usr/local/go/bin/go install github.com/projectdiscovery/pdtm/cmd/pdtm@latest
-
-printf '\n[+] Installing ProjectDiscovery binaries with PDTM...\n'
 "$GO_BIN/pdtm" -bp "$GO_BIN" -i nuclei,httpx,subfinder,naabu,dnsx,katana -nc || true
 
-# Fallback to direct Go installs only for anything PDTM did not install.
 declare -A PD_MODULES=(
   [nuclei]='github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest'
   [httpx]='github.com/projectdiscovery/httpx/cmd/httpx@latest'
@@ -49,19 +44,13 @@ declare -A PD_MODULES=(
   [dnsx]='github.com/projectdiscovery/dnsx/cmd/dnsx@latest'
   [katana]='github.com/projectdiscovery/katana/cmd/katana@latest'
 )
+
 for cmd in nuclei httpx subfinder naabu dnsx katana; do
   if [ ! -x "$GO_BIN/$cmd" ]; then
-    printf '[!] PDTM did not install %s; trying direct Go install...\n' "$cmd"
     GOBIN="$GO_BIN" /usr/local/go/bin/go install "${PD_MODULES[$cmd]}" || true
-  fi
-  if [ -x "$GO_BIN/$cmd" ]; then
-    printf '[OK] %s -> %s\n' "$cmd" "$GO_BIN/$cmd"
-  else
-    printf '[FAIL] %s still missing\n' "$cmd"
   fi
 done
 
-printf '\n[+] Repairing Nikto...\n'
 rm -rf "$TOOLS_HOME/nikto.tmp"
 if [ -d "$TOOLS_HOME/nikto/.git" ]; then
   git -C "$TOOLS_HOME/nikto" pull --ff-only || true
@@ -72,12 +61,8 @@ fi
 if [ -f "$TOOLS_HOME/nikto/program/nikto.pl" ]; then
   chmod +x "$TOOLS_HOME/nikto/program/nikto.pl"
   ln -sf "$TOOLS_HOME/nikto/program/nikto.pl" "$HOME/.local/bin/nikto"
-  printf '[OK] nikto -> %s\n' "$HOME/.local/bin/nikto"
-else
-  printf '[FAIL] Nikto clone completed but program/nikto.pl was not found\n'
 fi
 
-printf '\n[+] Repairing Impacket...\n'
 pipx ensurepath >/dev/null 2>&1 || true
 if pipx list 2>/dev/null | grep -q 'package impacket '; then
   pipx reinstall impacket >/dev/null || true
@@ -85,13 +70,13 @@ else
   pipx install impacket >/dev/null || true
 fi
 
-# Persist paths for future terminals.
-if ! grep -qF '# >>> AI-SECURITY-GO >>>' "$HOME/.bashrc" 2>/dev/null; then
+sed -i '/SECURITY-GO/,/SECURITY-GO.*<<</d' "$HOME/.bashrc" 2>/dev/null || true
+if ! grep -qF '# >>> SECURITY-LAB-GO >>>' "$HOME/.bashrc" 2>/dev/null; then
   cat >> "$HOME/.bashrc" <<'EOF'
 
-# >>> AI-SECURITY-GO >>>
+# >>> SECURITY-LAB-GO >>>
 export PATH="/usr/local/go/bin:$HOME/go/bin:$HOME/.local/bin:$PATH"
-# <<< AI-SECURITY-GO <<<
+# <<< SECURITY-LAB-GO <<<
 EOF
 fi
 
@@ -99,6 +84,4 @@ if [ -x "$GO_BIN/nuclei" ]; then
   "$GO_BIN/nuclei" -update-templates >/dev/null 2>&1 || true
 fi
 
-printf '\n[+] Repair complete. Running doctor...\n\n'
-PATH="/usr/local/go/bin:$GO_BIN:$HOME/.local/bin:$PATH" bash "$WORKSPACE/bin/doctor"
-printf '\n[+] Full repair log saved at: %s\n' "$LOG"
+printf '\n[+] Repair complete: %s\n' "$LOG"
