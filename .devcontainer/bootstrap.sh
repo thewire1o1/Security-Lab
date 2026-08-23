@@ -6,7 +6,7 @@ TOOLS_HOME="$HOME/tools"
 GO_BIN="$HOME/go/bin"
 mkdir -p "$TOOLS_HOME" "$GO_BIN" "$WORKSPACE/reports" "$WORKSPACE/notes" "$WORKSPACE/targets" "$WORKSPACE/loot" "$WORKSPACE/engagements"
 
-printf '\n[+] Bootstrapping AI Security Lab...\n'
+printf '\n[+] Bootstrapping Security Lab...\n'
 sudo apt-get update -y
 
 packages=(
@@ -19,11 +19,15 @@ packages=(
   sqlmap hydra john
 )
 
-for pkg in "${packages[@]}"; do
-  if ! dpkg -s "$pkg" >/dev/null 2>&1; then
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "$pkg" || printf '[!] Optional package failed: %s\n' "$pkg"
-  fi
-done
+printf '[+] Installing host packages in one transaction...\n'
+if ! sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${packages[@]}"; then
+  printf '[!] Bulk package install had an error; retrying missing packages individually.\n'
+  for pkg in "${packages[@]}"; do
+    if ! dpkg -s "$pkg" >/dev/null 2>&1; then
+      sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$pkg" || printf '[!] Optional package failed: %s\n' "$pkg"
+    fi
+  done
+fi
 
 printf '\n[+] Installing Codex CLI...\n'
 npm install -g @openai/codex
@@ -50,18 +54,23 @@ printf '\n[+] Installing Python security tooling...\n'
 pipx ensurepath >/dev/null 2>&1 || true
 pipx install semgrep >/dev/null 2>&1 || pipx upgrade semgrep >/dev/null 2>&1 || true
 
-if [ ! -d "$TOOLS_HOME/SecLists/.git" ]; then
-  printf '\n[+] Cloning SecLists...\n'
-  git clone --depth 1 https://github.com/danielmiessler/SecLists.git "$TOOLS_HOME/SecLists" || true
+# SecLists is already installed inside the Kali operator image. Keeping a second
+# multi-gigabyte checkout on the Codespace host wastes storage and rebuild time.
+rm -rf "$TOOLS_HOME/SecLists" 2>/dev/null || true
+
+# Let Docker pull the repository-linked GHCR image without an interactive login.
+if command -v docker >/dev/null 2>&1 && [ -n "${GITHUB_TOKEN:-}" ] && [ -n "${GITHUB_USER:-}" ]; then
+  printf '%s' "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_USER" --password-stdin >/dev/null 2>&1 || true
 fi
 
-BASH_MARKER='# >>> AI-SECURITY-LAB >>>'
+# Rename the old shell marker if this Codespace predates the cleanup.
+sed -i 's/# >>> AI-SECURITY-LAB >>>/# >>> SECURITY-LAB >>>/g; s/# >>> AI-SECURITY-LAB >>> END/# >>> SECURITY-LAB >>> END/g' "$HOME/.bashrc" 2>/dev/null || true
+BASH_MARKER='# >>> SECURITY-LAB >>>'
 if ! grep -qF "$BASH_MARKER" "$HOME/.bashrc" 2>/dev/null; then
   cat >> "$HOME/.bashrc" <<EOF
 
 $BASH_MARKER
 export PATH="/usr/local/go/bin:$GO_BIN:$HOME/.local/bin:$WORKSPACE/bin:\$PATH"
-export SECLISTS="$TOOLS_HOME/SecLists"
 alias sol='codex --model gpt-daybreak-blue'
 alias labup='sec up'
 alias labdown='sec down'
@@ -77,10 +86,16 @@ fi
 
 chmod +x "$WORKSPACE"/bin/* 2>/dev/null || true
 
+# Package-manager caches have no value in a persistent Codespace.
+sudo apt-get clean >/dev/null 2>&1 || true
+npm cache clean --force >/dev/null 2>&1 || true
+rm -rf "$HOME/.cache/pip"/* "$HOME/.cache/go-build"/* 2>/dev/null || true
+bash "$WORKSPACE/bin/disk-guard" --auto || true
+
 cat <<'BANNER'
 
 ============================================================
- AI Security Lab ready
+ Security Lab ready
 ------------------------------------------------------------
  sec help   -> control surface
  sec sol    -> Codex with GPT-5.6 Sol
