@@ -2,7 +2,7 @@ name: Security Lab CI
 
 on:
   push:
-    branches: [master, mission-control]
+    branches: [master]
   pull_request:
     branches: [master]
 
