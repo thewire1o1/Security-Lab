@@ -20,12 +20,21 @@ jobs:
         run: python3 -m py_compile dashboard/server.py bin/sec-report
       - name: Shell syntax
         run: |
-          for f in bin/* *.sh; do
+          for f in bin/* .devcontainer/*.sh; do
             [ -f "$f" ] || continue
             case "$f" in
               bin/sec-report) continue ;;
             esac
             bash -n "$f"
+          done
+      - name: ShellCheck
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y shellcheck
+          for f in bin/* .devcontainer/*.sh; do
+            [ -f "$f" ] || continue
+            head -n 1 "$f" | grep -q 'bash' || continue
+            shellcheck -S error -e SC1090,SC1091 "$f"
           done
       - name: Compose validation
         run: docker compose -f lab/docker-compose.yml --profile operator config --quiet
@@ -42,10 +51,23 @@ jobs:
         run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect --source=/repo --redact --verbose
 
   filesystem:
-    name: Trivy filesystem scan
+    name: Filesystem scan
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
       - name: Trivy
         run: docker run --rm -v "$PWD:/repo" aquasec/trivy:latest fs --ignorefile /repo/.trivyignore --scanners vuln,secret,misconfig --severity HIGH,CRITICAL --exit-code 1 /repo
+
+  code:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Install analyzers
+        run: python3 -m pip install --disable-pip-version-check semgrep bandit
+      - name: Semgrep
+        run: semgrep scan --config auto --error --exclude reports --exclude artifacts --exclude cases .
+      - name: Bandit
+        run: bandit -r dashboard bin -x reports,artifacts,cases -q

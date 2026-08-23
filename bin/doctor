@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 set -u
-export PATH="/usr/local/go/bin:$HOME/go/bin:$HOME/.local/bin:$(pwd)/bin:$PATH"
 
-printf 'AI Security Lab doctor\n\n'
-for cmd in sec codex docker nmap masscan sqlmap nikto hydra john pdtm nuclei httpx subfinder naabu dnsx katana ffuf waybackurls assetfinder gau semgrep; do
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export PATH="/usr/local/go/bin:$HOME/go/bin:$HOME/.local/bin:$ROOT/bin:$PATH"
+
+printf 'Security Lab doctor\n\n'
+
+for cmd in sec docker nmap masscan sqlmap nikto hydra john pdtm nuclei httpx subfinder naabu dnsx katana ffuf waybackurls assetfinder gau semgrep pip-audit bandit gitleaks trivy shellcheck jq; do
   if command -v "$cmd" >/dev/null 2>&1; then
     v="$($cmd --version 2>/dev/null | head -n 1 || true)"
     [ -z "$v" ] && v="installed"
@@ -13,38 +16,24 @@ for cmd in sec codex docker nmap masscan sqlmap nikto hydra john pdtm nuclei htt
   fi
 done
 
-if command -v impacket-smbserver >/dev/null 2>&1; then
-  printf '[OK] %-20s %s\n' 'impacket-smbserver' 'installed'
-elif command -v smbserver.py >/dev/null 2>&1; then
-  printf '[OK] %-20s %s\n' 'impacket-smbserver' 'installed as smbserver.py'
-else
-  printf '[--] %-20s %s\n' 'impacket-smbserver' 'missing'
-fi
-
 printf '\nDocker:\n'
 docker info --format '  server={{.ServerVersion}} containers={{.Containers}} images={{.Images}}' 2>/dev/null || echo '  Docker daemon unavailable.'
 
 printf '\nKali operator image:\n'
-if docker image inspect ai-security-lab-kali:latest >/dev/null 2>&1; then
-  echo '  [OK] built. Enter with: sec kali'
+if docker image inspect ghcr.io/thewire1o1/security-lab-kali:latest >/dev/null 2>&1 || docker image inspect security-lab-kali:latest >/dev/null 2>&1; then
+  echo '  [OK] available'
 else
-  echo '  [--] not built yet. Build once with: sec kali-build'
+  echo '  [--] not available yet'
 fi
 
-printf '\nCodex login:\n'
-LOGIN_STATUS="$(codex login status 2>&1 || true)"
-if [ -n "$LOGIN_STATUS" ]; then
-  printf '  %s\n' "$LOGIN_STATUS"
-else
-  printf '  [--] Not authenticated. Run: codex login --device-auth\n'
-fi
-
-printf '\nCodex MCP:\n'
-if codex mcp get kali --json >/dev/null 2>&1; then
-  echo '  [OK] kali MCP configured. Launch with: sec ai-kali'
-else
-  echo '  [--] kali MCP not configured yet. After building Kali run: sec mcp-setup'
-fi
+printf '\nDefensive pipeline:\n'
+for f in code-review validate-findings fuzz-run triage research defense-run review-engine; do
+  if [ -f "$ROOT/bin/$f" ]; then
+    printf '  [OK] %s\n' "$f"
+  else
+    printf '  [--] %s missing\n' "$f"
+  fi
+done
 
 printf '\nLab containers:\n'
-docker compose -f lab/docker-compose.yml --profile operator ps 2>/dev/null || true
+docker compose -f "$ROOT/lab/docker-compose.yml" --profile operator ps 2>/dev/null || true

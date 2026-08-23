@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+FILE="${1:-}"
+
+if [ -z "$FILE" ] || [ ! -f "$FILE" ]; then
+  echo 'Usage: sec triage FILE' >&2
+  exit 2
+fi
+
+STAMP="$(date +%Y%m%d-%H%M%S)"
+BASE="$(basename "$FILE" | tr -cs '[:alnum:]._- ' '_' | tr ' ' '_')"
+OUT="$ROOT/reports/triage-$STAMP-$BASE"
+mkdir -p "$OUT"
+
+sha256sum "$FILE" | tee "$OUT/sha256.txt"
+file -b "$FILE" | tee "$OUT/file.txt"
+stat "$FILE" >"$OUT/stat.txt"
+strings -a -n 6 "$FILE" | head -n 5000 >"$OUT/strings.txt" || true
+
+if command -v exiftool >/dev/null 2>&1; then
+  exiftool "$FILE" >"$OUT/metadata.txt" 2>&1 || true
+fi
+if command -v yara >/dev/null 2>&1 && [ -d "$ROOT/rules" ]; then
+  yara -r "$ROOT/rules" "$FILE" >"$OUT/yara.txt" 2>&1 || true
+fi
+if command -v readelf >/dev/null 2>&1; then
+  readelf -a "$FILE" >"$OUT/readelf.txt" 2>&1 || true
+fi
+if command -v objdump >/dev/null 2>&1; then
+  objdump -x "$FILE" >"$OUT/objdump.txt" 2>&1 || true
+fi
+if command -v binwalk >/dev/null 2>&1; then
+  binwalk "$FILE" >"$OUT/binwalk.txt" 2>&1 || true
+fi
+
+python3 - "$FILE" "$OUT" <<'PY'
+import hashlib
+import json
+import pathlib
+import sys
+p = pathlib.Path(sys.argv[1])
+out = pathlib.Path(sys.argv[2])
+h = hashlib.sha256()
+with p.open("rb") as f:
+    for chunk in iter(lambda: f.read(1024 * 1024), b""):
+        h.update(chunk)
+summary = {
+    "name": p.name,
+    "size": p.stat().st_size,
+    "sha256": h.hexdigest(),
+    "artifacts": sorted(x.name for x in out.iterdir()),
+}
+(out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+print(json.dumps(summary, indent=2))
+PY
+
+printf '[+] Static triage artifacts: %s\n' "$OUT"

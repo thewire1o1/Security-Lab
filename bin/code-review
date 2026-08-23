@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+STAMP="$(date +%Y%m%d-%H%M%S)"
+OUT="${1:-$ROOT/reports/defense-$STAMP}"
+mkdir -p "$OUT"
+
+if command -v semgrep >/dev/null 2>&1; then
+  semgrep scan --config auto --json --quiet "$ROOT" >"$OUT/semgrep.json" 2>"$OUT/semgrep.stderr" || true
+else
+  printf '{"results":[],"errors":[{"message":"semgrep unavailable"}]}\n' >"$OUT/semgrep.json"
+fi
+
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks detect --source "$ROOT" --report-format json --report-path "$OUT/gitleaks.json" --redact --no-banner >/dev/null 2>"$OUT/gitleaks.stderr" || true
+  [ -f "$OUT/gitleaks.json" ] || printf '[]\n' >"$OUT/gitleaks.json"
+else
+  printf '[]\n' >"$OUT/gitleaks.json"
+fi
+
+if command -v trivy >/dev/null 2>&1; then
+  trivy fs --quiet --format json --scanners vuln,secret,misconfig "$ROOT" >"$OUT/trivy.json" 2>"$OUT/trivy.stderr" || true
+else
+  printf '{"Results":[]}\n' >"$OUT/trivy.json"
+fi
+
+if command -v bandit >/dev/null 2>&1; then
+  bandit -r "$ROOT" -f json -q -x "$ROOT/.git,$ROOT/reports,$ROOT/artifacts,$ROOT/cases" >"$OUT/bandit.json" 2>"$OUT/bandit.stderr" || true
+else
+  printf '{"results":[]}\n' >"$OUT/bandit.json"
+fi
+
+if [ -f "$ROOT/requirements.txt" ] && command -v pip-audit >/dev/null 2>&1; then
+  pip-audit -r "$ROOT/requirements.txt" -f json >"$OUT/pip-audit.json" 2>"$OUT/pip-audit.stderr" || true
+fi
+
+python3 - "$OUT" <<'PY'
+import json
+import pathlib
+import sys
+out = pathlib.Path(sys.argv[1])
+def load(name, default):
+    try:
+        return json.loads((out / name).read_text())
+    except Exception:
+        return default
+semgrep = load("semgrep.json", {"results":[]})
+gitleaks = load("gitleaks.json", [])
+trivy = load("trivy.json", {"Results":[]})
+bandit = load("bandit.json", {"results":[]})
+sev = {"critical":0,"high":0,"medium":0,"low":0,"info":0}
+for r in semgrep.get("results", []):
+    level = str((r.get("extra") or {}).get("severity", "INFO")).lower()
+    if level in sev:
+        sev[level] += 1
+    else:
+        sev["info"] += 1
+for r in bandit.get("results", []):
+    level = str(r.get("issue_severity", "LOW")).lower()
+    if level in sev:
+        sev[level] += 1
+for result in trivy.get("Results") or []:
+    for v in result.get("Vulnerabilities") or []:
+        level = str(v.get("Severity", "UNKNOWN")).lower()
+        if level in sev:
+            sev[level] += 1
+    for m in result.get("Misconfigurations") or []:
+        level = str(m.get("Severity", "UNKNOWN")).lower()
+        if level in sev:
+            sev[level] += 1
+summary = {
+    "timestamp": int(__import__("time").time()),
+    "severity": sev,
+    "semgrep": len(semgrep.get("results", [])),
+    "gitleaks": len(gitleaks) if isinstance(gitleaks, list) else 0,
+    "bandit": len(bandit.get("results", [])),
+    "trivy_results": sum(len((r.get("Vulnerabilities") or [])) + len((r.get("Misconfigurations") or [])) for r in (trivy.get("Results") or [])),
+}
+(out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+print(json.dumps(summary, indent=2))
+PY
+
+printf '[+] Review artifacts: %s\n' "$OUT"

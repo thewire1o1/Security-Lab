@@ -1,7 +1,7 @@
 services:
   juice-shop:
     image: bkimminich/juice-shop:latest
-    container_name: ai-lab-juice-shop
+    container_name: sec-lab-juice-shop
     restart: unless-stopped
     ports:
       - "127.0.0.1:3000:3000"
@@ -9,7 +9,7 @@ services:
 
   dvwa:
     image: vulnerables/web-dvwa:latest
-    container_name: ai-lab-dvwa
+    container_name: sec-lab-dvwa
     restart: unless-stopped
     ports:
       - "127.0.0.1:8080:80"
@@ -17,7 +17,7 @@ services:
 
   webgoat:
     image: webgoat/webgoat:latest
-    container_name: ai-lab-webgoat
+    container_name: sec-lab-webgoat
     restart: unless-stopped
     environment:
       WEBGOAT_PORT: "8080"
@@ -30,14 +30,11 @@ services:
     image: ghcr.io/thewire1o1/security-lab-kali:latest
     build:
       context: ./kali
-    container_name: ai-lab-kali
+    container_name: sec-lab-kali
     stdin_open: true
     tty: true
     working_dir: /workspace
-    command:
-      - bash
-      - -lc
-      - "kali-server-mcp --ip 127.0.0.1 --port 5000 >/var/log/kali-mcp.log 2>&1 & exec sleep infinity"
+    command: ["sleep", "infinity"]
     cap_add:
       - NET_ADMIN
       - NET_RAW

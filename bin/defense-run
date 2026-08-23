@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+STAMP="$(date +%Y%m%d-%H%M%S)"
+OUT="$ROOT/reports/defense-$STAMP"
+mkdir -p "$OUT"
+
+python3 - "$ROOT" "$OUT" <<'PY'
+import json
+import pathlib
+import subprocess
+import sys
+import time
+root = pathlib.Path(sys.argv[1])
+out = pathlib.Path(sys.argv[2])
+def run(cmd):
+    try:
+        p = subprocess.run(cmd, cwd=root, text=True, capture_output=True, timeout=15)
+        return {"command": cmd, "returncode": p.returncode, "stdout": p.stdout[-12000:], "stderr": p.stderr[-6000:]}
+    except Exception as exc:
+        return {"command": cmd, "returncode": -1, "stderr": str(exc)}
+inventory = {
+    "timestamp": int(time.time()),
+    "git": run(["git","status","--short","--branch"]),
+    "compose": run(["docker","compose","-f",str(root/"lab/docker-compose.yml"),"--profile","operator","config","--services"]),
+    "files": sum(1 for p in root.rglob("*") if p.is_file() and ".git" not in p.parts),
+}
+(out / "inventory.json").write_text(json.dumps(inventory, indent=2) + "\n")
+PY
+
+bash "$ROOT/bin/code-review" "$OUT"
+bash "$ROOT/bin/fuzz-run" "$OUT/fuzz"
+bash "$ROOT/bin/validate-findings" "$OUT" || true
+
+if [ -n "${SEC_ANALYSIS_COMMAND:-}" ]; then
+  bash "$ROOT/bin/review-engine" "$OUT/summary.json" >"$OUT/external-review.txt" 2>"$OUT/external-review.stderr" || true
+fi
+
+python3 - "$OUT" <<'PY'
+import json
+import pathlib
+import sys
+out = pathlib.Path(sys.argv[1])
+summary = json.loads((out / "summary.json").read_text())
+validation = {}
+if (out / "validation.json").exists():
+    validation = json.loads((out / "validation.json").read_text())
+fuzz = {}
+if (out / "fuzz" / "summary.json").exists():
+    fuzz = json.loads((out / "fuzz" / "summary.json").read_text())
+pipeline = {
+    "run": out.name,
+    "stages": {
+        "inventory": "complete",
+        "review": "complete",
+        "validation": "complete" if validation else "no-baseline",
+        "fuzz": "complete",
+        "external_review": "complete" if (out / "external-review.txt").exists() else "not-configured",
+    },
+    "findings": summary.get("severity", {}),
+    "regression": bool(validation.get("regression", False)),
+    "fuzz_results": fuzz.get("total_results", 0),
+}
+(out / "pipeline.json").write_text(json.dumps(pipeline, indent=2) + "\n")
+print(json.dumps(pipeline, indent=2))
+PY
+
+printf '[+] Defensive run: %s\n' "$OUT"

@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+mapfile -t runs < <(find "$ROOT/reports" -maxdepth 1 -type d -name 'defense-*' -printf '%T@ %p\n' 2>/dev/null | sort -nr | awk '{print $2}')
+CURRENT="${1:-${runs[0]:-}}"
+
+if [ -z "$CURRENT" ] || [ ! -f "$CURRENT/summary.json" ]; then
+  echo 'No defensive review run found.' >&2
+  exit 1
+fi
+
+PREVIOUS=""
+for r in "${runs[@]}"; do
+  if [ "$r" != "$CURRENT" ] && [ -f "$r/summary.json" ]; then
+    PREVIOUS="$r"
+    break
+  fi
+done
+
+python3 - "$CURRENT" "$PREVIOUS" <<'PY'
+import json
+import pathlib
+import sys
+current = pathlib.Path(sys.argv[1])
+previous = pathlib.Path(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[2] else None
+cur = json.loads((current / "summary.json").read_text())
+old = json.loads((previous / "summary.json").read_text()) if previous else None
+levels = ["critical","high","medium","low","info"]
+delta = {}
+for level in levels:
+    before = int(((old or {}).get("severity") or {}).get(level, 0))
+    after = int((cur.get("severity") or {}).get(level, 0))
+    delta[level] = {"before": before, "after": after, "change": after - before}
+result = {
+    "current": current.name,
+    "previous": previous.name if previous else None,
+    "severity_delta": delta,
+    "regression": any(delta[x]["change"] > 0 for x in ("critical","high")),
+    "improved": any(delta[x]["change"] < 0 for x in levels),
+}
+(current / "validation.json").write_text(json.dumps(result, indent=2) + "\n")
+print(json.dumps(result, indent=2))
+PY
+
+printf '[+] Validation: %s/validation.json\n' "$CURRENT"

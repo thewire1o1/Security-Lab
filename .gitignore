@@ -1,13 +1,13 @@
-# AI Security Lab runtime output
 reports/
 loot/
+artifacts/
+cases/*/evidence/
+cases/*/output/
 notes/private/
 targets/private/
 engagements/*/evidence/
 engagements/*/loot/
 engagements/*/reports/
-
-# Secrets
 .env
 .env.*
 *.key
@@ -16,13 +16,9 @@ engagements/*/reports/
 *.pfx
 *.kdbx
 secrets/
-
-# Tool state
 .nuclei/
 .cache/
 __pycache__/
 *.pyc
-
-# OS/editor
 .DS_Store
 .vscode/settings.local.json
