@@ -56,6 +56,34 @@ status_agent() {
   fi
 }
 
+codespace_list() {
+  gh api '/user/codespaces?per_page=100' \
+    --jq '.codespaces[] | [.name, .display_name, .repository.full_name, .state, .machine.display_name, .web_url] | @tsv'
+}
+
+codespace_create() {
+  local machines machine response
+  machines="$(gh api "/repos/$REPO/codespaces/machines")"
+  machine="$(jq -r '[.machines[]] | sort_by(.cpus, .memory_in_bytes, .storage_in_bytes) | .[0].name // empty' <<<"$machines")"
+  [ -n "$machine" ] || { echo 'No Codespaces machine type is currently available.' >&2; return 1; }
+
+  response="$(gh api -X POST "/repos/$REPO/codespaces" \
+    -f ref=master \
+    -f machine="$machine" \
+    -f devcontainer_path='.devcontainer/devcontainer.json')"
+
+  jq '{name, display_name, state, web_url, machine: .machine.display_name}' <<<"$response"
+}
+
+codespace_retire_current() {
+  local current="${CODESPACE_NAME:-}"
+  [ -n "$current" ] || { echo 'Current Codespace name is unavailable.' >&2; return 1; }
+  printf 'Scheduling retirement of current Codespace: %s\n' "$current"
+  nohup bash -c 'sleep 20; gh codespace delete -c "$1" --force' _ "$current" \
+    >>"$ROOT/reports/codespace-retire.log" 2>&1 </dev/null &
+  echo 'Deletion scheduled in 20 seconds.'
+}
+
 run_task() {
   local task="$1"
   case "$task" in
@@ -73,6 +101,9 @@ run_task() {
     kali-build) bash "$ROOT/bin/sec" kali-build ;;
     update) bash "$ROOT/bin/update-all" ;;
     disk) bash "$ROOT/bin/disk-guard" --auto ;;
+    codespace-list) codespace_list ;;
+    codespace-create) codespace_create ;;
+    codespace-retire-current) codespace_retire_current ;;
     *) return 64 ;;
   esac
 }
@@ -105,13 +136,22 @@ process_issue() {
   }
 
   case "$task" in
-    doctor|status|sync|bootstrap|defend|review|validate|fuzz|report|lab-up|lab-down|kali-build|update|disk) ;;
+    doctor|status|sync|bootstrap|defend|review|validate|fuzz|report|lab-up|lab-down|kali-build|update|disk|codespace-list|codespace-create|codespace-retire-current) ;;
     *)
       comment_issue "$number" "Rejected: task \`$task\` is not allowlisted."
       close_issue "$number" "[LAB-REJECTED] $task"
       return 0
       ;;
   esac
+
+  if [ "$task" = 'codespace-retire-current' ]; then
+    expected="confirm: ${CODESPACE_NAME:-missing}"
+    if ! grep -Fxq "$expected" <<<"$body"; then
+      comment_issue "$number" "Rejected: retiring the current Codespace requires exact confirmation: \`$expected\`."
+      close_issue "$number" '[LAB-REJECTED] codespace-retire-current'
+      return 0
+    fi
+  fi
 
   gh api -X PATCH "/repos/$REPO/issues/$number" -f title="[LAB-RUNNING] $task" >/dev/null
   set +e
