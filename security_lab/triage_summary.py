@@ -17,11 +17,14 @@ def sha256_file(path: Path, chunk_size: int = 1024 * 1024) -> str:
 
 
 def summarize(sample: Path, output_dir: Path) -> dict[str, object]:
+    output_dir.mkdir(parents=True, exist_ok=True)
     stat = sample.stat()
+    digest = sha256_file(sample)
+    (output_dir / "sha256.txt").write_text(f"{digest}  {sample}\n", encoding="utf-8")
     summary = {
         "name": sample.name,
         "size": stat.st_size,
-        "sha256": sha256_file(sample),
+        "sha256": digest,
         "artifacts": sorted(path.name for path in output_dir.iterdir() if path.is_file()),
     }
     write_json_atomic(output_dir / "summary.json", summary)
