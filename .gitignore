@@ -1,0 +1,25 @@
+# AI Security Lab runtime output
+reports/
+loot/
+notes/private/
+targets/private/
+
+# Secrets
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+*.kdbx
+secrets/
+
+# Tool state
+.nuclei/
+.cache/
+__pycache__/
+*.pyc
+
+# OS/editor
+.DS_Store
+.vscode/settings.local.json
