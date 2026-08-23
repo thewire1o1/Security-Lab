@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+INPUT="${1:-}"
+COMMAND="${SEC_ANALYSIS_COMMAND:-}"
+
+if [ -z "$COMMAND" ]; then
+  echo 'SEC_ANALYSIS_COMMAND is not configured.' >&2
+  exit 3
+fi
+
+if [ -z "$INPUT" ]; then
+  INPUT="$(find "$ROOT/reports" -maxdepth 2 -name summary.json -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n1 | cut -d' ' -f2-)"
+fi
+
+if [ -z "$INPUT" ] || [ ! -f "$INPUT" ]; then
+  echo 'No input file found.' >&2
+  exit 2
+fi
+
+if [ "${SEC_ANALYSIS_ALLOW_SHELL:-0}" = "1" ]; then
+  exec bash -lc "$COMMAND \"\$1\"" _ "$INPUT"
+fi
+
+IFS=' ' read -r -a parts <<<"$COMMAND"
+exec "${parts[@]}" "$INPUT"
