@@ -1,71 +1,81 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-if [ $# -lt 1 ]; then
-  echo "Usage: recon <authorized-host-or-domain> [--deep]"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+usage() {
+  printf '%s\n' 'Usage: recon <authorized-host-or-domain> [--deep]' >&2
+}
+
+if [ "$#" -lt 1 ]; then
+  usage
   exit 1
 fi
 
 RAW="$1"
 MODE="${2:-}"
 if [ -n "$MODE" ] && [ "$MODE" != "--deep" ]; then
-  echo "Usage: recon <authorized-host-or-domain> [--deep]" >&2
+  usage
   exit 2
 fi
+
 TARGET="${RAW#http://}"
 TARGET="${TARGET#https://}"
 TARGET="${TARGET%%/*}"
 TARGET="${TARGET%%:*}"
 if [[ ! "$TARGET" =~ ^[[:alnum:]][[:alnum:]._-]*$ ]]; then
-  echo "Invalid target." >&2
+  printf '%s\n' 'Invalid target.' >&2
   exit 2
 fi
-SAFE="$(printf '%s' "$TARGET" | tr -cs '[:alnum:]._- ' '_' | tr ' ' '_')"
-STAMP="$(date +%Y%m%d-%H%M%S)"
-OUT="reports/recon-${SAFE}-${STAMP}"
+
+SAFE="$(printf '%s' "$TARGET" | tr -cs '[:alnum:]._-' '_')"
+STAMP="$(date -u +%Y%m%d-%H%M%S)"
+OUT="$ROOT/reports/recon-${SAFE}-${STAMP}"
 mkdir -p "$OUT"
 
-echo "[+] Target: $TARGET"
-echo "[+] Output: $OUT"
+printf '[+] Target: %s\n' "$TARGET"
+printf '[+] Output: %s\n' "$OUT"
 
 {
-  echo "TARGET=$TARGET"
-  echo "UTC=$(date -u +%FT%TZ)"
-} > "$OUT/meta.txt"
+  printf 'TARGET=%s\n' "$TARGET"
+  printf 'UTC=%s\n' "$(date -u +%FT%TZ)"
+} >"$OUT/meta.txt"
 
-whois "$TARGET" > "$OUT/whois.txt" 2>&1 || true
+whois -- "$TARGET" >"$OUT/whois.txt" 2>&1 || true
 {
   dig A "$TARGET" +short
   dig AAAA "$TARGET" +short
   dig MX "$TARGET" +short
   dig TXT "$TARGET" +short
-} > "$OUT/dns.txt" 2>&1 || true
+} >"$OUT/dns.txt" 2>&1 || true
 
 if command -v subfinder >/dev/null 2>&1 && [[ "$TARGET" =~ [A-Za-z] ]]; then
   subfinder -silent -d "$TARGET" -o "$OUT/subdomains.txt" 2>/dev/null || true
 else
-  : > "$OUT/subdomains.txt"
+  : >"$OUT/subdomains.txt"
 fi
 
-printf '%s\n' "$TARGET" > "$OUT/hosts.txt"
-cat "$OUT/subdomains.txt" >> "$OUT/hosts.txt" 2>/dev/null || true
+printf '%s\n' "$TARGET" >"$OUT/hosts.txt"
+cat "$OUT/subdomains.txt" >>"$OUT/hosts.txt" 2>/dev/null || true
 sort -u "$OUT/hosts.txt" -o "$OUT/hosts.txt"
 
-echo "[+] Service discovery..."
-nmap -Pn -T3 --top-ports 1000 -sV --version-light "$TARGET" -oA "$OUT/nmap" || true
+printf '%s\n' '[+] Service discovery...'
+nmap -Pn -T3 --top-ports 1000 -sV --version-light -- "$TARGET" -oA "$OUT/nmap" || true
 
 if command -v httpx >/dev/null 2>&1; then
-  echo "[+] HTTP discovery..."
-  httpx -silent -l "$OUT/hosts.txt" -title -status-code -tech-detect -follow-redirects -o "$OUT/httpx.txt" || true
+  printf '%s\n' '[+] HTTP discovery...'
+  httpx -silent -l "$OUT/hosts.txt" -title -status-code -tech-detect -follow-redirects \
+    -o "$OUT/httpx.txt" || true
 fi
 
 if [ "$MODE" = "--deep" ] && command -v nuclei >/dev/null 2>&1; then
-  echo "[+] Template checks..."
+  printf '%s\n' '[+] Template checks...'
   if [ -s "$OUT/httpx.txt" ]; then
-    awk '{print $1}' "$OUT/httpx.txt" | nuclei -silent -severity info,low,medium,high,critical -o "$OUT/nuclei.txt" || true
+    awk '{print $1}' "$OUT/httpx.txt" \
+      | nuclei -silent -severity info,low,medium,high,critical -o "$OUT/nuclei.txt" || true
   else
     nuclei -silent -u "$RAW" -severity info,low,medium,high,critical -o "$OUT/nuclei.txt" || true
   fi
 fi
 
-echo "[+] Done: $OUT"
+printf '[+] Done: %s\n' "$OUT"
