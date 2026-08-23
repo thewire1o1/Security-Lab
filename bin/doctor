@@ -39,5 +39,12 @@ else
   printf '  [--] Not authenticated. Run: codex login --device-auth\n'
 fi
 
+printf '\nCodex MCP:\n'
+if codex mcp get kali --json >/dev/null 2>&1; then
+  echo '  [OK] kali MCP configured. Launch with: sec ai-kali'
+else
+  echo '  [--] kali MCP not configured yet. After building Kali run: sec mcp-setup'
+fi
+
 printf '\nLab containers:\n'
 docker compose -f lab/docker-compose.yml --profile operator ps 2>/dev/null || true
