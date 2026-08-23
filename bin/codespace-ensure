@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -u
+
+REQ_CPUS=4
+REQ_MEMORY=$((16 * 1024 * 1024 * 1024))
+REQ_STORAGE=$((64 * 1024 * 1024 * 1024))
+API_VERSION="2026-03-10"
+
+[ "${CODESPACES:-}" = "true" ] || exit 0
+[ -n "${CODESPACE_NAME:-}" ] || exit 0
+[ -n "${GITHUB_TOKEN:-}" ] || { echo '[--] Codespace sizing: no GitHub token available'; exit 0; }
+command -v jq >/dev/null 2>&1 || { echo '[--] Codespace sizing: jq unavailable'; exit 0; }
+
+api() {
+  curl -fsSL \
+    -H 'Accept: application/vnd.github+json' \
+    -H "Authorization: Bearer $GITHUB_TOKEN" \
+    -H "X-GitHub-Api-Version: $API_VERSION" \
+    "$@"
+}
+
+current="$(api "https://api.github.com/user/codespaces/$CODESPACE_NAME" 2>/dev/null || true)"
+[ -n "$current" ] || { echo '[--] Codespace sizing: API access unavailable'; exit 0; }
+
+cpus="$(jq -r '.machine.cpus // 0' <<<"$current")"
+memory="$(jq -r '.machine.memory_in_bytes // 0' <<<"$current")"
+storage="$(jq -r '.machine.storage_in_bytes // 0' <<<"$current")"
+name="$(jq -r '.machine.display_name // .machine.name // "unknown"' <<<"$current")"
+
+if [ "$cpus" -ge "$REQ_CPUS" ] && [ "$memory" -ge "$REQ_MEMORY" ] && [ "$storage" -ge "$REQ_STORAGE" ]; then
+  printf '[OK] Codespace machine: %s\n' "$name"
+  exit 0
+fi
+
+machines="$(api "https://api.github.com/user/codespaces/$CODESPACE_NAME/machines" 2>/dev/null || true)"
+[ -n "$machines" ] || { echo '[--] Codespace sizing: cannot list upgrade targets'; exit 0; }
+
+target="$(jq -r --argjson c "$REQ_CPUS" --argjson m "$REQ_MEMORY" --argjson s "$REQ_STORAGE" '
+  [.machines[] | select(.cpus >= $c and .memory_in_bytes >= $m and .storage_in_bytes >= $s)]
+  | sort_by(.cpus, .memory_in_bytes, .storage_in_bytes)
+  | .[0].name // empty
+' <<<"$machines")"
+
+target_display="$(jq -r --arg n "$target" '.machines[] | select(.name == $n) | .display_name' <<<"$machines" | head -n1)"
+[ -n "$target" ] || { echo '[--] No Codespaces machine meets the 4-core/16-GB/64-GB minimum'; exit 0; }
+
+printf '[+] Scheduling Codespace upgrade: %s -> %s\n' "$name" "$target_display"
+payload="$(jq -nc --arg machine "$target" '{machine:$machine}')"
+
+if api -X PATCH "https://api.github.com/user/codespaces/$CODESPACE_NAME" -d "$payload" >/dev/null 2>&1; then
+  echo '[+] Machine upgrade saved. It will apply on the next Codespace restart.'
+else
+  echo '[--] Automatic machine upgrade was not authorized by the current Codespaces token.'
+fi
