@@ -13,7 +13,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Final
 
@@ -29,18 +29,47 @@ TOKEN_PATTERN: Final = re.compile(
     re.IGNORECASE,
 )
 TASK_PATTERN: Final = re.compile(r"^task:[ \t]*([a-z0-9-]+)[ \t]*$", re.MULTILINE)
+REPO_PATTERN: Final = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+OWNER_PATTERN: Final = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$")
+CODESPACE_PATTERN: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,127}$")
+AGENT_CMDLINE_MARKER: Final = b"security_lab.remote_agent"
 
 
 class GitHubError(RuntimeError):
     pass
 
 
+def _env(name: str, default: str) -> str:
+    return os.environ.get(name, default).strip()
+
+
+def _poll_seconds() -> float:
+    raw = _env("SEC_REMOTE_POLL_SECONDS", "8")
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise ValueError("SEC_REMOTE_POLL_SECONDS must be numeric.") from exc
+    if not 1 <= value <= 300:
+        raise ValueError("SEC_REMOTE_POLL_SECONDS must be between 1 and 300 seconds.")
+    return value
+
+
 @dataclass(frozen=True)
 class Config:
     root: Path = ROOT
-    repo: str = os.environ.get("GITHUB_REPOSITORY", DEFAULT_REPO)
-    owner: str = os.environ.get("SEC_REMOTE_OWNER", DEFAULT_OWNER)
-    poll_seconds: float = float(os.environ.get("SEC_REMOTE_POLL_SECONDS", "8"))
+    repo: str = field(default_factory=lambda: _env("GITHUB_REPOSITORY", DEFAULT_REPO))
+    owner: str = field(default_factory=lambda: _env("SEC_REMOTE_OWNER", DEFAULT_OWNER))
+    poll_seconds: float = field(default_factory=_poll_seconds)
+
+    def __post_init__(self) -> None:
+        resolved_root = self.root.resolve()
+        if not REPO_PATTERN.fullmatch(self.repo):
+            raise ValueError(f"Invalid repository name: {self.repo!r}")
+        if not OWNER_PATTERN.fullmatch(self.owner):
+            raise ValueError(f"Invalid GitHub owner: {self.owner!r}")
+        if not 1 <= self.poll_seconds <= 300:
+            raise ValueError("poll_seconds must be between 1 and 300 seconds.")
+        object.__setattr__(self, "root", resolved_root)
 
     @property
     def reports(self) -> Path:
@@ -68,7 +97,7 @@ class GitHubClient:
         if self._token:
             return self._token
 
-        explicit = os.environ.get("SEC_GITHUB_TOKEN", "").strip()
+        explicit = _env("SEC_GITHUB_TOKEN", "")
         if explicit:
             self._token = explicit
             return explicit
@@ -79,7 +108,7 @@ class GitHubClient:
             return gh_token
 
         for variable in ("GH_TOKEN", "GITHUB_TOKEN"):
-            value = os.environ.get(variable, "").strip()
+            value = _env(variable, "")
             if value:
                 self._token = value
                 return value
@@ -134,6 +163,8 @@ class GitHubClient:
         return ""
 
     def request(self, method: str, path: str, payload: Any | None = None) -> Any:
+        if not path.startswith("/") or "://" in path or "\\" in path:
+            raise ValueError(f"Invalid GitHub API path: {path!r}")
         token = self.resolve_token()
         body = None
         headers = {
@@ -196,7 +227,11 @@ class TaskRunner:
 
     @property
     def allowed_tasks(self) -> frozenset[str]:
-        return frozenset((*self.specs, "codespace-list", "codespace-create", "codespace-retire-current"))
+        return frozenset(self.specs) | {
+            "codespace-list",
+            "codespace-create",
+            "codespace-retire-current",
+        }
 
     def run(self, task: str) -> tuple[int, str]:
         try:
@@ -208,8 +243,8 @@ class TaskRunner:
                 return 0, self._schedule_retire_current()
             spec = self.specs[task]
             return self._run_process(spec)
-        except (GitHubError, KeyError, OSError, ValueError) as exc:
-            return 1, str(exc)
+        except (GitHubError, KeyError, OSError, TypeError, ValueError) as exc:
+            return 1, self._sanitize(str(exc))
 
     def _run_process(self, spec: TaskSpec) -> tuple[int, str]:
         try:
@@ -221,7 +256,9 @@ class TaskRunner:
                 timeout=spec.timeout,
                 check=False,
             )
-            output = "\n".join(part for part in (result.stdout.strip(), result.stderr.strip()) if part)
+            output = "\n".join(
+                part for part in (result.stdout.strip(), result.stderr.strip()) if part
+            )
             return result.returncode, self._sanitize(output)
         except subprocess.TimeoutExpired as exc:
             output = "\n".join(
@@ -237,36 +274,61 @@ class TaskRunner:
 
     def _codespace_list(self) -> str:
         payload = self.client.request("GET", "/user/codespaces?per_page=100") or {}
-        rows = []
-        for item in payload.get("codespaces", []):
+        if not isinstance(payload, dict):
+            raise GitHubError("Codespaces list response had an unexpected shape.")
+        items = payload.get("codespaces") or []
+        if not isinstance(items, list):
+            raise GitHubError("Codespaces list response had an unexpected shape.")
+
+        rows: list[str] = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            repository = item.get("repository") or {}
+            machine = item.get("machine") or {}
             rows.append(
                 "\t".join(
                     str(value or "")
                     for value in (
                         item.get("name"),
                         item.get("display_name"),
-                        (item.get("repository") or {}).get("full_name"),
+                        repository.get("full_name") if isinstance(repository, dict) else "",
                         item.get("state"),
-                        (item.get("machine") or {}).get("display_name"),
+                        machine.get("display_name") if isinstance(machine, dict) else "",
                         item.get("web_url"),
                     )
                 )
             )
         return "\n".join(rows)
 
+    @staticmethod
+    def _machine_resources(item: dict[str, Any]) -> tuple[int, int, int] | None:
+        try:
+            cpus = int(item.get("cpus"))
+            memory = int(item.get("memory_in_bytes"))
+            storage = int(item.get("storage_in_bytes"))
+        except (TypeError, ValueError):
+            return None
+        if not item.get("name") or cpus <= 0 or memory <= 0 or storage <= 0:
+            return None
+        return cpus, memory, storage
+
     def _codespace_create(self) -> str:
         payload = self.client.request("GET", f"/repos/{self.config.repo}/codespaces/machines") or {}
-        machines = payload.get("machines") or []
-        if not machines:
-            raise GitHubError("No Codespaces machine type is currently available.")
-        machine = min(
-            machines,
-            key=lambda item: (
-                int(item.get("cpus") or 0),
-                int(item.get("memory_in_bytes") or 0),
-                int(item.get("storage_in_bytes") or 0),
-            ),
-        )
+        if not isinstance(payload, dict):
+            raise GitHubError("Codespaces machine response had an unexpected shape.")
+
+        candidates: list[tuple[tuple[int, int, int], dict[str, Any]]] = []
+        for item in payload.get("machines") or []:
+            if not isinstance(item, dict):
+                continue
+            resources = self._machine_resources(item)
+            if resources is not None:
+                candidates.append((resources, item))
+        if not candidates:
+            raise GitHubError("No valid Codespaces machine type is currently available.")
+
+        _, machine = min(candidates, key=lambda candidate: candidate[0])
         created = self.client.request(
             "POST",
             f"/repos/{self.config.repo}/codespaces",
@@ -276,41 +338,51 @@ class TaskRunner:
                 "devcontainer_path": ".devcontainer/devcontainer.json",
             },
         ) or {}
+        if not isinstance(created, dict):
+            raise GitHubError("Codespace creation response had an unexpected shape.")
+        created_machine = created.get("machine") or {}
         result = {
             "name": created.get("name"),
             "display_name": created.get("display_name"),
             "state": created.get("state"),
             "web_url": created.get("web_url"),
-            "machine": (created.get("machine") or {}).get("display_name"),
+            "machine": (
+                created_machine.get("display_name")
+                if isinstance(created_machine, dict)
+                else None
+            ),
         }
         return json.dumps(result, indent=2, sort_keys=True)
 
     def _schedule_retire_current(self) -> str:
-        current = os.environ.get("CODESPACE_NAME", "").strip()
-        if not current:
-            raise ValueError("Current Codespace name is unavailable.")
+        current = _env("CODESPACE_NAME", "")
+        if not CODESPACE_PATTERN.fullmatch(current):
+            raise ValueError("Current Codespace name is unavailable or invalid.")
         self.config.reports.mkdir(parents=True, exist_ok=True)
-        log = (self.config.reports / "codespace-retire.log").open("a", encoding="utf-8")
-        subprocess.Popen(  # nosec B603
-            [
-                sys.executable,
-                "-m",
-                "security_lab.remote_agent",
-                "delete-codespace",
-                "--name",
-                current,
-                "--delay",
-                "20",
-            ],
-            cwd=self.config.root,
-            stdin=subprocess.DEVNULL,
-            stdout=log,
-            stderr=subprocess.STDOUT,
-            start_new_session=True,
-            close_fds=True,
+        log_path = self.config.reports / "codespace-retire.log"
+        with log_path.open("a", encoding="utf-8") as log:
+            subprocess.Popen(  # nosec B603
+                [
+                    sys.executable,
+                    "-m",
+                    "security_lab.remote_agent",
+                    "delete-codespace",
+                    "--name",
+                    current,
+                    "--delay",
+                    "20",
+                ],
+                cwd=self.config.root,
+                stdin=subprocess.DEVNULL,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+                close_fds=True,
+            )
+        return (
+            f"Scheduling retirement of current Codespace: {current}\n"
+            "Deletion scheduled in 20 seconds."
         )
-        log.close()
-        return f"Scheduling retirement of current Codespace: {current}\nDeletion scheduled in 20 seconds."
 
     def _sanitize(self, text: str) -> str:
         token = self.client._token
@@ -332,9 +404,11 @@ class RemoteAgent:
         self._stop_requested = False
 
     def start(self) -> int:
-        if self._pid_alive():
-            print(f"remote-agent already running: {self._read_pid()}")
+        pid = self._read_pid()
+        if pid is not None and self._pid_is_agent(pid):
+            print(f"remote-agent already running: {pid}")
             return 0
+        self.config.pidfile.unlink(missing_ok=True)
         self.client.resolve_token()
         self.config.reports.mkdir(parents=True, exist_ok=True)
         with self.config.logfile.open("a", encoding="utf-8") as log:
@@ -353,28 +427,36 @@ class RemoteAgent:
 
     def stop(self) -> int:
         pid = self._read_pid()
-        if pid is None or not self._pid_alive():
+        if pid is None or not self._pid_is_agent(pid):
             self.config.pidfile.unlink(missing_ok=True)
             print("remote-agent is not running.")
             return 0
+
         try:
             os.kill(pid, signal.SIGTERM)
         except ProcessLookupError:
-            pass
+            self.config.pidfile.unlink(missing_ok=True)
+            print(f"remote-agent stopped: {pid}")
+            return 0
+
         deadline = time.monotonic() + 3
-        while time.monotonic() < deadline:
-            if not self._pid_exists(pid):
-                break
+        while time.monotonic() < deadline and self._pid_is_agent(pid):
             time.sleep(0.1)
+        if self._pid_is_agent(pid):
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
         self.config.pidfile.unlink(missing_ok=True)
         print(f"remote-agent stopped: {pid}")
         return 0
 
     def status(self) -> int:
         pid = self._read_pid()
-        if pid is not None and self._pid_alive():
+        if pid is not None and self._pid_is_agent(pid):
             print(f"remote-agent running: {pid}")
             return 0
+        self.config.pidfile.unlink(missing_ok=True)
         print("remote-agent stopped.")
         return 1
 
@@ -422,7 +504,13 @@ class RemoteAgent:
         if not title.startswith(TITLE_PREFIX) or author != self.config.owner:
             return
 
-        number = int(issue.get("number") or 0)
+        try:
+            number = int(issue.get("number") or 0)
+        except (TypeError, ValueError):
+            return
+        if number <= 0:
+            return
+
         body = str(issue.get("body") or "")
         task = parse_task(body)
         if not task:
@@ -432,7 +520,7 @@ class RemoteAgent:
             self._reject(number, task, f"Rejected: task `{task}` is not allowlisted.")
             return
         if task == "codespace-retire-current":
-            expected = f"confirm: {os.environ.get('CODESPACE_NAME', 'missing')}"
+            expected = f"confirm: {_env('CODESPACE_NAME', 'missing')}"
             if expected not in body.splitlines():
                 self._reject(
                     number,
@@ -445,12 +533,13 @@ class RemoteAgent:
             self._set_title(number, f"[LAB-RUNNING] {task}")
             returncode, output = self.runner.run(task)
             result = "OK" if returncode == 0 else "FAIL"
+            indented_output = output.replace("\n", "\n    ")
             result_body = (
                 f"Task: {task}\n"
                 f"Exit code: {returncode}\n"
-                f"Codespace: {os.environ.get('CODESPACE_NAME', 'unknown')}\n"
+                f"Codespace: {_env('CODESPACE_NAME', 'unknown')}\n"
                 f"UTC: {utc_timestamp()}\n\n"
-                f"Output:\n\n    {output.replace(chr(10), chr(10) + '    ')}"
+                f"Output:\n\n    {indented_output}"
             )
             self._comment(number, result_body)
             self._close(number, f"[LAB-{result}] {task}")
@@ -504,12 +593,22 @@ class RemoteAgent:
             return True
         return True
 
-    def _pid_alive(self) -> bool:
-        pid = self._read_pid()
-        return pid is not None and self._pid_exists(pid)
+    @classmethod
+    def _pid_is_agent(cls, pid: int) -> bool:
+        if not cls._pid_exists(pid):
+            return False
+        try:
+            cmdline = Path(f"/proc/{pid}/cmdline").read_bytes()
+        except OSError:
+            return False
+        return AGENT_CMDLINE_MARKER in cmdline
 
 
 def delete_codespace(config: Config, name: str, delay: float) -> int:
+    if not CODESPACE_PATTERN.fullmatch(name):
+        raise ValueError("Invalid Codespace name.")
+    if not 0 <= delay <= 3600:
+        raise ValueError("delay must be between 0 and 3600 seconds.")
     if delay > 0:
         time.sleep(delay)
     encoded = urllib.parse.quote(name, safe="")
@@ -531,16 +630,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
-    config = Config()
-    if args.command == "delete-codespace":
-        try:
-            return delete_codespace(config, args.name, args.delay)
-        except GitHubError as exc:
-            print(str(exc), file=sys.stderr)
-            return 1
-
-    agent = RemoteAgent(config)
     try:
+        config = Config()
+        if args.command == "delete-codespace":
+            return delete_codespace(config, args.name, args.delay)
+
+        agent = RemoteAgent(config)
         if args.command == "start":
             return agent.start()
         if args.command == "stop":
@@ -548,7 +643,7 @@ def main() -> int:
         if args.command == "status":
             return agent.status()
         return agent.run_foreground()
-    except GitHubError as exc:
+    except (GitHubError, ValueError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
 
