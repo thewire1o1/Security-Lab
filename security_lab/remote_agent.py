@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import http.client
 import json
 import os
 import re
@@ -10,16 +11,14 @@ import signal
 import subprocess  # nosec B404
 import sys
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Final
 
 from security_lab.common import ROOT, utc_timestamp
 
-API_BASE: Final = "https://api.github.com"
+API_HOST: Final = "api.github.com"
 DEFAULT_REPO: Final = "thewire1o1/Security-Lab"
 DEFAULT_OWNER: Final = "thewire1o1"
 TITLE_PREFIX: Final = "[LAB-CMD]"
@@ -33,6 +32,7 @@ REPO_PATTERN: Final = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 OWNER_PATTERN: Final = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$")
 CODESPACE_PATTERN: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,127}$")
 AGENT_CMDLINE_MARKER: Final = b"security_lab.remote_agent"
+HTTP_METHODS: Final = frozenset({"GET", "POST", "PATCH", "DELETE"})
 
 
 class GitHubError(RuntimeError):
@@ -163,10 +163,14 @@ class GitHubClient:
         return ""
 
     def request(self, method: str, path: str, payload: Any | None = None) -> Any:
+        normalized_method = method.upper()
+        if normalized_method not in HTTP_METHODS:
+            raise ValueError(f"Unsupported GitHub API method: {method!r}")
         if not path.startswith("/") or "://" in path or "\\" in path:
             raise ValueError(f"Invalid GitHub API path: {path!r}")
+
         token = self.resolve_token()
-        body = None
+        body: bytes | None = None
         headers = {
             "Authorization": f"Bearer {token}",
             "Accept": "application/vnd.github+json",
@@ -177,18 +181,19 @@ class GitHubClient:
             body = json.dumps(payload).encode("utf-8")
             headers["Content-Type"] = "application/json"
 
-        request = urllib.request.Request(
-            f"{API_BASE}{path}", data=body, headers=headers, method=method.upper()
-        )
+        connection = http.client.HTTPSConnection(API_HOST, timeout=30)
         try:
-            with urllib.request.urlopen(request, timeout=30) as response:  # nosec B310
-                raw = response.read()
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")[:1000]
-            raise GitHubError(f"GitHub API returned HTTP {exc.code}: {detail}") from exc
-        except urllib.error.URLError as exc:
-            raise GitHubError(f"GitHub API request failed: {exc.reason}") from exc
+            connection.request(normalized_method, path, body=body, headers=headers)
+            response = connection.getresponse()
+            raw = response.read()
+        except (OSError, http.client.HTTPException) as exc:
+            raise GitHubError(f"GitHub API request failed: {exc}") from exc
+        finally:
+            connection.close()
 
+        if response.status >= 400:
+            detail = raw.decode("utf-8", errors="replace")[:1000]
+            raise GitHubError(f"GitHub API returned HTTP {response.status}: {detail}")
         if not raw:
             return None
         try:
