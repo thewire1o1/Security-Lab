@@ -70,10 +70,10 @@ def build_payload(scan: Path | None, findings: list[Finding]) -> dict[str, objec
 
 
 def render_html(payload: dict[str, object], nmap_text: str) -> str:
-    findings = payload["findings"]
-    counts = payload["counts"]
-    assert isinstance(findings, list)
-    assert isinstance(counts, dict)
+    findings = payload.get("findings")
+    counts = payload.get("counts")
+    if not isinstance(findings, list) or not isinstance(counts, dict):
+        raise TypeError("report payload must contain list 'findings' and mapping 'counts'")
 
     rows = "".join(
         "<tr>"
@@ -81,14 +81,14 @@ def render_html(payload: dict[str, object], nmap_text: str) -> str:
         f"<td><code>{html.escape(str(item['text']))}</code></td>"
         "</tr>"
         for item in findings
-        if isinstance(item, dict)
+        if isinstance(item, dict) and "severity" in item and "text" in item
     ) or "<tr><td colspan='2'>No Nuclei findings were present in the latest stored scan.</td></tr>"
 
     metric_cards = "".join(
         f"<div class='metric'><b>{int(counts.get(severity, 0))}</b><span>{severity.upper()}</span></div>"
         for severity in SEVERITIES
     )
-    generated = html.escape(str(payload["generated"]))
+    generated = html.escape(str(payload.get("generated") or "unknown"))
     scan_name = html.escape(str(payload.get("source_scan") or "none"))
     escaped_nmap = html.escape(nmap_text)
     scope = " · ".join(html.escape(item) for item in SCOPE)
