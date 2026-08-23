@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import signal
+import ssl
 import subprocess  # nosec B404
 import sys
 import time
@@ -52,6 +53,12 @@ def _poll_seconds() -> float:
     if not 1 <= value <= 300:
         raise ValueError("SEC_REMOTE_POLL_SECONDS must be between 1 and 300 seconds.")
     return value
+
+
+def _tls_context() -> ssl.SSLContext:
+    context = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    return context
 
 
 @dataclass(frozen=True)
@@ -181,7 +188,11 @@ class GitHubClient:
             body = json.dumps(payload).encode("utf-8")
             headers["Content-Type"] = "application/json"
 
-        connection = http.client.HTTPSConnection(API_HOST, timeout=30)
+        connection = http.client.HTTPSConnection(  # nosemgrep: python.lang.security.audit.httpsconnection-detected.httpsconnection-detected
+            API_HOST,
+            timeout=30,
+            context=_tls_context(),
+        )
         try:
             connection.request(normalized_method, path, body=body, headers=headers)
             response = connection.getresponse()
