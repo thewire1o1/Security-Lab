@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -u
+export PATH="/usr/local/go/bin:$HOME/go/bin:$HOME/.local/bin:$(pwd)/bin:$PATH"
 
 printf 'AI Security Lab doctor\n\n'
-for cmd in codex docker nmap masscan sqlmap nikto hydra john nuclei httpx subfinder naabu dnsx katana ffuf waybackurls assetfinder gau semgrep; do
+for cmd in sec codex docker nmap masscan sqlmap nikto hydra john pdtm nuclei httpx subfinder naabu dnsx katana ffuf waybackurls assetfinder gau semgrep; do
   if command -v "$cmd" >/dev/null 2>&1; then
     v="$($cmd --version 2>/dev/null | head -n 1 || true)"
     [ -z "$v" ] && v="installed"
@@ -23,6 +24,13 @@ fi
 printf '\nDocker:\n'
 docker info --format '  server={{.ServerVersion}} containers={{.Containers}} images={{.Images}}' 2>/dev/null || echo '  Docker daemon unavailable.'
 
+printf '\nKali operator image:\n'
+if docker image inspect ai-security-lab-kali:latest >/dev/null 2>&1; then
+  echo '  [OK] built. Enter with: sec kali'
+else
+  echo '  [--] not built yet. Build once with: sec kali-build'
+fi
+
 printf '\nCodex login:\n'
 LOGIN_STATUS="$(codex login status 2>&1 || true)"
 if [ -n "$LOGIN_STATUS" ]; then
@@ -32,4 +40,4 @@ else
 fi
 
 printf '\nLab containers:\n'
-docker compose -f lab/docker-compose.yml ps 2>/dev/null || true
+docker compose -f lab/docker-compose.yml --profile operator ps 2>/dev/null || true
