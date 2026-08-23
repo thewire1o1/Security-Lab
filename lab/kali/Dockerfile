@@ -1,10 +1,13 @@
 FROM kalilinux/kali-rolling:latest
 
+LABEL org.opencontainers.image.source="https://github.com/thewire1o1/Security-Lab"
+LABEL org.opencontainers.image.description="Security Lab Kali operator image"
+
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TERM=xterm-256color
+ENV PIP_NO_CACHE_DIR=1
 
 RUN apt-get update \
- && apt-get -y full-upgrade \
  && apt-get install -y --no-install-recommends \
     kali-tools-top10 \
     bloodhound \
@@ -46,7 +49,7 @@ RUN apt-get update \
     git curl wget jq ripgrep fzf tree unzip zip \
     python3 python3-pip pipx \
  && apt-get clean \
- && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 WORKDIR /workspace
 CMD ["sleep", "infinity"]
