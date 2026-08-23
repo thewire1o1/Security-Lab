@@ -8,9 +8,10 @@ if [ -z "$FILE" ] || [ ! -f "$FILE" ]; then
   echo 'Usage: sec triage FILE' >&2
   exit 2
 fi
+FILE="$(realpath -- "$FILE")"
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
-BASE="$(basename "$FILE" | tr -cs '[:alnum:]._- ' '_' | tr ' ' '_')"
+BASE="$(basename -- "$FILE" | tr -cs '[:alnum:]._- ' '_' | tr ' ' '_')"
 OUT="$ROOT/reports/triage-$STAMP-$BASE"
 mkdir -p "$OUT"
 
