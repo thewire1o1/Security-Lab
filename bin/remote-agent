@@ -7,7 +7,7 @@ LOGFILE="$ROOT/reports/remote-agent.log"
 REPO="${GITHUB_REPOSITORY:-thewire1o1/Security-Lab}"
 OWNER="${SEC_REMOTE_OWNER:-thewire1o1}"
 POLL="${SEC_REMOTE_POLL_SECONDS:-8}"
-TOKEN="${SEC_GITHUB_TOKEN:-${GH_TOKEN:-${GITHUB_TOKEN:-}}}"
+TOKEN="${SEC_GITHUB_TOKEN:-${GH_TOKEN:-}}"
 mkdir -p "$ROOT/reports"
 
 usage() {
@@ -18,6 +18,14 @@ resolve_token() {
   if [ -n "$TOKEN" ]; then
     return 0
   fi
+
+  if command -v gh >/dev/null 2>&1; then
+    TOKEN="$(env -u GH_TOKEN -u GITHUB_TOKEN gh auth token --hostname github.com 2>/dev/null || true)"
+    if [ -n "$TOKEN" ]; then
+      return 0
+    fi
+  fi
+
   local creds
   creds="$(GIT_TERMINAL_PROMPT=0 git -C "$ROOT" credential fill 2>/dev/null <<'EOF' || true
 protocol=https
