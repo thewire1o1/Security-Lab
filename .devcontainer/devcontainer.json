@@ -1,0 +1,6 @@
+{
+  "name": "Codex VM",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+  "postCreateCommand": "npm install -g @openai/codex",
+  "remoteUser": "node"
+}
