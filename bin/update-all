@@ -26,8 +26,11 @@ docker compose -f "$ROOT/lab/docker-compose.yml" pull juice-shop dvwa webgoat ||
 
 if [ "$FULL" = "--full" ]; then
   echo '[+] Kali operator image'
-  docker compose -f "$ROOT/lab/docker-compose.yml" --profile operator build --pull kali
+  bash "$ROOT/bin/sec" kali-build
 fi
+
+npm cache clean --force >/dev/null 2>&1 || true
+bash "$ROOT/bin/disk-guard" --auto || true
 
 echo '[+] Health check'
 bash "$ROOT/bin/doctor"
