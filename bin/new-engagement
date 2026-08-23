@@ -1,33 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-if [ $# -lt 1 ]; then
-  echo "Usage: sec new <name>" >&2
-  exit 1
-fi
-
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-NAME="$(printf '%s' "$1" | tr -cs '[:alnum:]._-' '-' | sed 's/^-*//;s/-*$//')"
-if [[ ! "$NAME" =~ ^[[:alnum:]][[:alnum:]._-]*$ ]]; then
-  echo "Invalid engagement name." >&2
-  exit 2
-fi
-DIR="$ROOT/engagements/$NAME"
-mkdir -p "$DIR"/{scope,notes,evidence,reports,loot}
-
-if [ ! -f "$DIR/README.md" ]; then
-  cat > "$DIR/README.md" <<EOF
-# $NAME
-
-Created: $(date -u +%FT%TZ)
-
-## Scope
-See \`scope/targets.txt\`.
-
-## Notes
-Use \`notes/\` for working notes and \`reports/\` for generated output.
-EOF
-fi
-
-touch "$DIR/scope/targets.txt" "$DIR/notes/timeline.md"
-printf '%s\n' "$DIR"
+cd "$ROOT"
+exec python3 -m security_lab.engagement "$@"
