@@ -1,8 +1,8 @@
-# AI Security Lab
+# Security Lab
 
 [![Security Lab CI](https://github.com/thewire1o1/Security-Lab/actions/workflows/ci.yml/badge.svg)](https://github.com/thewire1o1/Security-Lab/actions/workflows/ci.yml)
 
-Cloud-native security research workstation for GitHub Codespaces, with a disposable Kali operator layer, isolated vulnerable training targets, Codex + MCP integration, automated evidence collection, and a live Mission Control GUI.
+Cloud-native security research workstation for GitHub Codespaces with a disposable Kali operator layer, isolated vulnerable training targets, automated evidence collection, and a live Mission Control GUI.
 
 ## Mission Control
 
@@ -29,7 +29,7 @@ The dashboard includes:
 
 ```mermaid
 flowchart LR
-    A[Codex + GPT-5.6 Sol] -->|MCP| B[Kali Operator]
+    O[Operator Workstation] --> B[Kali Operator]
     B --> N[(security-lab network)]
     N --> J[Juice Shop :3000]
     N --> D[DVWA :8080]
@@ -50,8 +50,6 @@ sec gui          Mission Control web GUI
 sec report       HTML + JSON report from latest scan
 sec kali-build   build/update Kali operator image
 sec kali         enter Kali operator shell
-sec mcp-setup    connect Codex to Kali through MCP
-sec ai-kali      launch GPT-5.6 Sol with Kali MCP ready
 sec new NAME     create engagement workspace
 sec update       update tools/templates
 sec update --full update and rebuild Kali
@@ -76,7 +74,7 @@ Scan artifacts are stored under `reports/lab-*`. `sec report` produces `reports/
 
 ## Operator stack
 
-Kali includes the focused security stack described in [SECURITY-LAB.md](SECURITY-LAB.md), including Metasploit, NetExec, Responder, BloodHound, Impacket, enum4linux-ng, Evil-WinRM, ExploitDB, Ligolo-ng, PEASS, Recon-ng, SecLists, testssl.sh, WhatWeb, WAFW00F, WPScan, tshark, Trivy, Gitleaks, Kali MCP Server, Metasploit MCP, and HexStrike AI.
+Kali includes the focused security stack described in [SECURITY-LAB.md](SECURITY-LAB.md), including Metasploit, NetExec, Responder, BloodHound, Impacket, enum4linux-ng, Evil-WinRM, ExploitDB, Ligolo-ng, PEASS, Recon-ng, SecLists, testssl.sh, WhatWeb, WAFW00F, WPScan, tshark, Trivy, and Gitleaks.
 
 ## CI
 
