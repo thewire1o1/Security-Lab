@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PIDFILE="$ROOT/.remote-agent.pid"
+LOGFILE="$ROOT/reports/remote-agent.log"
+REPO="${GITHUB_REPOSITORY:-thewire1o1/Security-Lab}"
+OWNER="${SEC_REMOTE_OWNER:-thewire1o1}"
+POLL="${SEC_REMOTE_POLL_SECONDS:-8}"
+mkdir -p "$ROOT/reports"
+
+export GH_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+
+usage() {
+  printf '%s\n' 'Usage: remote-agent start|stop|status|run'
+}
+
+alive() {
+  [ -f "$PIDFILE" ] || return 1
+  local pid
+  pid="$(cat "$PIDFILE" 2>/dev/null || true)"
+  [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
+}
+
+start_agent() {
+  if alive; then
+    printf 'remote-agent already running: %s\n' "$(cat "$PIDFILE")"
+    return 0
+  fi
+  command -v gh >/dev/null 2>&1 || { echo 'gh is required.' >&2; return 1; }
+  [ -n "$GH_TOKEN" ] || { echo 'GitHub authentication is unavailable.' >&2; return 1; }
+  nohup bash "$0" run >>"$LOGFILE" 2>&1 </dev/null &
+  echo "$!" >"$PIDFILE"
+  printf 'remote-agent started: %s\n' "$!"
+}
+
+stop_agent() {
+  if ! alive; then
+    rm -f "$PIDFILE"
+    echo 'remote-agent is not running.'
+    return 0
+  fi
+  local pid
+  pid="$(cat "$PIDFILE")"
+  kill "$pid" 2>/dev/null || true
+  rm -f "$PIDFILE"
+  printf 'remote-agent stopped: %s\n' "$pid"
+}
+
+status_agent() {
+  if alive; then
+    printf 'remote-agent running: %s\n' "$(cat "$PIDFILE")"
+  else
+    echo 'remote-agent stopped.'
+    return 1
+  fi
+}
+
+run_task() {
+  local task="$1"
+  case "$task" in
+    doctor) bash "$ROOT/bin/doctor" ;;
+    status) bash "$ROOT/bin/sec" ps ;;
+    sync) git -C "$ROOT" pull --ff-only origin master ;;
+    bootstrap) bash "$ROOT/.devcontainer/bootstrap.sh" ;;
+    defend) bash "$ROOT/bin/defense-run" ;;
+    review) bash "$ROOT/bin/code-review" ;;
+    validate) bash "$ROOT/bin/validate-findings" ;;
+    fuzz) bash "$ROOT/bin/fuzz-run" ;;
+    report) python3 "$ROOT/bin/sec-report" ;;
+    lab-up) bash "$ROOT/bin/sec" up ;;
+    lab-down) bash "$ROOT/bin/sec" down ;;
+    kali-build) bash "$ROOT/bin/sec" kali-build ;;
+    update) bash "$ROOT/bin/update-all" ;;
+    disk) bash "$ROOT/bin/disk-guard" --auto ;;
+    *) return 64 ;;
+  esac
+}
+
+comment_issue() {
+  local number="$1" body="$2"
+  gh api -X POST "/repos/$REPO/issues/$number/comments" --raw-field body="$body" >/dev/null
+}
+
+close_issue() {
+  local number="$1" title="$2"
+  gh api -X PATCH "/repos/$REPO/issues/$number" -f state=closed -f state_reason=completed -f title="$title" >/dev/null
+}
+
+process_issue() {
+  local issue="$1"
+  local number title body author task output rc result_title result_body
+  number="$(jq -r '.number' <<<"$issue")"
+  title="$(jq -r '.title' <<<"$issue")"
+  body="$(jq -r '.body // ""' <<<"$issue")"
+  author="$(jq -r '.user.login // ""' <<<"$issue")"
+
+  [[ "$title" == '[LAB-CMD]'* ]] || return 0
+  [ "$author" = "$OWNER" ] || return 0
+  task="$(sed -nE 's/^task:[[:space:]]*([a-z0-9-]+)[[:space:]]*$/\1/p' <<<"$body" | head -n1)"
+  [ -n "$task" ] || {
+    comment_issue "$number" 'Rejected: missing or invalid `task:` field.'
+    close_issue "$number" "[LAB-REJECTED] invalid-task"
+    return 0
+  }
+
+  case "$task" in
+    doctor|status|sync|bootstrap|defend|review|validate|fuzz|report|lab-up|lab-down|kali-build|update|disk) ;;
+    *)
+      comment_issue "$number" "Rejected: task \`$task\` is not allowlisted."
+      close_issue "$number" "[LAB-REJECTED] $task"
+      return 0
+      ;;
+  esac
+
+  gh api -X PATCH "/repos/$REPO/issues/$number" -f title="[LAB-RUNNING] $task" >/dev/null
+  set +e
+  output="$(run_task "$task" 2>&1)"
+  rc=$?
+  set -e
+  output="$(printf '%s' "$output" | tail -c 12000)"
+
+  if [ "$rc" -eq 0 ]; then
+    result_title="[LAB-OK] $task"
+  else
+    result_title="[LAB-FAIL] $task"
+  fi
+
+  result_body="Task: $task
+Exit code: $rc
+Codespace: ${CODESPACE_NAME:-unknown}
+UTC: $(date -u +%FT%TZ)
+
+Output:
+
+    $(printf '%s' "$output" | sed 's/^/    /')"
+  comment_issue "$number" "$result_body"
+  close_issue "$number" "$result_title"
+}
+
+run_loop() {
+  command -v gh >/dev/null 2>&1 || { echo 'gh is required.' >&2; exit 1; }
+  command -v jq >/dev/null 2>&1 || { echo 'jq is required.' >&2; exit 1; }
+  [ -n "$GH_TOKEN" ] || { echo 'GitHub authentication is unavailable.' >&2; exit 1; }
+  trap 'rm -f "$PIDFILE"' EXIT
+  echo "$$" >"$PIDFILE"
+  printf '[%s] remote-agent online for %s\n' "$(date -u +%FT%TZ)" "$REPO"
+  while true; do
+    issues="$(gh api "/repos/$REPO/issues?state=open&creator=$OWNER&per_page=20" 2>/dev/null || printf '[]')"
+    while IFS= read -r issue; do
+      process_issue "$issue" || true
+    done < <(jq -c '.[] | select(.pull_request == null)' <<<"$issues")
+    sleep "$POLL"
+  done
+}
+
+case "${1:-}" in
+  start) start_agent ;;
+  stop) stop_agent ;;
+  status) status_agent ;;
+  run) run_loop ;;
+  *) usage; exit 2 ;;
+esac
