@@ -8,10 +8,18 @@ fi
 
 RAW="$1"
 MODE="${2:-}"
+if [ -n "$MODE" ] && [ "$MODE" != "--deep" ]; then
+  echo "Usage: recon <authorized-host-or-domain> [--deep]" >&2
+  exit 2
+fi
 TARGET="${RAW#http://}"
 TARGET="${TARGET#https://}"
 TARGET="${TARGET%%/*}"
 TARGET="${TARGET%%:*}"
+if [[ ! "$TARGET" =~ ^[[:alnum:]][[:alnum:]._-]*$ ]]; then
+  echo "Invalid target." >&2
+  exit 2
+fi
 SAFE="$(printf '%s' "$TARGET" | tr -cs '[:alnum:]._- ' '_' | tr ' ' '_')"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 OUT="reports/recon-${SAFE}-${STAMP}"
