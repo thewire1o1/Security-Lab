@@ -8,25 +8,28 @@ usage() {
   cat <<'EOF'
 Security Lab control
 
-  sec doctor            health check
-  sec up                start vulnerable training targets
-  sec down              stop training targets
-  sec ps                show lab containers
-  sec scan              scan the local lab
-  sec dashboard         launch Mission Control GUI on 127.0.0.1:8765
-  sec gui               alias for sec dashboard
-  sec report            generate HTML/JSON report from latest local scan
-  sec kali-build        pull prebuilt Kali image; build locally only as fallback
-  sec kali              open Kali operator shell
-  sec clean             reclaim disposable caches and Docker build data
-  sec disk              show disk and Docker storage usage
-  sec mcp-setup         connect Codex to Kali through MCP
-  sec ai-kali           launch GPT-5.6 Sol with Kali MCP ready
-  sec update            update host tools and templates
-  sec update --full     also refresh Kali image
-  sec new NAME          create an engagement workspace
-  sec sol               launch Codex with GPT-5.6 Sol
-  sec models            list OpenAI models visible to your API project
+  sec doctor                 health check
+  sec up                     start vulnerable training targets
+  sec down                   stop training targets
+  sec ps                     show lab containers
+  sec scan                   scan the local lab
+  sec dashboard              launch Mission Control on 127.0.0.1:8765
+  sec gui                    alias for sec dashboard
+  sec report                 generate HTML/JSON report from latest local scan
+  sec defend                 run the complete defensive pipeline
+  sec review                 run repository security review
+  sec validate               compare current findings with prior run
+  sec fuzz                   fuzz local training targets and custom harnesses
+  sec triage FILE            statically triage a file
+  sec research ...           manage persistent research cases
+  sec engine [FILE]          run configured external review command
+  sec kali-build             refresh Kali operator image
+  sec kali                   open Kali operator shell
+  sec clean                  reclaim disposable caches and Docker build data
+  sec disk                   show disk and Docker storage usage
+  sec update                 update tools and templates
+  sec update --full          also refresh Kali image
+  sec new NAME               create an engagement workspace
 EOF
 }
 
@@ -35,40 +38,19 @@ kali_up() {
 }
 
 kali_refresh() {
-  echo '[+] Pulling prebuilt Kali operator image...'
+  echo '[+] Pulling Kali operator image...'
   if "${COMPOSE[@]}" --profile operator pull kali; then
     docker builder prune -af --filter 'until=24h' >/dev/null 2>&1 || true
     return 0
   fi
-  echo '[!] Prebuilt image unavailable; falling back to a local build.'
+  echo '[!] Prebuilt image unavailable; building locally.'
   "${COMPOSE[@]}" --profile operator build --pull kali
   docker builder prune -af >/dev/null 2>&1 || true
 }
 
-wait_kali_api() {
-  local i
-  for i in $(seq 1 30); do
-    if docker exec ai-lab-kali curl -fsS http://127.0.0.1:5000/ >/dev/null 2>&1 || \
-       docker exec ai-lab-kali curl -fsS http://127.0.0.1:5000/health >/dev/null 2>&1; then
-      return 0
-    fi
-    sleep 1
-  done
-  echo 'Kali MCP API did not become ready. Check: docker logs ai-lab-kali' >&2
-  return 1
-}
-
-mcp_setup() {
-  kali_up
-  wait_kali_api
-  codex mcp remove kali >/dev/null 2>&1 || true
-  codex mcp add kali -- docker compose -f "$ROOT/lab/docker-compose.yml" --profile operator exec -T kali mcp-server --server http://127.0.0.1:5000
-  echo '[OK] Codex MCP server: kali'
-  codex mcp get kali --json 2>/dev/null || true
-}
-
 cmd="${1:-help}"
 shift || true
+
 case "$cmd" in
   help|-h|--help) usage ;;
   doctor) exec bash "$ROOT/bin/doctor" ;;
@@ -82,6 +64,13 @@ case "$cmd" in
     exec python3 "$ROOT/dashboard/server.py" "$@"
     ;;
   report) exec python3 "$ROOT/bin/sec-report" "$@" ;;
+  defend) exec bash "$ROOT/bin/defense-run" "$@" ;;
+  review) exec bash "$ROOT/bin/code-review" "$@" ;;
+  validate) exec bash "$ROOT/bin/validate-findings" "$@" ;;
+  fuzz) exec bash "$ROOT/bin/fuzz-run" "$@" ;;
+  triage) exec bash "$ROOT/bin/triage" "$@" ;;
+  research) exec bash "$ROOT/bin/research" "$@" ;;
+  engine) exec bash "$ROOT/bin/review-engine" "$@" ;;
   kali-build) kali_refresh ;;
   kali)
     kali_up
@@ -93,18 +82,7 @@ case "$cmd" in
     echo
     docker system df || true
     ;;
-  mcp-setup) mcp_setup ;;
-  ai-kali)
-    kali_up
-    wait_kali_api
-    if ! codex mcp get kali --json >/dev/null 2>&1; then
-      mcp_setup
-    fi
-    exec codex --model gpt-daybreak-blue
-    ;;
   update) exec bash "$ROOT/bin/update-all" "$@" ;;
   new) exec bash "$ROOT/bin/new-engagement" "$@" ;;
-  sol) exec codex --model gpt-daybreak-blue ;;
-  models) exec bash "$ROOT/list-openai-models.sh" ;;
   *) echo "Unknown command: $cmd" >&2; usage; exit 2 ;;
 esac
