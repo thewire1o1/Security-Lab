@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from security_lab.common import ROOT, read_json, utc_timestamp, write_json_atomic
@@ -36,6 +37,14 @@ def require_case(raw_name: str) -> Path:
     return directory
 
 
+def read_case_metadata(directory: Path) -> dict[str, object]:
+    metadata_path = directory / "case.json"
+    metadata = read_json(metadata_path, None)
+    if not isinstance(metadata, dict):
+        raise ValueError(f"Invalid case metadata: {metadata_path}")
+    return metadata
+
+
 def append_entry(raw_name: str, kind: str, text: str) -> None:
     directory = require_case(raw_name)
     filename = "notes.md" if kind == "note" else "tasks.md"
@@ -45,7 +54,7 @@ def append_entry(raw_name: str, kind: str, text: str) -> None:
 
 def case_status(raw_name: str) -> dict[str, object]:
     directory = require_case(raw_name)
-    metadata = read_json(directory / "case.json", {})
+    metadata = read_case_metadata(directory)
     notes = (directory / "notes.md").read_text(encoding="utf-8", errors="replace").splitlines()
     tasks = (directory / "tasks.md").read_text(encoding="utf-8", errors="replace").splitlines()
     evidence = sum(1 for path in (directory / "evidence").rglob("*") if path.is_file())
@@ -60,9 +69,7 @@ def case_status(raw_name: str) -> dict[str, object]:
 def close_case(raw_name: str) -> None:
     directory = require_case(raw_name)
     metadata_path = directory / "case.json"
-    metadata = read_json(metadata_path, {})
-    if not isinstance(metadata, dict):
-        raise ValueError(f"Invalid case metadata: {metadata_path}")
+    metadata = read_case_metadata(directory)
     metadata["status"] = "closed"
     metadata["closed"] = utc_timestamp()
     write_json_atomic(metadata_path, metadata)
@@ -101,12 +108,14 @@ def main() -> int:
         elif args.command == "status":
             print(json.dumps(case_status(args.name), indent=2, sort_keys=True))
         elif args.command == "list":
-            for directory in sorted(path for path in BASE.iterdir() if path.is_dir() and not path.name.startswith(".")):
+            for directory in sorted(
+                path for path in BASE.iterdir() if path.is_dir() and not path.name.startswith(".")
+            ):
                 print(directory.name)
         elif args.command == "close":
             close_case(args.name)
     except (FileNotFoundError, ValueError) as exc:
-        print(str(exc), file=__import__("sys").stderr)
+        print(str(exc), file=sys.stderr)
         return 1
     return 0
 
