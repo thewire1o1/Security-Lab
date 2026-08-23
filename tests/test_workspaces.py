@@ -33,6 +33,17 @@ class WorkspaceTests(unittest.TestCase):
             self.assertEqual(research.case_status("parser bug")["case"]["status"], "closed")
             self.assertEqual(directory.name, "parser-bug")
 
+    def test_malformed_case_metadata_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, patch.object(research, "BASE", Path(tmp)):
+            directory = research.create_case("corrupt case")
+            metadata = directory / "case.json"
+            metadata.write_text("{not-json", encoding="utf-8")
+            with self.assertRaises(ValueError):
+                research.case_status("corrupt case")
+            with self.assertRaises(ValueError):
+                research.close_case("corrupt case")
+            self.assertEqual(metadata.read_text(encoding="utf-8"), "{not-json")
+
 
 if __name__ == "__main__":
     unittest.main()
