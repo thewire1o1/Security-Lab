@@ -25,6 +25,27 @@ services:
       - "127.0.0.1:8081:8080"
     networks: [security-lab]
 
+  kali:
+    profiles: ["operator"]
+    build:
+      context: ./kali
+    image: ai-security-lab-kali:latest
+    container_name: ai-lab-kali
+    stdin_open: true
+    tty: true
+    working_dir: /workspace
+    command: ["sleep", "infinity"]
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ../:/workspace
+      - kali-home:/root
+    networks: [security-lab]
+
 networks:
   security-lab:
     driver: bridge
+
+volumes:
+  kali-home:
