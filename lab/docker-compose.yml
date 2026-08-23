@@ -34,7 +34,10 @@ services:
     stdin_open: true
     tty: true
     working_dir: /workspace
-    command: ["sleep", "infinity"]
+    command:
+      - bash
+      - -lc
+      - "kali-server-mcp --ip 127.0.0.1 --port 5000 >/var/log/kali-mcp.log 2>&1 & exec sleep infinity"
     cap_add:
       - NET_ADMIN
       - NET_RAW
