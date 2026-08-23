@@ -34,9 +34,6 @@ RUN apt-get update \
     tshark \
     trivy \
     gitleaks \
-    mcp-kali-server \
-    metasploitmcp \
-    hexstrike-ai \
     smbclient \
     ldap-utils \
     snmp \
@@ -45,9 +42,22 @@ RUN apt-get update \
     sshuttle \
     socat \
     netcat-openbsd \
+    yara \
+    radare2 \
+    binwalk \
+    clamav \
+    strace \
+    ltrace \
+    gdb \
+    patchelf \
+    afl++ \
+    clang \
+    llvm \
+    file \
+    binutils \
     tmux zsh vim nano less man-db \
     git curl wget jq ripgrep fzf tree unzip zip \
-    python3 python3-pip pipx \
+    python3 python3-pip pipx python3-pytest \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
