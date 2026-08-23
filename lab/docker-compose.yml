@@ -1,0 +1,30 @@
+services:
+  juice-shop:
+    image: bkimminich/juice-shop:latest
+    container_name: ai-lab-juice-shop
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks: [security-lab]
+
+  dvwa:
+    image: vulnerables/web-dvwa:latest
+    container_name: ai-lab-dvwa
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    networks: [security-lab]
+
+  webgoat:
+    image: webgoat/webgoat:latest
+    container_name: ai-lab-webgoat
+    restart: unless-stopped
+    environment:
+      WEBGOAT_PORT: "8080"
+    ports:
+      - "127.0.0.1:8081:8080"
+    networks: [security-lab]
+
+networks:
+  security-lab:
+    driver: bridge
