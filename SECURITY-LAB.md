@@ -51,7 +51,9 @@ Enter whenever needed:
 sec kali
 ```
 
-The Kali image is based on `kalilinux/kali-rolling` and includes Kali's top-10 metapackage plus focused operator tooling for AD, pivoting, exploitation, web testing, credential work, reporting, and enumeration, including Metasploit, NetExec, Responder, BloodHound, Impacket scripts, enum4linux-ng, Evil-WinRM, ExploitDB, Ligolo-ng, Kerberoast tooling, mitm6, PEASS, Recon-ng, SecLists, testssl.sh, WhatWeb, WAFW00F, WPScan, tshark, and related protocol clients.
+The Kali image is based on `kalilinux/kali-rolling` and includes Kali's top-10 metapackage plus focused operator tooling for AD, pivoting, exploitation, web testing, credential work, reporting, container/code scanning, and AI-assisted workflows.
+
+Highlights include Metasploit, NetExec, Responder, BloodHound, Impacket scripts, enum4linux-ng, Evil-WinRM, ExploitDB, Ligolo-ng, Kerberoast tooling, mitm6, PEASS, Recon-ng, SecLists, testssl.sh, WhatWeb, WAFW00F, WPScan, tshark, Trivy, Gitleaks, Kali MCP Server, Metasploit MCP, and HexStrike AI.
 
 The repository is mounted at `/workspace` inside Kali. Kali's `/root` home is persistent in its own Docker volume, while the container itself stays disposable.
 
