@@ -2,9 +2,9 @@
   "name": "Security Lab",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
   "hostRequirements": {
-    "cpus": 4,
-    "memory": "16gb",
-    "storage": "64gb"
+    "cpus": 2,
+    "memory": "8gb",
+    "storage": "32gb"
   },
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
