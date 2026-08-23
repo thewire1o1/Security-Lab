@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -u
+
+printf 'AI Security Lab doctor\n\n'
+for cmd in codex docker nmap masscan sqlmap nikto hydra john nuclei httpx subfinder naabu dnsx katana ffuf waybackurls assetfinder gau semgrep impacket-smbserver; do
+  if command -v "$cmd" >/dev/null 2>&1; then
+    v="$($cmd --version 2>/dev/null | head -n 1 || true)"
+    [ -z "$v" ] && v="installed"
+    printf '[OK] %-20s %s\n' "$cmd" "$v"
+  else
+    printf '[--] %-20s missing\n' "$cmd"
+  fi
+done
+
+printf '\nDocker:\n'
+docker info --format '  server={{.ServerVersion}} containers={{.Containers}} images={{.Images}}' 2>/dev/null || echo '  Docker daemon unavailable until the Codespace is rebuilt with the new devcontainer.'
+
+printf '\nCodex login:\n'
+codex login status 2>/dev/null || true
+
+printf '\nLab containers:\n'
+docker compose -f lab/docker-compose.yml ps 2>/dev/null || true
