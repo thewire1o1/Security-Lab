@@ -2,7 +2,8 @@
 import json
 import os
 import re
-import subprocess
+import shutil
+import subprocess  # nosec B404
 import threading
 import time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -36,7 +37,9 @@ def log(message):
 
 def run(cmd, timeout=8):
     try:
-        p = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True, timeout=timeout)
+        p = subprocess.run(  # nosec B603
+            cmd, cwd=ROOT, text=True, capture_output=True, timeout=timeout
+        )
         return p.returncode, p.stdout.strip(), p.stderr.strip()
     except Exception as exc:
         return 1, "", str(exc)
@@ -177,11 +180,7 @@ def tool_presence():
         "radare2",
         "shellcheck",
     ]
-    result = {}
-    for tool in tools:
-        code, out, _ = run(["bash", "-lc", f"command -v {tool} || true"], timeout=2)
-        result[tool] = code == 0 and bool(out.strip())
-    return result
+    return {tool: shutil.which(tool) is not None for tool in tools}
 
 
 def current_action():
@@ -232,7 +231,13 @@ def background(name, cmd):
         global ACTIVE_ACTION
         log(f"ACTION {name}: started")
         try:
-            proc = subprocess.Popen(cmd, cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            proc = subprocess.Popen(  # nosec B603
+                cmd,
+                cwd=ROOT,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
             if proc.stdout:
                 for line in proc.stdout:
                     line = line.rstrip()
