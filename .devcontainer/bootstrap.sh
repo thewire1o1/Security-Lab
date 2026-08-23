@@ -67,6 +67,8 @@ alias labup='sec up'
 alias labdown='sec down'
 alias labps='sec ps'
 alias labscan='sec scan'
+alias labgui='sec gui'
+alias labreport='sec report'
 alias recon='bash $WORKSPACE/bin/recon'
 alias headers='bash $WORKSPACE/bin/headers'
 $BASH_MARKER END
@@ -83,6 +85,8 @@ cat <<'BANNER'
  sec help   -> control surface
  sec sol    -> Codex with GPT-5.6 Sol
  sec up     -> start vulnerable training targets
+ sec gui    -> launch Mission Control web GUI
+ sec report -> build latest HTML/JSON evidence report
  sec kali   -> open dedicated Kali operator shell
  sec new X  -> create engagement workspace
 ============================================================

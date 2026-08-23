@@ -1,0 +1,4 @@
+# Kali is an isolated, disposable operator container that intentionally runs as root
+# because the lab tooling requires raw-socket/network-administration capabilities.
+# The operator service is not published as a public port.
+AVD-DS-0002

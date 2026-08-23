@@ -13,6 +13,9 @@ AI Security Lab control
   sec down              stop training targets
   sec ps                show lab containers
   sec scan              scan the local lab
+  sec dashboard         launch Mission Control GUI on 127.0.0.1:8765
+  sec gui               alias for sec dashboard
+  sec report            generate HTML/JSON report from latest local scan
   sec kali-build        build/update Kali operator image
   sec kali              open Kali operator shell
   sec mcp-setup         connect Codex to Kali through MCP
@@ -60,6 +63,12 @@ case "$cmd" in
   down) exec "${COMPOSE[@]}" --profile operator down ;;
   ps) exec "${COMPOSE[@]}" --profile operator ps ;;
   scan) exec bash "$ROOT/bin/labscan" ;;
+  dashboard|gui)
+    echo 'Mission Control starting at http://127.0.0.1:8765'
+    echo 'In Codespaces, open forwarded port 8765 and keep its visibility Private.'
+    exec python3 "$ROOT/dashboard/server.py" "$@"
+    ;;
+  report) exec python3 "$ROOT/bin/sec-report" "$@" ;;
   kali-build) exec "${COMPOSE[@]}" --profile operator build --pull kali ;;
   kali)
     kali_up

@@ -1,0 +1,51 @@
+name: Security Lab CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate lab
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Python syntax
+        run: python3 -m py_compile dashboard/server.py bin/sec-report
+      - name: Shell syntax
+        run: |
+          for f in bin/* *.sh; do
+            [ -f "$f" ] || continue
+            case "$f" in
+              bin/sec-report) continue ;;
+            esac
+            bash -n "$f"
+          done
+      - name: Compose validation
+        run: docker compose -f lab/docker-compose.yml --profile operator config --quiet
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Gitleaks
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect --source=/repo --redact --verbose
+
+  filesystem:
+    name: Trivy filesystem scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Trivy
+        run: docker run --rm -v "$PWD:/repo" aquasec/trivy:latest fs --ignorefile /repo/.trivyignore --scanners vuln,secret,misconfig --severity HIGH,CRITICAL --exit-code 1 /repo

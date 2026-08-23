@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+import html
+import json
+import re
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+REPORTS = ROOT / "reports"
+OUT = REPORTS / "mission-control-report.html"
+JSON_OUT = REPORTS / "mission-control-report.json"
+SEVERITIES = ["critical", "high", "medium", "low", "info"]
+
+
+def newest_scan():
+    scans = [p for p in REPORTS.glob("lab-*") if p.is_dir()] if REPORTS.exists() else []
+    return max(scans, key=lambda p: p.stat().st_mtime) if scans else None
+
+
+def nuclei_findings(scan):
+    findings = []
+    if not scan:
+        return findings
+    path = scan / "nuclei.txt"
+    if not path.exists():
+        return findings
+    for raw in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+        sev = "info"
+        for candidate in SEVERITIES:
+            if re.search(rf"\[{candidate}\]", raw, re.I):
+                sev = candidate
+                break
+        findings.append({"severity": sev, "text": raw.strip()})
+    return findings
+
+
+def nmap_excerpt(scan):
+    if not scan:
+        return "No scan data available."
+    path = scan / "nmap-local.nmap"
+    if not path.exists():
+        return "No Nmap text output available."
+    return path.read_text(encoding="utf-8", errors="ignore")[:12000]
+
+
+def main():
+    REPORTS.mkdir(parents=True, exist_ok=True)
+    scan = newest_scan()
+    findings = nuclei_findings(scan)
+    counts = {s: sum(1 for f in findings if f["severity"] == s) for s in SEVERITIES}
+    payload = {
+        "generated": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "source_scan": scan.name if scan else None,
+        "scope": ["127.0.0.1:3000", "127.0.0.1:8080", "127.0.0.1:8081"],
+        "counts": counts,
+        "findings": findings,
+    }
+    JSON_OUT.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    rows = "".join(
+        f"<tr><td><span class='sev {html.escape(f['severity'])}'>{html.escape(f['severity'].upper())}</span></td><td><code>{html.escape(f['text'])}</code></td></tr>"
+        for f in findings
+    ) or "<tr><td colspan='2'>No Nuclei findings were present in the latest stored scan.</td></tr>"
+    metric_cards = "".join(f"<div class='metric'><b>{counts[s]}</b><span>{s.upper()}</span></div>" for s in SEVERITIES)
+    nmap = html.escape(nmap_excerpt(scan))
+    scan_name = html.escape(scan.name if scan else "none")
+    generated = html.escape(payload["generated"])
+
+    doc = f"""<!doctype html>
+<html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>Security Lab Report</title><style>
+body{{margin:0;background:#070a0f;color:#eaf3ff;font-family:Inter,system-ui,sans-serif}}main{{max-width:1100px;margin:auto;padding:42px 24px}}h1{{font-size:34px;margin-bottom:4px}}.sub{{color:#91a3b8}}.metrics{{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:28px 0}}.metric{{border:1px solid #213148;background:#0d141e;border-radius:12px;padding:16px;text-align:center}}.metric b{{display:block;font-size:28px}}.metric span{{color:#91a3b8;font-size:10px}}section{{border:1px solid #1b2a3d;background:#0c121b;border-radius:14px;margin:16px 0;overflow:hidden}}h2{{font-size:13px;letter-spacing:.09em;padding:15px 18px;margin:0;border-bottom:1px solid #1b2a3d}}.body{{padding:18px}}table{{width:100%;border-collapse:collapse}}td,th{{padding:10px;border-bottom:1px solid #172435;text-align:left;vertical-align:top;font-size:12px}}code,pre{{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}}pre{{white-space:pre-wrap;background:#05080c;padding:14px;border-radius:10px;overflow:auto;color:#b9c9d9}}.sev{{font-size:9px;font-weight:800;padding:5px 7px;border-radius:999px;border:1px solid #33485e}}.critical{{color:#ff4d67}}.high{{color:#ff8b5c}}.medium{{color:#ffd166}}.low{{color:#65f59a}}.info{{color:#52e6ff}}@media(max-width:700px){{.metrics{{grid-template-columns:repeat(2,1fr)}}}}
+</style></head><body><main>
+<div class='sub'>THEWIRE1O1 / SECURITY-LAB</div><h1>Security Lab Report</h1><div class='sub'>Generated {generated} · source scan {scan_name}</div>
+<div class='metrics'>{metric_cards}</div>
+<section><h2>EXECUTIVE SUMMARY</h2><div class='body'>This report summarizes the latest stored scan of the intentionally vulnerable local training range. Scope is limited to Juice Shop, DVWA, and WebGoat bound to localhost.</div></section>
+<section><h2>FINDINGS</h2><div class='body'><table><thead><tr><th>Severity</th><th>Evidence</th></tr></thead><tbody>{rows}</tbody></table></div></section>
+<section><h2>NMAP EVIDENCE</h2><div class='body'><pre>{nmap}</pre></div></section>
+<section><h2>SCOPE</h2><div class='body'><code>127.0.0.1:3000 · 127.0.0.1:8080 · 127.0.0.1:8081</code></div></section>
+</main></body></html>"""
+    OUT.write_text(doc, encoding="utf-8")
+    print(OUT)
+
+
+if __name__ == "__main__":
+    main()
