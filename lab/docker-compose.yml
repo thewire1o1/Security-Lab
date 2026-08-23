@@ -1,6 +1,6 @@
 services:
   juice-shop:
-    image: bkimminich/juice-shop:latest
+    image: bkimminich/juice-shop:v20.2.0
     container_name: sec-lab-juice-shop
     restart: unless-stopped
     init: true
@@ -14,7 +14,7 @@ services:
     networks: [security-lab]
 
   dvwa:
-    image: vulnerables/web-dvwa:latest
+    image: vulnerables/web-dvwa@sha256:dae203fe11646a86937bf04db0079adef295f426da68a92b40e3b181f337daa7
     container_name: sec-lab-dvwa
     restart: unless-stopped
     init: true
@@ -28,7 +28,7 @@ services:
     networks: [security-lab]
 
   webgoat:
-    image: webgoat/webgoat:latest
+    image: webgoat/webgoat:v2025.3
     container_name: sec-lab-webgoat
     restart: unless-stopped
     init: true
