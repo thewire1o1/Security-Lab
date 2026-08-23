@@ -21,14 +21,25 @@ case "$(uname -m)" in
   *) echo "Unsupported architecture: $(uname -m)"; exit 1 ;;
 esac
 
-GO_VERSION="$(curl -fsSL 'https://go.dev/dl/?mode=json' | jq -r '.[0].version')"
+GO_META="$(curl -fsSL 'https://go.dev/dl/?mode=json')"
+GO_VERSION="$(jq -r '.[0].version' <<<"$GO_META")"
+GO_FILE="${GO_VERSION}.linux-${GOARCH}.tar.gz"
+GO_SHA256="$(jq -r --arg file "$GO_FILE" '.[0].files[] | select(.filename == $file) | .sha256' <<<"$GO_META")"
+[ -n "$GO_VERSION" ] && [ -n "$GO_SHA256" ] && [ "$GO_SHA256" != "null" ] || {
+  echo 'Unable to resolve Go release metadata.' >&2
+  exit 1
+}
 CURRENT_GO="$(/usr/local/go/bin/go version 2>/dev/null | awk '{print $3}' || true)"
 if [ "$CURRENT_GO" != "$GO_VERSION" ]; then
   printf '[+] Installing current Go: %s\n' "$GO_VERSION"
-  curl -fsSL "https://go.dev/dl/${GO_VERSION}.linux-${GOARCH}.tar.gz" -o /tmp/go.tgz
+  GO_ARCHIVE="$(mktemp)"
+  trap 'rm -f "${GO_ARCHIVE:-}"' EXIT
+  curl -fsSL "https://go.dev/dl/$GO_FILE" -o "$GO_ARCHIVE"
+  printf '%s  %s\n' "$GO_SHA256" "$GO_ARCHIVE" | sha256sum -c -
   sudo rm -rf /usr/local/go
-  sudo tar -C /usr/local -xzf /tmp/go.tgz
-  rm -f /tmp/go.tgz
+  sudo tar -C /usr/local -xzf "$GO_ARCHIVE"
+  rm -f "$GO_ARCHIVE"
+  trap - EXIT
 fi
 
 export PATH="/usr/local/go/bin:$GO_BIN:$HOME/.local/bin:$PATH"
