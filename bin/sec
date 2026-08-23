@@ -6,7 +6,7 @@ COMPOSE=(docker compose -f "$ROOT/lab/docker-compose.yml")
 
 usage() {
   cat <<'EOF'
-AI Security Lab control
+Security Lab control
 
   sec doctor            health check
   sec up                start vulnerable training targets
@@ -16,12 +16,14 @@ AI Security Lab control
   sec dashboard         launch Mission Control GUI on 127.0.0.1:8765
   sec gui               alias for sec dashboard
   sec report            generate HTML/JSON report from latest local scan
-  sec kali-build        build/update Kali operator image
+  sec kali-build        pull prebuilt Kali image; build locally only as fallback
   sec kali              open Kali operator shell
+  sec clean             reclaim disposable caches and Docker build data
+  sec disk              show disk and Docker storage usage
   sec mcp-setup         connect Codex to Kali through MCP
   sec ai-kali           launch GPT-5.6 Sol with Kali MCP ready
   sec update            update host tools and templates
-  sec update --full     also rebuild Kali image
+  sec update --full     also refresh Kali image
   sec new NAME          create an engagement workspace
   sec sol               launch Codex with GPT-5.6 Sol
   sec models            list OpenAI models visible to your API project
@@ -30,6 +32,17 @@ EOF
 
 kali_up() {
   "${COMPOSE[@]}" --profile operator up -d kali >/dev/null
+}
+
+kali_refresh() {
+  echo '[+] Pulling prebuilt Kali operator image...'
+  if "${COMPOSE[@]}" --profile operator pull kali; then
+    docker builder prune -af --filter 'until=24h' >/dev/null 2>&1 || true
+    return 0
+  fi
+  echo '[!] Prebuilt image unavailable; falling back to a local build.'
+  "${COMPOSE[@]}" --profile operator build --pull kali
+  docker builder prune -af >/dev/null 2>&1 || true
 }
 
 wait_kali_api() {
@@ -69,10 +82,16 @@ case "$cmd" in
     exec python3 "$ROOT/dashboard/server.py" "$@"
     ;;
   report) exec python3 "$ROOT/bin/sec-report" "$@" ;;
-  kali-build) exec "${COMPOSE[@]}" --profile operator build --pull kali ;;
+  kali-build) kali_refresh ;;
   kali)
     kali_up
     exec "${COMPOSE[@]}" --profile operator exec kali bash
+    ;;
+  clean) exec bash "$ROOT/bin/disk-guard" --force ;;
+  disk)
+    df -h /
+    echo
+    docker system df || true
     ;;
   mcp-setup) mcp_setup ;;
   ai-kali)
