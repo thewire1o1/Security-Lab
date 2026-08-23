@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+COMPOSE=(docker compose -f "$ROOT/lab/docker-compose.yml")
+
+usage() {
+  cat <<'EOF'
+AI Security Lab control
+
+  sec doctor            health check
+  sec up                start vulnerable training targets
+  sec down              stop training targets
+  sec ps                show lab containers
+  sec scan              scan the local lab
+  sec kali-build        build/update Kali operator image
+  sec kali              open Kali operator shell
+  sec update            update host tools and templates
+  sec update --full     also rebuild Kali image
+  sec new NAME          create an engagement workspace
+  sec sol               launch Codex with GPT-5.6 Sol
+  sec models            list OpenAI models visible to your API project
+EOF
+}
+
+cmd="${1:-help}"
+shift || true
+case "$cmd" in
+  help|-h|--help) usage ;;
+  doctor) exec bash "$ROOT/bin/doctor" ;;
+  up) exec "${COMPOSE[@]}" up -d juice-shop dvwa webgoat ;;
+  down) exec "${COMPOSE[@]}" --profile operator down ;;
+  ps) exec "${COMPOSE[@]}" --profile operator ps ;;
+  scan) exec bash "$ROOT/bin/labscan" ;;
+  kali-build) exec "${COMPOSE[@]}" --profile operator build --pull kali ;;
+  kali)
+    "${COMPOSE[@]}" --profile operator up -d kali >/dev/null
+    exec "${COMPOSE[@]}" --profile operator exec kali bash
+    ;;
+  update) exec bash "$ROOT/bin/update-all" "$@" ;;
+  new) exec bash "$ROOT/bin/new-engagement" "$@" ;;
+  sol) exec codex --model gpt-daybreak-blue ;;
+  models) exec bash "$ROOT/list-openai-models.sh" ;;
+  *) echo "Unknown command: $cmd" >&2; usage; exit 2 ;;
+esac
