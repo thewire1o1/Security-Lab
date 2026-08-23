@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-STAMP="$(date +%Y%m%d-%H%M%S)"
+STAMP="$(date -u +%Y%m%d-%H%M%S)"
 OUT="${1:-$ROOT/reports/fuzz-$STAMP}"
 mkdir -p "$OUT"
 
@@ -32,8 +32,9 @@ if command -v ffuf >/dev/null 2>&1; then
   for entry in "${targets[@]}"; do
     name="${entry%%|*}"
     url="${entry#*|}"
-    if curl -fsS --max-time 3 "${url%/FUZZ}" >/dev/null 2>&1; then
-      ffuf -s -noninteractive -rate 40 -maxtime 25 -w "$wordlist" -u "$url" -of json -o "$OUT/$name.json" >/dev/null 2>"$OUT/$name.stderr" || true
+    if curl -fsS --max-time 3 -- "${url%/FUZZ}" >/dev/null 2>&1; then
+      ffuf -s -noninteractive -rate 40 -maxtime 25 -w "$wordlist" -u "$url" \
+        -of json -o "$OUT/$name.json" >/dev/null 2>"$OUT/$name.stderr" || true
     fi
   done
 fi
@@ -42,27 +43,14 @@ if [ -d "$ROOT/fuzz/harnesses" ]; then
   for harness in "$ROOT"/fuzz/harnesses/*; do
     [ -f "$harness" ] || continue
     [ -x "$harness" ] || continue
-    name="$(basename "$harness")"
+    name="$(basename -- "$harness")"
     timeout 60 "$harness" >"$OUT/harness-$name.log" 2>&1 || true
   done
 fi
 
-python3 - "$OUT" <<'PY'
-import json
-import pathlib
-import sys
-out = pathlib.Path(sys.argv[1])
-targets = {}
-for p in out.glob("*.json"):
-    try:
-        data = json.loads(p.read_text())
-    except Exception:
-        continue
-    if isinstance(data, dict) and "results" in data:
-        targets[p.stem] = len(data.get("results") or [])
-summary = {"targets": targets, "total_results": sum(targets.values()), "harness_logs": len(list(out.glob("harness-*.log")))}
-(out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
-print(json.dumps(summary, indent=2))
-PY
+(
+  cd "$ROOT"
+  python3 -m security_lab.fuzz_summary "$OUT"
+)
 
 printf '[+] Fuzz artifacts: %s\n' "$OUT"
