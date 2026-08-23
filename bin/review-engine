@@ -18,10 +18,8 @@ if [ -z "$INPUT" ] || [ ! -f "$INPUT" ]; then
   echo 'No input file found.' >&2
   exit 2
 fi
-
-if [ "${SEC_ANALYSIS_ALLOW_SHELL:-0}" = "1" ]; then
-  exec bash -lc "$COMMAND \"\$1\"" _ "$INPUT"
-fi
+INPUT="$(realpath -- "$INPUT")"
 
 IFS=' ' read -r -a parts <<<"$COMMAND"
+[ "${#parts[@]}" -gt 0 ] || { echo 'Invalid review command.' >&2; exit 2; }
 exec "${parts[@]}" "$INPUT"
