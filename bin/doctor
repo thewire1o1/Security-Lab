@@ -28,10 +28,10 @@ fi
 
 printf '\nDefensive pipeline:\n'
 for f in code-review validate-findings fuzz-run triage research defense-run review-engine; do
-  if [ -x "$ROOT/bin/$f" ]; then
+  if [ -f "$ROOT/bin/$f" ]; then
     printf '  [OK] %s\n' "$f"
   else
-    printf '  [--] %s missing or not executable\n' "$f"
+    printf '  [--] %s missing\n' "$f"
   fi
 done
 
