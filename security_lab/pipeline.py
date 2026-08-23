@@ -37,21 +37,44 @@ def collect_inventory(output_dir: Path, root: Path = ROOT) -> dict[str, Any]:
     return inventory
 
 
+def _external_review_status(output_dir: Path) -> str:
+    rc_path = output_dir / "external-review.rc"
+    if not rc_path.is_file():
+        return "not-configured"
+    try:
+        return "complete" if int(rc_path.read_text(encoding="utf-8").strip()) == 0 else "failed"
+    except (OSError, ValueError):
+        return "failed"
+
+
 def finalize_pipeline(output_dir: Path) -> dict[str, Any]:
     summary = read_json(output_dir / "summary.json", {})
     validation = read_json(output_dir / "validation.json", {})
     fuzz = read_json(output_dir / "fuzz" / "summary.json", {})
 
+    review_complete = (
+        isinstance(summary, dict)
+        and bool(summary)
+        and bool((summary.get("coverage") or {}).get("complete", False))
+    )
+    review_status = "complete" if review_complete else ("partial" if summary else "failed")
+
+    if isinstance(validation, dict) and validation:
+        validation_status = "complete" if validation.get("previous") else "no-baseline"
+    else:
+        validation_status = "failed"
+
     pipeline = {
         "run": output_dir.name,
         "stages": {
             "inventory": "complete" if (output_dir / "inventory.json").is_file() else "failed",
-            "review": "complete" if (output_dir / "summary.json").is_file() else "failed",
-            "validation": "complete" if validation else "no-baseline",
+            "review": review_status,
+            "validation": validation_status,
             "fuzz": "complete" if (output_dir / "fuzz" / "summary.json").is_file() else "failed",
-            "external_review": "complete" if (output_dir / "external-review.txt").is_file() else "not-configured",
+            "external_review": _external_review_status(output_dir),
         },
         "findings": summary.get("severity", {}) if isinstance(summary, dict) else {},
+        "scan_coverage": summary.get("coverage", {}) if isinstance(summary, dict) else {},
         "regression": bool(validation.get("regression", False)) if isinstance(validation, dict) else False,
         "fuzz_results": int(fuzz.get("total_results", 0)) if isinstance(fuzz, dict) else 0,
     }
