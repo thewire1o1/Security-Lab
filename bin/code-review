@@ -6,8 +6,13 @@ STAMP="$(date -u +%Y%m%d-%H%M%S)"
 OUT="${1:-$ROOT/reports/defense-$STAMP}"
 mkdir -p "$OUT"
 
+mark_unavailable() {
+  : >"$OUT/$1.unavailable"
+}
+
 run_semgrep() {
   if ! command -v semgrep >/dev/null 2>&1; then
+    mark_unavailable semgrep
     printf '{"results":[],"errors":[{"message":"semgrep unavailable"}]}\n' >"$OUT/semgrep.json"
     return
   fi
@@ -17,6 +22,7 @@ run_semgrep() {
 
 run_gitleaks() {
   if ! command -v gitleaks >/dev/null 2>&1; then
+    mark_unavailable gitleaks
     printf '[]\n' >"$OUT/gitleaks.json"
     return
   fi
@@ -27,6 +33,7 @@ run_gitleaks() {
 
 run_trivy() {
   if ! command -v trivy >/dev/null 2>&1; then
+    mark_unavailable trivy
     printf '{"Results":[]}\n' >"$OUT/trivy.json"
     return
   fi
@@ -36,6 +43,7 @@ run_trivy() {
 
 run_bandit() {
   if ! command -v bandit >/dev/null 2>&1; then
+    mark_unavailable bandit
     printf '{"results":[]}\n' >"$OUT/bandit.json"
     return
   fi
@@ -44,10 +52,15 @@ run_bandit() {
 }
 
 run_pip_audit() {
-  if [ -f "$ROOT/requirements.txt" ] && command -v pip-audit >/dev/null 2>&1; then
-    pip-audit -r "$ROOT/requirements.txt" -f json \
-      >"$OUT/pip-audit.json" 2>"$OUT/pip-audit.stderr" || true
+  if [ ! -f "$ROOT/requirements.txt" ]; then
+    return
   fi
+  if ! command -v pip-audit >/dev/null 2>&1; then
+    mark_unavailable pip-audit
+    return
+  fi
+  pip-audit -r "$ROOT/requirements.txt" -f json \
+    >"$OUT/pip-audit.json" 2>"$OUT/pip-audit.stderr" || true
 }
 
 run_semgrep
