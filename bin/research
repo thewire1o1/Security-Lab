@@ -18,7 +18,12 @@ EOF
 }
 
 safe_name() {
-  printf '%s' "$1" | tr -cs '[:alnum:]._- ' '-' | tr ' ' '-' | sed 's/^-*//;s/-*$//'
+  local name
+  name="$(printf '%s' "$1" | tr -cs '[:alnum:]._- ' '-' | tr ' ' '-' | sed 's/^-*//;s/-*$//')"
+  if [[ ! "$name" =~ ^[[:alnum:]][[:alnum:]._-]*$ ]]; then
+    return 1
+  fi
+  printf '%s' "$name"
 }
 
 cmd="${1:-}"
@@ -28,7 +33,7 @@ case "$cmd" in
   new)
     raw="${1:-}"
     [ -n "$raw" ] || { usage; exit 2; }
-    name="$(safe_name "$raw")"
+    name="$(safe_name "$raw")" || { echo 'Invalid case name.' >&2; exit 2; }
     dir="$BASE/$name"
     mkdir -p "$dir/evidence" "$dir/output"
     if [ ! -f "$dir/case.json" ]; then
@@ -39,15 +44,15 @@ case "$cmd" in
     echo "$dir"
     ;;
   note|task)
-    name="$(safe_name "${1:-}")"
+    name="$(safe_name "${1:-}")" || { echo 'Invalid case name.' >&2; exit 2; }
     shift || true
-    [ -n "$name" ] && [ "$#" -gt 0 ] || { usage; exit 2; }
+    [ "$#" -gt 0 ] || { usage; exit 2; }
     file="$BASE/$name/$([ "$cmd" = note ] && echo notes.md || echo tasks.md)"
     [ -f "$BASE/$name/case.json" ] || { echo 'Case not found.' >&2; exit 1; }
     printf -- '- %s %s\n' "$(date -u +%FT%TZ)" "$*" >>"$file"
     ;;
   status)
-    name="$(safe_name "${1:-}")"
+    name="$(safe_name "${1:-}")" || { echo 'Invalid case name.' >&2; exit 2; }
     dir="$BASE/$name"
     [ -f "$dir/case.json" ] || { echo 'Case not found.' >&2; exit 1; }
     cat "$dir/case.json"
@@ -60,7 +65,7 @@ case "$cmd" in
     find "$BASE" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort
     ;;
   close)
-    name="$(safe_name "${1:-}")"
+    name="$(safe_name "${1:-}")" || { echo 'Invalid case name.' >&2; exit 2; }
     file="$BASE/$name/case.json"
     [ -f "$file" ] || { echo 'Case not found.' >&2; exit 1; }
     tmp="$(mktemp)"
