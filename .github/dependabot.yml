@@ -8,9 +8,6 @@ updates:
       time: "09:00"
       timezone: America/Los_Angeles
     open-pull-requests-limit: 5
-    labels:
-      - dependencies
-      - security
 
   - package-ecosystem: docker
     directory: "/lab/kali"
@@ -20,6 +17,3 @@ updates:
       time: "09:15"
       timezone: America/Los_Angeles
     open-pull-requests-limit: 5
-    labels:
-      - dependencies
-      - security
