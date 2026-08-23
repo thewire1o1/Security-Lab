@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BASE="$ROOT/cases"
+mkdir -p "$BASE"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  sec research new NAME
+  sec research note NAME TEXT...
+  sec research task NAME TEXT...
+  sec research status NAME
+  sec research list
+  sec research close NAME
+EOF
+}
+
+safe_name() {
+  printf '%s' "$1" | tr -cs '[:alnum:]._- ' '-' | tr ' ' '-' | sed 's/^-*//;s/-*$//'
+}
+
+cmd="${1:-}"
+shift || true
+
+case "$cmd" in
+  new)
+    raw="${1:-}"
+    [ -n "$raw" ] || { usage; exit 2; }
+    name="$(safe_name "$raw")"
+    dir="$BASE/$name"
+    mkdir -p "$dir/evidence" "$dir/output"
+    if [ ! -f "$dir/case.json" ]; then
+      printf '{"name":"%s","status":"open","created":"%s"}\n' "$name" "$(date -u +%FT%TZ)" >"$dir/case.json"
+      : >"$dir/notes.md"
+      : >"$dir/tasks.md"
+    fi
+    echo "$dir"
+    ;;
+  note|task)
+    name="$(safe_name "${1:-}")"
+    shift || true
+    [ -n "$name" ] && [ "$#" -gt 0 ] || { usage; exit 2; }
+    file="$BASE/$name/$([ "$cmd" = note ] && echo notes.md || echo tasks.md)"
+    [ -f "$BASE/$name/case.json" ] || { echo 'Case not found.' >&2; exit 1; }
+    printf -- '- %s %s\n' "$(date -u +%FT%TZ)" "$*" >>"$file"
+    ;;
+  status)
+    name="$(safe_name "${1:-}")"
+    dir="$BASE/$name"
+    [ -f "$dir/case.json" ] || { echo 'Case not found.' >&2; exit 1; }
+    cat "$dir/case.json"
+    printf '\nNotes: %s\nTasks: %s\nEvidence files: %s\n' \
+      "$(wc -l <"$dir/notes.md")" \
+      "$(wc -l <"$dir/tasks.md")" \
+      "$(find "$dir/evidence" -type f | wc -l)"
+    ;;
+  list)
+    find "$BASE" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort
+    ;;
+  close)
+    name="$(safe_name "${1:-}")"
+    file="$BASE/$name/case.json"
+    [ -f "$file" ] || { echo 'Case not found.' >&2; exit 1; }
+    tmp="$(mktemp)"
+    jq --arg closed "$(date -u +%FT%TZ)" '.status="closed" | .closed=$closed' "$file" >"$tmp"
+    mv "$tmp" "$file"
+    ;;
+  *) usage; exit 2 ;;
+esac
