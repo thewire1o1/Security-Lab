@@ -10,7 +10,7 @@ printf '\n[+] Bootstrapping Security Lab...\n'
 sudo apt-get update -y
 
 packages=(
-  curl wget jq git ca-certificates gnupg lsb-release unzip zip
+  curl wget jq git gh ca-certificates gnupg lsb-release unzip zip
   nmap masscan netcat-openbsd dnsutils whois traceroute iputils-ping
   tcpdump openssl socat proxychains4 tor
   tmux screen vim nano ripgrep fzf tree
