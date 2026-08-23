@@ -16,8 +16,12 @@ bash "$ROOT/bin/fuzz-run" "$OUT/fuzz"
 bash "$ROOT/bin/validate-findings" "$OUT" || true
 
 if [ -n "${SEC_ANALYSIS_COMMAND:-}" ]; then
+  set +e
   bash "$ROOT/bin/review-engine" "$OUT/summary.json" \
-    >"$OUT/external-review.txt" 2>"$OUT/external-review.stderr" || true
+    >"$OUT/external-review.txt" 2>"$OUT/external-review.stderr"
+  external_rc=$?
+  set -e
+  printf '%s\n' "$external_rc" >"$OUT/external-review.rc"
 fi
 
 (
