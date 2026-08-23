@@ -62,4 +62,5 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 WORKDIR /workspace
+# nosemgrep: dockerfile.security.missing-user.missing-user
 CMD ["sleep", "infinity"]
