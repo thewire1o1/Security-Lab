@@ -29,7 +29,7 @@ start_agent() {
   fi
   command -v gh >/dev/null 2>&1 || { echo 'gh is required.' >&2; return 1; }
   [ -n "$GH_TOKEN" ] || { echo 'GitHub authentication is unavailable.' >&2; return 1; }
-  nohup "$0" run >>"$LOGFILE" 2>&1 </dev/null &
+  nohup bash "$0" run >>"$LOGFILE" 2>&1 </dev/null &
   echo "$!" >"$PIDFILE"
   printf 'remote-agent started: %s\n' "$!"
 }
