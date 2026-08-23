@@ -27,9 +27,9 @@ services:
 
   kali:
     profiles: ["operator"]
+    image: ghcr.io/thewire1o1/security-lab-kali:latest
     build:
       context: ./kali
-    image: ai-security-lab-kali:latest
     container_name: ai-lab-kali
     stdin_open: true
     tty: true
