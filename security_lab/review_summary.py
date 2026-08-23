@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import time
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,7 @@ _SEVERITY_ALIASES = {
     "note": "info",
     "unknown": "info",
 }
+_PRIMARY_TOOLS = ("semgrep", "gitleaks", "trivy", "bandit")
 
 
 def normalize_severity(value: Any) -> str:
@@ -35,8 +37,10 @@ def summarize_review(output_dir: Path) -> dict[str, Any]:
     bandit = read_json(output_dir / "bandit.json", {"results": []})
 
     severity = {name: 0 for name in SEVERITIES}
+    availability = {tool: not (output_dir / f"{tool}.unavailable").exists() for tool in _PRIMARY_TOOLS}
 
     semgrep_results = semgrep.get("results", []) if isinstance(semgrep, dict) else []
+    semgrep_errors = semgrep.get("errors", []) if isinstance(semgrep, dict) else []
     for finding in semgrep_results:
         extra = finding.get("extra") or {}
         _increment(severity, extra.get("severity"))
@@ -68,10 +72,15 @@ def summarize_review(output_dir: Path) -> dict[str, Any]:
         "timestamp": int(time.time()),
         "severity": severity,
         "total": sum(severity.values()),
+        "coverage": {
+            "available": sorted(tool for tool, present in availability.items() if present),
+            "missing": sorted(tool for tool, present in availability.items() if not present),
+            "complete": all(availability.values()),
+        },
         "tools": {
-            "semgrep": len(semgrep_results),
-            "gitleaks": len(gitleaks_results),
-            "bandit": len(bandit_results),
+            "semgrep": {"findings": len(semgrep_results), "errors": len(semgrep_errors)},
+            "gitleaks": {"findings": len(gitleaks_results)},
+            "bandit": {"findings": len(bandit_results)},
             "trivy": {
                 "vulnerabilities": trivy_vulnerabilities,
                 "misconfigurations": trivy_misconfigurations,
@@ -88,9 +97,6 @@ def main() -> int:
     parser.add_argument("output_dir", type=Path)
     args = parser.parse_args()
     summary = summarize_review(args.output_dir.resolve())
-
-    import json
-
     print(json.dumps(summary, indent=2, sort_keys=True))
     return 0
 
