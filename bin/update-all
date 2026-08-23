@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FULL="${1:-}"
 export PATH="/usr/local/go/bin:$HOME/go/bin:$HOME/.local/bin:$PATH"
-
-echo '[+] Codex CLI'
-npm install -g @openai/codex >/dev/null
 
 echo '[+] ProjectDiscovery tools'
 if command -v pdtm >/dev/null 2>&1; then
