@@ -3,6 +3,9 @@ reports/
 loot/
 notes/private/
 targets/private/
+engagements/*/evidence/
+engagements/*/loot/
+engagements/*/reports/
 
 # Secrets
 .env
