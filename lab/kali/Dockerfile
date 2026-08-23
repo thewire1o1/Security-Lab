@@ -29,6 +29,11 @@ RUN apt-get update \
     wafw00f \
     wpscan \
     tshark \
+    trivy \
+    gitleaks \
+    mcp-kali-server \
+    metasploitmcp \
+    hexstrike-ai \
     smbclient \
     ldap-utils \
     snmp \
