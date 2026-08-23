@@ -48,4 +48,4 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
       - name: Trivy
-        run: docker run --rm -v "$PWD:/repo" aquasec/trivy:latest fs --scanners vuln,secret,misconfig --severity HIGH,CRITICAL --exit-code 1 /repo
+        run: docker run --rm -v "$PWD:/repo" aquasec/trivy:latest fs --ignorefile /repo/.trivyignore --scanners vuln,secret,misconfig --severity HIGH,CRITICAL --exit-code 1 /repo
