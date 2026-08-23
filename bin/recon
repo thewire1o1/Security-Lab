@@ -41,7 +41,7 @@ printf '[+] Output: %s\n' "$OUT"
   printf 'UTC=%s\n' "$(date -u +%FT%TZ)"
 } >"$OUT/meta.txt"
 
-whois -- "$TARGET" >"$OUT/whois.txt" 2>&1 || true
+whois "$TARGET" >"$OUT/whois.txt" 2>&1 || true
 {
   dig A "$TARGET" +short
   dig AAAA "$TARGET" +short
@@ -60,7 +60,7 @@ cat "$OUT/subdomains.txt" >>"$OUT/hosts.txt" 2>/dev/null || true
 sort -u "$OUT/hosts.txt" -o "$OUT/hosts.txt"
 
 printf '%s\n' '[+] Service discovery...'
-nmap -Pn -T3 --top-ports 1000 -sV --version-light -- "$TARGET" -oA "$OUT/nmap" || true
+nmap -Pn -T3 --top-ports 1000 -sV --version-light -oA "$OUT/nmap" "$TARGET" || true
 
 if command -v httpx >/dev/null 2>&1; then
   printf '%s\n' '[+] HTTP discovery...'
