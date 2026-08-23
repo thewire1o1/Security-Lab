@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+WORKSPACE="${PWD}"
+TOOLS_HOME="$HOME/tools"
+GO_BIN="$HOME/go/bin"
+mkdir -p "$TOOLS_HOME" "$GO_BIN"
+
+printf '\n[+] Repairing AI Security Lab tooling...\n'
+
+sudo apt-get update -y >/dev/null
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y jq curl ca-certificates perl libnet-ssleay-perl pipx git >/dev/null
+
+case "$(uname -m)" in
+  x86_64) GOARCH=amd64 ;;
+  aarch64|arm64) GOARCH=arm64 ;;
+  *) echo "Unsupported architecture: $(uname -m)"; exit 1 ;;
+esac
+
+GO_VERSION="$(curl -fsSL 'https://go.dev/dl/?mode=json' | jq -r '.[0].version')"
+CURRENT_GO="$(/usr/local/go/bin/go version 2>/dev/null | awk '{print $3}' || true)"
+if [ "$CURRENT_GO" != "$GO_VERSION" ]; then
+  printf '[+] Installing current Go: %s\n' "$GO_VERSION"
+  curl -fsSL "https://go.dev/dl/${GO_VERSION}.linux-${GOARCH}.tar.gz" -o /tmp/go.tgz
+  sudo rm -rf /usr/local/go
+  sudo tar -C /usr/local -xzf /tmp/go.tgz
+  rm -f /tmp/go.tgz
+fi
+
+export PATH="/usr/local/go/bin:$GO_BIN:$HOME/.local/bin:$PATH"
+
+go_install() {
+  local pkg="$1"
+  printf '[+] %s\n' "$pkg"
+  GOBIN="$GO_BIN" /usr/local/go/bin/go install "$pkg"
+}
+
+printf '\n[+] Installing ProjectDiscovery + recon tools...\n'
+go_install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+go_install github.com/projectdiscovery/httpx/cmd/httpx@latest
+go_install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
+go_install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
+go_install github.com/projectdiscovery/dnsx/cmd/dnsx@latest
+go_install github.com/projectdiscovery/katana/cmd/katana@latest
+
+printf '\n[+] Repairing Nikto...\n'
+if [ -d "$TOOLS_HOME/nikto/.git" ]; then
+  git -C "$TOOLS_HOME/nikto" pull --ff-only >/dev/null || true
+else
+  git clone --depth 1 https://github.com/sullo/nikto.git "$TOOLS_HOME/nikto"
+fi
+chmod +x "$TOOLS_HOME/nikto/program/nikto.pl"
+sudo ln -sf "$TOOLS_HOME/nikto/program/nikto.pl" /usr/local/bin/nikto
+
+printf '\n[+] Repairing Impacket...\n'
+pipx ensurepath >/dev/null 2>&1 || true
+if pipx list 2>/dev/null | grep -q 'package impacket '; then
+  pipx reinstall impacket >/dev/null
+else
+  pipx install impacket >/dev/null
+fi
+
+# Persist the newer Go ahead of distro Go.
+if ! grep -qF '# >>> AI-SECURITY-GO >>>' "$HOME/.bashrc" 2>/dev/null; then
+  cat >> "$HOME/.bashrc" <<'EOF'
+
+# >>> AI-SECURITY-GO >>>
+export PATH="/usr/local/go/bin:$HOME/go/bin:$HOME/.local/bin:$PATH"
+# <<< AI-SECURITY-GO <<<
+EOF
+fi
+
+if command -v nuclei >/dev/null 2>&1; then
+  nuclei -update-templates >/dev/null 2>&1 || true
+fi
+
+printf '\n[+] Repair complete. Running doctor...\n\n'
+bash "$WORKSPACE/bin/doctor"
