@@ -15,12 +15,40 @@ AI Security Lab control
   sec scan              scan the local lab
   sec kali-build        build/update Kali operator image
   sec kali              open Kali operator shell
+  sec mcp-setup         connect Codex to Kali through MCP
+  sec ai-kali           launch GPT-5.6 Sol with Kali MCP ready
   sec update            update host tools and templates
   sec update --full     also rebuild Kali image
   sec new NAME          create an engagement workspace
   sec sol               launch Codex with GPT-5.6 Sol
   sec models            list OpenAI models visible to your API project
 EOF
+}
+
+kali_up() {
+  "${COMPOSE[@]}" --profile operator up -d kali >/dev/null
+}
+
+wait_kali_api() {
+  local i
+  for i in $(seq 1 30); do
+    if docker exec ai-lab-kali curl -fsS http://127.0.0.1:5000/ >/dev/null 2>&1 || \
+       docker exec ai-lab-kali curl -fsS http://127.0.0.1:5000/health >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo 'Kali MCP API did not become ready. Check: docker logs ai-lab-kali' >&2
+  return 1
+}
+
+mcp_setup() {
+  kali_up
+  wait_kali_api
+  codex mcp remove kali >/dev/null 2>&1 || true
+  codex mcp add kali -- docker compose -f "$ROOT/lab/docker-compose.yml" --profile operator exec -T kali mcp-server --server http://127.0.0.1:5000
+  echo '[OK] Codex MCP server: kali'
+  codex mcp get kali --json 2>/dev/null || true
 }
 
 cmd="${1:-help}"
@@ -34,8 +62,17 @@ case "$cmd" in
   scan) exec bash "$ROOT/bin/labscan" ;;
   kali-build) exec "${COMPOSE[@]}" --profile operator build --pull kali ;;
   kali)
-    "${COMPOSE[@]}" --profile operator up -d kali >/dev/null
+    kali_up
     exec "${COMPOSE[@]}" --profile operator exec kali bash
+    ;;
+  mcp-setup) mcp_setup ;;
+  ai-kali)
+    kali_up
+    wait_kali_api
+    if ! codex mcp get kali --json >/dev/null 2>&1; then
+      mcp_setup
+    fi
+    exec codex --model gpt-daybreak-blue
     ;;
   update) exec bash "$ROOT/bin/update-all" "$@" ;;
   new) exec bash "$ROOT/bin/new-engagement" "$@" ;;
