@@ -1,80 +1,72 @@
 # AI Security Lab
 
-A reproducible GitHub Codespaces security workstation with Codex, GPT-5.6 Sol, Docker-based vulnerable targets, recon tooling, web testing utilities, and report helpers.
+A reproducible GitHub Codespaces security workstation with two layers:
 
-## Quick start
+1. A fast Debian-based host for Codex, GPT-5.6 Sol, ProjectDiscovery, Nmap, Semgrep, automation, notes, and reporting.
+2. A disposable Kali Rolling operator container for the heavyweight offensive stack.
 
-After pulling the latest `codex-vm` branch, rebuild the Codespace so the Docker-in-Docker feature is applied. The rebuild automatically runs `.devcontainer/bootstrap.sh`.
-
-Open a fresh terminal and use:
-
-```bash
-sol
-```
-
-Starts Codex with Daybreak Blue / GPT-5.6 Sol.
+## Control surface
 
 ```bash
-labup
-labps
+source ~/.bashrc
+sec help
 ```
 
-Starts the local vulnerable training stack:
+Useful commands:
+
+```bash
+sec doctor
+sec up
+sec ps
+sec scan
+sec kali-build
+sec kali
+sec sol
+sec new client-or-lab-name
+sec update
+sec update --full
+```
+
+## Local training targets
+
+`sec up` starts:
 
 - Juice Shop: `http://127.0.0.1:3000`
 - DVWA: `http://127.0.0.1:8080`
 - WebGoat: `http://127.0.0.1:8081`
 
-```bash
-labscan
-```
+All targets and the Kali operator container share the private `security-lab` Docker network.
 
-Runs service discovery and template checks against the local lab and stores output in `reports/`.
+## Kali operator layer
 
-```bash
-recon example.com
-recon example.com --deep
-```
-
-Baseline recon performs WHOIS, DNS, subdomain discovery, Nmap service discovery, and HTTP probing. `--deep` adds Nuclei checks.
+Build once:
 
 ```bash
-headers https://example.com
+sec kali-build
 ```
 
-Shows HTTP headers and TLS certificate information.
+Enter whenever needed:
 
 ```bash
-bash bin/doctor
+sec kali
 ```
 
-Shows installed tools, Docker status, Codex login status, and local lab status.
+The Kali image is based on `kalilinux/kali-rolling` and includes Kali's top-10 metapackage plus focused operator tooling for AD, pivoting, exploitation, web testing, credential work, reporting, and enumeration, including Metasploit, NetExec, Responder, BloodHound, Impacket scripts, enum4linux-ng, Evil-WinRM, ExploitDB, Ligolo-ng, Kerberoast tooling, mitm6, PEASS, Recon-ng, SecLists, testssl.sh, WhatWeb, WAFW00F, WPScan, tshark, and related protocol clients.
 
-## Toolset
+The repository is mounted at `/workspace` inside Kali. Kali's `/root` home is persistent in its own Docker volume, while the container itself stays disposable.
+
+## Host toolset
 
 ### AI
 - OpenAI Codex CLI
-- Daybreak Blue / GPT-5.6 Sol shortcut (`sol`)
+- GPT-5.6 Sol shortcut (`sec sol` / `sol`)
 
-### Network / discovery
-- Nmap
-- Masscan
-- Naabu
-- Subfinder
-- DNSx
-- HTTPx
-- Assetfinder
-- WHOIS / dig / traceroute / netcat / socat
-
-### Web
-- Nuclei
-- Katana
-- FFUF
-- SQLMap
-- Nikto
-- GAU
-- WaybackURLs
-- curl / OpenSSL helpers
+### Discovery / web
+- Nmap, Masscan
+- ProjectDiscovery PDTM
+- Nuclei, HTTPx, Subfinder, Naabu, DNSx, Katana
+- FFUF, GAU, WaybackURLs, Assetfinder
+- Nikto, SQLMap
 
 ### Credentials / protocols
 - Hydra
@@ -84,20 +76,55 @@ Shows installed tools, Docker status, Codex login status, and local lab status.
 ### Code / application analysis
 - Semgrep
 - ripgrep
-- Python / Go / Node.js toolchains
+- Python / current Go / Node.js
 
 ### Wordlists
 - SecLists at `$SECLISTS`
 
-## Workspace
+## Engagement workspaces
 
-- `lab/` vulnerable local services
-- `bin/` helper commands
-- `reports/` generated scan output (gitignored)
-- `targets/` target-specific notes
-- `notes/` working notes
-- `loot/` captured training artifacts (gitignored)
+```bash
+sec new example
+```
+
+Creates:
+
+```text
+engagements/example/
+  scope/targets.txt
+  notes/timeline.md
+  evidence/
+  reports/
+  loot/
+```
+
+Evidence, reports, and loot are ignored by git by default.
+
+## Existing helpers
+
+```bash
+recon example.com
+recon example.com --deep
+headers https://example.com
+labscan
+```
+
+Recon stores timestamped output under `reports/`.
+
+## Updating
+
+Fast update:
+
+```bash
+sec update
+```
+
+Also rebuild the Kali Rolling image:
+
+```bash
+sec update --full
+```
 
 ## Persistence
 
-The environment definition and tooling bootstrap live in the Git branch. If the Codespace is deleted, create another Codespace from `codex-vm`; the lab rebuilds itself automatically.
+The environment definition lives in git. A deleted Codespace can be recreated from the branch and bootstrapped again. Heavy Kali tooling is intentionally separated from the host so the Codespace remains maintainable instead of becoming an un-debuggable pile of packages.
