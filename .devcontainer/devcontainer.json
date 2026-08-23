@@ -15,11 +15,12 @@
   },
   "postCreateCommand": "bash .devcontainer/bootstrap.sh",
   "remoteUser": "node",
-  "forwardPorts": [3000, 8080, 8081, 9090],
+  "forwardPorts": [3000, 8080, 8081, 8765, 9090],
   "portsAttributes": {
     "3000": { "label": "OWASP Juice Shop", "onAutoForward": "silent" },
     "8080": { "label": "DVWA", "onAutoForward": "silent" },
     "8081": { "label": "WebGoat", "onAutoForward": "silent" },
+    "8765": { "label": "Security Lab Mission Control", "onAutoForward": "notify" },
     "9090": { "label": "Lab Web", "onAutoForward": "ignore" }
   },
   "customizations": {
