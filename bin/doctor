@@ -1,39 +1,66 @@
 #!/usr/bin/env bash
-set -u
+set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export PATH="/usr/local/go/bin:$HOME/go/bin:$HOME/.local/bin:$ROOT/bin:$PATH"
 
-printf 'Security Lab doctor\n\n'
+TOOLS=(
+  sec docker nmap masscan sqlmap nikto hydra john pdtm nuclei httpx subfinder
+  naabu dnsx katana ffuf waybackurls assetfinder gau semgrep pip-audit bandit
+  gitleaks trivy shellcheck jq gh
+)
+PIPELINE=(code-review validate-findings fuzz-run triage research defense-run review-engine remote-agent)
 
-for cmd in sec docker nmap masscan sqlmap nikto hydra john pdtm nuclei httpx subfinder naabu dnsx katana ffuf waybackurls assetfinder gau semgrep pip-audit bandit gitleaks trivy shellcheck jq; do
-  if command -v "$cmd" >/dev/null 2>&1; then
-    v="$($cmd --version 2>/dev/null | head -n 1 || true)"
-    [ -z "$v" ] && v="installed"
-    printf '[OK] %-20s %s\n' "$cmd" "$v"
-  else
-    printf '[--] %-20s missing\n' "$cmd"
+print_tool() {
+  local command="$1" version
+  if ! command -v "$command" >/dev/null 2>&1; then
+    printf '[--] %-20s missing\n' "$command"
+    return
   fi
+  version="$($command --version 2>/dev/null | head -n 1 || true)"
+  [ -n "$version" ] || version='installed'
+  printf '[OK] %-20s %s\n' "$command" "$version"
+}
+
+printf 'Security Lab doctor\n\n'
+for command in "${TOOLS[@]}"; do
+  print_tool "$command"
 done
 
+printf '\nPython package:\n'
+if (cd "$ROOT" && python3 -c 'import security_lab, security_lab.remote_agent, security_lab.dashboard'); then
+  printf '  [OK] security_lab importable\n'
+else
+  printf '  [--] security_lab import failed\n'
+fi
+
 printf '\nDocker:\n'
-docker info --format '  server={{.ServerVersion}} containers={{.Containers}} images={{.Images}}' 2>/dev/null || echo '  Docker daemon unavailable.'
+if command -v docker >/dev/null 2>&1; then
+  docker info --format '  server={{.ServerVersion}} containers={{.Containers}} images={{.Images}}' 2>/dev/null \
+    || printf '  Docker daemon unavailable.\n'
+else
+  printf '  Docker CLI unavailable.\n'
+fi
 
 printf '\nKali operator image:\n'
-if docker image inspect ghcr.io/thewire1o1/security-lab-kali:latest >/dev/null 2>&1 || docker image inspect security-lab-kali:latest >/dev/null 2>&1; then
-  echo '  [OK] available'
+if command -v docker >/dev/null 2>&1 && \
+   (docker image inspect ghcr.io/thewire1o1/security-lab-kali:latest >/dev/null 2>&1 || \
+    docker image inspect security-lab-kali:latest >/dev/null 2>&1); then
+  printf '  [OK] available\n'
 else
-  echo '  [--] not available yet'
+  printf '  [--] not available yet\n'
 fi
 
 printf '\nDefensive pipeline:\n'
-for f in code-review validate-findings fuzz-run triage research defense-run review-engine; do
-  if [ -f "$ROOT/bin/$f" ]; then
-    printf '  [OK] %s\n' "$f"
+for file in "${PIPELINE[@]}"; do
+  if [ -f "$ROOT/bin/$file" ]; then
+    printf '  [OK] %s\n' "$file"
   else
-    printf '  [--] %s missing\n' "$f"
+    printf '  [--] %s missing\n' "$file"
   fi
 done
 
 printf '\nLab containers:\n'
-docker compose -f "$ROOT/lab/docker-compose.yml" --profile operator ps 2>/dev/null || true
+if command -v docker >/dev/null 2>&1; then
+  docker compose -f "$ROOT/lab/docker-compose.yml" --profile operator ps 2>/dev/null || true
+fi
