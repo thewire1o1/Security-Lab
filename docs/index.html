@@ -1,8 +1,36 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI Security Lab</title>
-<style>:root{--bg:#07090d;--p:#0e151f;--l:#203149;--t:#edf6ff;--m:#8ca1b8;--c:#52e6ff;--g:#65f59a}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 0,#10243d 0,transparent 32%),radial-gradient(circle at 82% 8%,#25143c 0,transparent 25%),var(--bg);color:var(--t);font-family:Inter,system-ui,sans-serif}main{max-width:1120px;margin:auto;padding:70px 24px}.tag{color:var(--c);font-size:11px;font-weight:900;letter-spacing:.18em}.hero h1{font-size:clamp(42px,8vw,86px);line-height:.93;margin:15px 0 20px;letter-spacing:-.05em}.hero p{max-width:720px;color:var(--m);font-size:18px;line-height:1.6}.chips{display:flex;flex-wrap:wrap;gap:8px;margin:25px 0 55px}.chip{border:1px solid var(--l);background:#0b121b;padding:8px 10px;border-radius:999px;font:11px ui-monospace,monospace;color:#b8cbe0}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.card{border:1px solid var(--l);background:linear-gradient(180deg,#101923,#0a1018);border-radius:16px;padding:20px;min-height:170px}.card h2{font-size:15px}.card p{color:var(--m);line-height:1.6;font-size:13px}.architecture{margin-top:50px;border:1px solid var(--l);background:#090f16;border-radius:18px;padding:26px}.flow{display:grid;grid-template-columns:1fr auto 1fr auto 1.4fr;align-items:center;gap:14px;margin-top:25px}.node{border:1px solid #2a4058;border-radius:13px;padding:22px;text-align:center;background:#0d1722}.node b{display:block}.node span{display:block;color:var(--m);font-size:11px;margin-top:5px}.arrow{color:var(--c);font-size:24px}.targets{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.target{padding:12px;border:1px solid #254338;border-radius:9px;color:var(--g);font-size:12px;text-align:center}.cmd{margin-top:50px;background:#04070a;border:1px solid #1a293b;border-radius:15px;padding:22px;font:14px/1.8 ui-monospace,monospace;color:#b8cbe0}.cmd b{color:var(--g)}footer{margin-top:50px;color:var(--m);font-size:12px}@media(max-width:800px){.grid{grid-template-columns:1fr}.flow{grid-template-columns:1fr}.arrow{transform:rotate(90deg);text-align:center}.targets{grid-template-columns:1fr}}</style></head>
-<body><main><section class="hero"><div class="tag">THEWIRE1O1 / SECURITY-LAB</div><h1>AI Security<br>Lab.</h1><p>A reproducible GitHub Codespaces workstation combining a clean host, a disposable Kali operator layer, intentionally vulnerable training targets, security automation, and an AI-assisted control path through MCP.</p><div class="chips"><span class="chip">Kali Rolling</span><span class="chip">Codex</span><span class="chip">MCP</span><span class="chip">Metasploit</span><span class="chip">ProjectDiscovery</span><span class="chip">Trivy</span><span class="chip">Gitleaks</span></div></section>
-<section class="grid"><div class="card"><h2>Mission Control GUI</h2><p>Live container status, resource telemetry, network topology, scan history, severity counts, tool inventory, local actions, and an activity console in one responsive interface.</p></div><div class="card"><h2>Disposable Operator</h2><p>Heavy offensive tooling stays inside Kali while the Codespace host remains maintainable. The operator container shares only the isolated training network.</p></div><div class="card"><h2>Evidence Pipeline</h2><p>Local Nmap and Nuclei runs are stored under reports and can be turned into a standalone HTML and JSON security report with one command.</p></div></section>
-<section class="architecture"><div class="tag">ARCHITECTURE</div><div class="flow"><div class="node"><b>Codex + GPT-5.6 Sol</b><span>analysis and orchestration</span></div><div class="arrow">→</div><div class="node"><b>Kali + MCP</b><span>operator layer</span></div><div class="arrow">→</div><div class="targets"><div class="target">Juice Shop :3000</div><div class="target">DVWA :8080</div><div class="target">WebGoat :8081</div></div></div></section>
-<div class="cmd"><b>$</b> sec up<br><b>$</b> sec gui<br><b>$</b> sec scan<br><b>$</b> sec report<br><b>$</b> sec ai-kali</div>
-<footer>Built as an isolated training and authorized security research environment. Mission Control binds locally by default.</footer></main></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Security Lab</title>
+<style>:root{--bg:#07090d;--p:#0e151f;--l:#203149;--t:#edf6ff;--m:#8ca1b8;--c:#52e6ff;--g:#65f59a}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 0,#10243d 0,transparent 32%),radial-gradient(circle at 82% 8%,#25143c 0,transparent 25%),var(--bg);color:var(--t);font-family:Inter,system-ui,sans-serif}main{max-width:1120px;margin:auto;padding:70px 24px}.tag{color:var(--c);font-size:11px;font-weight:900;letter-spacing:.18em}.hero h1{font-size:clamp(42px,8vw,86px);line-height:.93;margin:15px 0 20px;letter-spacing:-.05em}.hero p{max-width:760px;color:var(--m);font-size:18px;line-height:1.6}.chips{display:flex;flex-wrap:wrap;gap:8px;margin:25px 0 55px}.chip{border:1px solid var(--l);background:#0b121b;padding:8px 10px;border-radius:999px;font:11px ui-monospace,monospace;color:#b8cbe0}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.card{border:1px solid var(--l);background:linear-gradient(180deg,#101923,#0a1018);border-radius:16px;padding:20px;min-height:170px}.card h2{font-size:15px}.card p{color:var(--m);line-height:1.6;font-size:13px}.architecture{margin-top:50px;border:1px solid var(--l);background:#090f16;border-radius:18px;padding:26px}.flow{display:grid;grid-template-columns:1fr auto 1fr auto 1.4fr;align-items:center;gap:14px;margin-top:25px}.node{border:1px solid #2a4058;border-radius:13px;padding:22px;text-align:center;background:#0d1722}.node b{display:block}.node span{display:block;color:var(--m);font-size:11px;margin-top:5px}.arrow{color:var(--c);font-size:24px}.targets{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.target{padding:12px;border:1px solid #254338;border-radius:9px;color:var(--g);font-size:12px;text-align:center}.cmd{margin-top:50px;background:#04070a;border:1px solid #1a293b;border-radius:15px;padding:22px;font:14px/1.8 ui-monospace,monospace;color:#b8cbe0}.cmd b{color:var(--g)}footer{margin-top:50px;color:var(--m);font-size:12px}@media(max-width:800px){.grid{grid-template-columns:1fr}.flow{grid-template-columns:1fr}.arrow{transform:rotate(90deg);text-align:center}.targets{grid-template-columns:1fr}}</style>
+</head>
+<body>
+<main>
+<section class="hero">
+<div class="tag">THEWIRE1O1 / SECURITY-LAB</div>
+<h1>Security<br>Lab.</h1>
+<p>A reproducible GitHub Codespaces workstation combining isolated vulnerable targets, a disposable Kali operator layer, continuous application-security review, bounded fuzzing, static artifact triage, persistent research cases, validation, and evidence reporting.</p>
+<div class="chips"><span class="chip">Kali Rolling</span><span class="chip">Semgrep</span><span class="chip">Nuclei</span><span class="chip">Trivy</span><span class="chip">Gitleaks</span><span class="chip">YARA</span><span class="chip">AFL++</span></div>
+</section>
+<section class="grid">
+<div class="card"><h2>Mission Control</h2><p>Live service telemetry, finding severity, pipeline state, research-case counts, tool inventory, run history, and fixed local operations in one responsive interface.</p></div>
+<div class="card"><h2>Defensive Pipeline</h2><p>Inventory, static analysis, secret scanning, configuration review, baseline comparison, bounded fuzzing, and machine-readable evidence are available through one control surface.</p></div>
+<div class="card"><h2>Research Workbench</h2><p>Persistent cases, static file triage, custom fuzz harnesses, isolated training targets, and a disposable operator environment support repeatable security research.</p></div>
+</section>
+<section class="architecture">
+<div class="tag">ARCHITECTURE</div>
+<div class="flow">
+<div class="node"><b>WORKSTATION</b><span>control and evidence</span></div>
+<div class="arrow">→</div>
+<div class="node"><b>DEFENSE + KALI</b><span>review and operator layers</span></div>
+<div class="arrow">→</div>
+<div class="targets"><div class="target">Juice Shop :3000</div><div class="target">DVWA :8080</div><div class="target">WebGoat :8081</div></div>
+</div>
+</section>
+<div class="cmd"><b>$</b> sec up<br><b>$</b> sec defend<br><b>$</b> sec gui<br><b>$</b> sec review<br><b>$</b> sec validate<br><b>$</b> sec fuzz<br><b>$</b> sec triage sample.bin</div>
+<footer>Built for isolated training and authorized security research. Default service bindings remain local.</footer>
+</main>
+</body>
+</html>
