@@ -21,6 +21,8 @@ sec ps
 sec scan
 sec kali-build
 sec kali
+sec mcp-setup
+sec ai-kali
 sec sol
 sec new client-or-lab-name
 sec update
@@ -56,6 +58,24 @@ The Kali image is based on `kalilinux/kali-rolling` and includes Kali's top-10 m
 Highlights include Metasploit, NetExec, Responder, BloodHound, Impacket scripts, enum4linux-ng, Evil-WinRM, ExploitDB, Ligolo-ng, Kerberoast tooling, mitm6, PEASS, Recon-ng, SecLists, testssl.sh, WhatWeb, WAFW00F, WPScan, tshark, Trivy, Gitleaks, Kali MCP Server, Metasploit MCP, and HexStrike AI.
 
 The repository is mounted at `/workspace` inside Kali. Kali's `/root` home is persistent in its own Docker volume, while the container itself stays disposable.
+
+## Codex + Kali MCP mode
+
+The Kali container starts its MCP API on `127.0.0.1:5000` *inside the container only*. It is not published as a Codespaces port.
+
+Configure Codex once:
+
+```bash
+sec mcp-setup
+```
+
+Then launch Sol with the Kali MCP bridge ready:
+
+```bash
+sec ai-kali
+```
+
+`sec ai-kali` starts the operator container if needed, checks the local Kali MCP API, and launches Codex on GPT-5.6 Sol. The MCP bridge itself is invoked through `docker compose exec`, so the API does not need to be exposed publicly.
 
 ## Host toolset
 
