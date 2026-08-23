@@ -8,7 +8,7 @@ fi
 
 URL="$1"
 echo "== HTTP headers =="
-curl -skI --max-time 15 "$URL" || true
+curl -skI --max-time 15 -- "$URL" || true
 
 if [[ "$URL" == https://* ]]; then
   HOST="${URL#https://}"

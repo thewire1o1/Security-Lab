@@ -1,24 +1,42 @@
 services:
   juice-shop:
-    image: bkimminich/juice-shop:latest
+    image: bkimminich/juice-shop:v20.2.0
     container_name: sec-lab-juice-shop
     restart: unless-stopped
+    init: true
+    pids_limit: 256
+    mem_limit: 768m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "127.0.0.1:3000:3000"
     networks: [security-lab]
 
   dvwa:
-    image: vulnerables/web-dvwa:latest
+    image: vulnerables/web-dvwa@sha256:dae203fe11646a86937bf04db0079adef295f426da68a92b40e3b181f337daa7
     container_name: sec-lab-dvwa
     restart: unless-stopped
+    init: true
+    pids_limit: 256
+    mem_limit: 768m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "127.0.0.1:8080:80"
     networks: [security-lab]
 
   webgoat:
-    image: webgoat/webgoat:latest
+    image: webgoat/webgoat:v2025.3
     container_name: sec-lab-webgoat
     restart: unless-stopped
+    init: true
+    pids_limit: 384
+    mem_limit: 1536m
+    cpus: 1.5
+    security_opt:
+      - no-new-privileges:true
     environment:
       WEBGOAT_PORT: "8080"
     ports:
@@ -41,10 +59,15 @@ services:
     volumes:
       - ../:/workspace
       - kali-home:/root
-    networks: [security-lab]
+    networks:
+      - security-lab
+      - operator-egress
 
 networks:
   security-lab:
+    driver: bridge
+    internal: true
+  operator-egress:
     driver: bridge
 
 volumes:

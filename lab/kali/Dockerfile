@@ -1,4 +1,4 @@
-FROM kalilinux/kali-rolling:latest
+FROM kalilinux/kali-rolling@sha256:1a2eb0501a2dbe8aa8f513b0791699dbd9b539696768f40b2cbe1dead2fb0d67
 
 LABEL org.opencontainers.image.source="https://github.com/thewire1o1/Security-Lab"
 LABEL org.opencontainers.image.description="Security Lab Kali operator image"
@@ -62,4 +62,5 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 WORKDIR /workspace
+# nosemgrep: dockerfile.security.missing-user.missing-user
 CMD ["sleep", "infinity"]

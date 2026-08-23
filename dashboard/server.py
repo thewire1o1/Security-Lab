@@ -2,7 +2,8 @@
 import json
 import os
 import re
-import subprocess
+import shutil
+import subprocess  # nosec B404
 import threading
 import time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -13,9 +14,12 @@ ROOT = Path(__file__).resolve().parents[1]
 WEB = Path(__file__).resolve().parent / "web"
 PORT = int(os.environ.get("SEC_DASHBOARD_PORT", "8765"))
 HOST = os.environ.get("SEC_DASHBOARD_HOST", "127.0.0.1")
+MAX_ACTION_BODY = 4096
 COMPOSE = ["docker", "compose", "-f", str(ROOT / "lab" / "docker-compose.yml")]
 ACTIVITY = ROOT / "reports" / "dashboard-activity.log"
 ACTIVITY.parent.mkdir(parents=True, exist_ok=True)
+ACTION_LOCK = threading.Lock()
+ACTIVE_ACTION = None
 
 SERVICES = {
     "juice-shop": {"container": "sec-lab-juice-shop", "port": 3000, "label": "Juice Shop"},
@@ -33,7 +37,9 @@ def log(message):
 
 def run(cmd, timeout=8):
     try:
-        p = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True, timeout=timeout)
+        p = subprocess.run(  # nosec B603
+            cmd, cwd=ROOT, text=True, capture_output=True, timeout=timeout
+        )
         return p.returncode, p.stdout.strip(), p.stderr.strip()
     except Exception as exc:
         return 1, "", str(exc)
@@ -174,11 +180,12 @@ def tool_presence():
         "radare2",
         "shellcheck",
     ]
-    result = {}
-    for tool in tools:
-        code, out, _ = run(["bash", "-lc", f"command -v {tool} || true"], timeout=2)
-        result[tool] = code == 0 and bool(out.strip())
-    return result
+    return {tool: shutil.which(tool) is not None for tool in tools}
+
+
+def current_action():
+    with ACTION_LOCK:
+        return ACTIVE_ACTION
 
 
 def status_payload():
@@ -209,14 +216,28 @@ def status_payload():
         "activity": recent_activity(),
         "pipeline": pipeline,
         "validation": validation,
+        "active_action": current_action(),
     }
 
 
 def background(name, cmd):
+    global ACTIVE_ACTION
+    with ACTION_LOCK:
+        if ACTIVE_ACTION is not None:
+            return False
+        ACTIVE_ACTION = name
+
     def worker():
+        global ACTIVE_ACTION
         log(f"ACTION {name}: started")
         try:
-            proc = subprocess.Popen(cmd, cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            proc = subprocess.Popen(  # nosec B603
+                cmd,
+                cwd=ROOT,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
             if proc.stdout:
                 for line in proc.stdout:
                     line = line.rstrip()
@@ -226,8 +247,12 @@ def background(name, cmd):
             log(f"ACTION {name}: finished rc={rc}")
         except Exception as exc:
             log(f"ACTION {name}: failed: {exc}")
+        finally:
+            with ACTION_LOCK:
+                ACTIVE_ACTION = None
 
     threading.Thread(target=worker, daemon=True).start()
+    return True
 
 
 ACTIONS = {
@@ -250,6 +275,17 @@ class Handler(SimpleHTTPRequestHandler):
     def log_message(self, fmt, *args):
         return
 
+    def end_headers(self):
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; "
+            "connect-src 'self'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'",
+        )
+        super().end_headers()
+
     def send_json(self, payload, code=200):
         body = json.dumps(payload).encode("utf-8")
         self.send_response(code)
@@ -258,6 +294,17 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def request_origin_allowed(self):
+        site = self.headers.get("Sec-Fetch-Site", "").lower()
+        if site == "cross-site":
+            return False
+        origin = self.headers.get("Origin")
+        if not origin:
+            return True
+        host = self.headers.get("Host", "")
+        parsed = urlparse(origin)
+        return parsed.scheme in ("http", "https") and bool(host) and parsed.netloc == host
 
     def do_GET(self):
         path = urlparse(self.path).path
@@ -277,18 +324,37 @@ class Handler(SimpleHTTPRequestHandler):
         if path != "/api/action":
             self.send_json({"error": "not found"}, 404)
             return
-        length = int(self.headers.get("Content-Length", "0"))
+        if not self.request_origin_allowed():
+            self.send_json({"error": "cross-origin request denied"}, 403)
+            return
+        content_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+        if content_type != "application/json":
+            self.send_json({"error": "application/json required"}, 415)
+            return
         try:
-            payload = json.loads(self.rfile.read(length) or b"{}")
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            self.send_json({"error": "invalid content length"}, 400)
+            return
+        if length < 1 or length > MAX_ACTION_BODY:
+            self.send_json({"error": "request body too large"}, 413)
+            return
+        try:
+            payload = json.loads(self.rfile.read(length))
         except json.JSONDecodeError:
             self.send_json({"error": "invalid json"}, 400)
+            return
+        if not isinstance(payload, dict):
+            self.send_json({"error": "invalid payload"}, 400)
             return
         action = payload.get("action")
         fn = ACTIONS.get(action)
         if not fn:
             self.send_json({"error": "unsupported action"}, 400)
             return
-        fn()
+        if not fn():
+            self.send_json({"error": "another action is already running", "active": current_action()}, 409)
+            return
         self.send_json({"ok": True, "action": action}, 202)
 
 
