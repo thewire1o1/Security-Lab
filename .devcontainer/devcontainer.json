@@ -1,6 +1,39 @@
 {
-  "name": "Codex VM",
+  "name": "AI Security Lab",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
-  "postCreateCommand": "npm install -g @openai/codex",
-  "remoteUser": "node"
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "moby": true,
+      "dockerDashComposeVersion": "v2"
+    },
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "installOhMyZsh": false,
+      "username": "node"
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/bootstrap.sh",
+  "remoteUser": "node",
+  "forwardPorts": [3000, 8080, 8081, 9090],
+  "portsAttributes": {
+    "3000": { "label": "OWASP Juice Shop", "onAutoForward": "silent" },
+    "8080": { "label": "DVWA", "onAutoForward": "silent" },
+    "8081": { "label": "WebGoat", "onAutoForward": "silent" },
+    "9090": { "label": "Lab Web", "onAutoForward": "ignore" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-azuretools.vscode-docker",
+        "ms-python.python",
+        "redhat.vscode-yaml",
+        "timonwong.shellcheck",
+        "eamodio.gitlens"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  }
 }
