@@ -128,14 +128,15 @@ class GitHubClient:
         raise GitHubError("GitHub authentication is unavailable.")
 
     def _token_from_gh(self) -> str:
-        if shutil.which("gh") is None:
+        gh = shutil.which("gh")
+        if gh is None:
             return ""
         env = os.environ.copy()
         env.pop("GH_TOKEN", None)
         env.pop("GITHUB_TOKEN", None)
         try:
             result = subprocess.run(  # nosec B603
-                ["gh", "auth", "token", "--hostname", "github.com"],
+                [gh, "auth", "token", "--hostname", "github.com"],
                 cwd=self.config.root,
                 env=env,
                 text=True,
@@ -148,10 +149,13 @@ class GitHubClient:
         return result.stdout.strip() if result.returncode == 0 else ""
 
     def _token_from_git_credential(self) -> str:
+        git = shutil.which("git")
+        if git is None:
+            return ""
         request = "protocol=https\nhost=github.com\n\n"
         try:
             result = subprocess.run(  # nosec B603
-                ["git", "credential", "fill"],
+                [git, "credential", "fill"],
                 cwd=self.config.root,
                 input=request,
                 text=True,
