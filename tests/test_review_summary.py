@@ -13,13 +13,22 @@ class ReviewSummaryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp)
             (output / "semgrep.json").write_text(
-                json.dumps({"results": [{"extra": {"severity": "ERROR"}}, {"extra": {"severity": "WARNING"}}]}),
+                json.dumps(
+                    {
+                        "results": [
+                            {"extra": {"severity": "ERROR"}},
+                            {"extra": {"severity": "WARNING"}},
+                        ]
+                    }
+                ),
                 encoding="utf-8",
             )
             (output / "bandit.json").write_text(
                 json.dumps({"results": [{"issue_severity": "LOW"}]}), encoding="utf-8"
             )
-            (output / "gitleaks.json").write_text(json.dumps([{"RuleID": "test"}]), encoding="utf-8")
+            (output / "gitleaks.json").write_text(
+                json.dumps([{"RuleID": "test"}]), encoding="utf-8"
+            )
             (output / "trivy.json").write_text(
                 json.dumps(
                     {
@@ -43,6 +52,7 @@ class ReviewSummaryTests(unittest.TestCase):
             self.assertEqual(summary["severity"]["low"], 1)
             self.assertEqual(summary["total"], 7)
             self.assertEqual(summary["tools"]["trivy"]["secrets"], 1)
+            self.assertTrue(summary["coverage"]["complete"])
             self.assertTrue((output / "summary.json").is_file())
 
     def test_missing_scanner_files_produce_empty_summary(self) -> None:
@@ -50,6 +60,15 @@ class ReviewSummaryTests(unittest.TestCase):
             summary = summarize_review(Path(tmp))
             self.assertEqual(summary["total"], 0)
             self.assertEqual(sum(summary["severity"].values()), 0)
+
+    def test_unavailable_scanner_is_reported_as_incomplete_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp)
+            (output / "trivy.unavailable").touch()
+            summary = summarize_review(output)
+            self.assertFalse(summary["coverage"]["complete"])
+            self.assertIn("trivy", summary["coverage"]["missing"])
+            self.assertNotIn("trivy", summary["coverage"]["available"])
 
 
 if __name__ == "__main__":
