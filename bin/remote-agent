@@ -7,12 +7,43 @@ LOGFILE="$ROOT/reports/remote-agent.log"
 REPO="${GITHUB_REPOSITORY:-thewire1o1/Security-Lab}"
 OWNER="${SEC_REMOTE_OWNER:-thewire1o1}"
 POLL="${SEC_REMOTE_POLL_SECONDS:-8}"
+TOKEN="${SEC_GITHUB_TOKEN:-${GH_TOKEN:-${GITHUB_TOKEN:-}}}"
 mkdir -p "$ROOT/reports"
-
-export GH_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
 
 usage() {
   printf '%s\n' 'Usage: remote-agent start|stop|status|run'
+}
+
+resolve_token() {
+  if [ -n "$TOKEN" ]; then
+    return 0
+  fi
+  local creds
+  creds="$(GIT_TERMINAL_PROMPT=0 git -C "$ROOT" credential fill 2>/dev/null <<'EOF' || true
+protocol=https
+host=github.com
+
+EOF
+)"
+  TOKEN="$(sed -n 's/^password=//p' <<<"$creds" | head -n1)"
+  [ -n "$TOKEN" ]
+}
+
+api() {
+  local method="$1" path="$2" data="${3:-}"
+  resolve_token || { echo 'GitHub authentication is unavailable.' >&2; return 1; }
+  local args=(
+    -fsS
+    -X "$method"
+    -H "Authorization: Bearer $TOKEN"
+    -H 'Accept: application/vnd.github+json'
+    -H 'X-GitHub-Api-Version: 2022-11-28'
+    "https://api.github.com$path"
+  )
+  if [ -n "$data" ]; then
+    args+=( -H 'Content-Type: application/json' --data "$data" )
+  fi
+  curl "${args[@]}"
 }
 
 alive() {
@@ -27,8 +58,9 @@ start_agent() {
     printf 'remote-agent already running: %s\n' "$(cat "$PIDFILE")"
     return 0
   fi
-  command -v gh >/dev/null 2>&1 || { echo 'gh is required.' >&2; return 1; }
-  [ -n "$GH_TOKEN" ] || { echo 'GitHub authentication is unavailable.' >&2; return 1; }
+  command -v curl >/dev/null 2>&1 || { echo 'curl is required.' >&2; return 1; }
+  command -v jq >/dev/null 2>&1 || { echo 'jq is required.' >&2; return 1; }
+  resolve_token || { echo 'GitHub authentication is unavailable.' >&2; return 1; }
   nohup bash "$0" run >>"$LOGFILE" 2>&1 </dev/null &
   echo "$!" >"$PIDFILE"
   printf 'remote-agent started: %s\n' "$!"
@@ -57,21 +89,16 @@ status_agent() {
 }
 
 codespace_list() {
-  gh api '/user/codespaces?per_page=100' \
-    --jq '.codespaces[] | [.name, .display_name, .repository.full_name, .state, .machine.display_name, .web_url] | @tsv'
+  api GET '/user/codespaces?per_page=100' | jq -r '.codespaces[] | [.name, .display_name, .repository.full_name, .state, .machine.display_name, .web_url] | @tsv'
 }
 
 codespace_create() {
-  local machines machine response
-  machines="$(gh api "/repos/$REPO/codespaces/machines")"
+  local machines machine response payload
+  machines="$(api GET "/repos/$REPO/codespaces/machines")"
   machine="$(jq -r '[.machines[]] | sort_by(.cpus, .memory_in_bytes, .storage_in_bytes) | .[0].name // empty' <<<"$machines")"
   [ -n "$machine" ] || { echo 'No Codespaces machine type is currently available.' >&2; return 1; }
-
-  response="$(gh api -X POST "/repos/$REPO/codespaces" \
-    -f ref=master \
-    -f machine="$machine" \
-    -f devcontainer_path='.devcontainer/devcontainer.json')"
-
+  payload="$(jq -cn --arg ref master --arg machine "$machine" --arg dev '.devcontainer/devcontainer.json' '{ref:$ref,machine:$machine,devcontainer_path:$dev}')"
+  response="$(api POST "/repos/$REPO/codespaces" "$payload")"
   jq '{name, display_name, state, web_url, machine: .machine.display_name}' <<<"$response"
 }
 
@@ -79,8 +106,10 @@ codespace_retire_current() {
   local current="${CODESPACE_NAME:-}"
   [ -n "$current" ] || { echo 'Current Codespace name is unavailable.' >&2; return 1; }
   printf 'Scheduling retirement of current Codespace: %s\n' "$current"
-  nohup bash -c 'sleep 20; gh codespace delete -c "$1" --force' _ "$current" \
-    >>"$ROOT/reports/codespace-retire.log" 2>&1 </dev/null &
+  (
+    sleep 20
+    api DELETE "/user/codespaces/$current" >/dev/null
+  ) >>"$ROOT/reports/codespace-retire.log" 2>&1 &
   echo 'Deletion scheduled in 20 seconds.'
 }
 
@@ -109,18 +138,26 @@ run_task() {
 }
 
 comment_issue() {
-  local number="$1" body="$2"
-  gh api -X POST "/repos/$REPO/issues/$number/comments" --raw-field body="$body" >/dev/null
+  local number="$1" body="$2" payload
+  payload="$(jq -cn --arg body "$body" '{body:$body}')"
+  api POST "/repos/$REPO/issues/$number/comments" "$payload" >/dev/null
 }
 
 close_issue() {
-  local number="$1" title="$2"
-  gh api -X PATCH "/repos/$REPO/issues/$number" -f state=closed -f state_reason=completed -f title="$title" >/dev/null
+  local number="$1" title="$2" payload
+  payload="$(jq -cn --arg title "$title" '{state:"closed",state_reason:"completed",title:$title}')"
+  api PATCH "/repos/$REPO/issues/$number" "$payload" >/dev/null
+}
+
+set_issue_title() {
+  local number="$1" title="$2" payload
+  payload="$(jq -cn --arg title "$title" '{title:$title}')"
+  api PATCH "/repos/$REPO/issues/$number" "$payload" >/dev/null
 }
 
 process_issue() {
   local issue="$1"
-  local number title body author task output rc result_title result_body
+  local number title body author task output rc result_title result_body expected
   number="$(jq -r '.number' <<<"$issue")"
   title="$(jq -r '.title' <<<"$issue")"
   body="$(jq -r '.body // ""' <<<"$issue")"
@@ -131,7 +168,7 @@ process_issue() {
   task="$(sed -nE 's/^task:[[:space:]]*([a-z0-9-]+)[[:space:]]*$/\1/p' <<<"$body" | head -n1)"
   [ -n "$task" ] || {
     comment_issue "$number" 'Rejected: missing or invalid `task:` field.'
-    close_issue "$number" "[LAB-REJECTED] invalid-task"
+    close_issue "$number" '[LAB-REJECTED] invalid-task'
     return 0
   }
 
@@ -153,7 +190,7 @@ process_issue() {
     fi
   fi
 
-  gh api -X PATCH "/repos/$REPO/issues/$number" -f title="[LAB-RUNNING] $task" >/dev/null
+  set_issue_title "$number" "[LAB-RUNNING] $task"
   set +e
   output="$(run_task "$task" 2>&1)"
   rc=$?
@@ -179,14 +216,14 @@ Output:
 }
 
 run_loop() {
-  command -v gh >/dev/null 2>&1 || { echo 'gh is required.' >&2; exit 1; }
+  command -v curl >/dev/null 2>&1 || { echo 'curl is required.' >&2; exit 1; }
   command -v jq >/dev/null 2>&1 || { echo 'jq is required.' >&2; exit 1; }
-  [ -n "$GH_TOKEN" ] || { echo 'GitHub authentication is unavailable.' >&2; exit 1; }
+  resolve_token || { echo 'GitHub authentication is unavailable.' >&2; exit 1; }
   trap 'rm -f "$PIDFILE"' EXIT
   echo "$$" >"$PIDFILE"
   printf '[%s] remote-agent online for %s\n' "$(date -u +%FT%TZ)" "$REPO"
   while true; do
-    issues="$(gh api "/repos/$REPO/issues?state=open&creator=$OWNER&per_page=20" 2>/dev/null || printf '[]')"
+    issues="$(api GET "/repos/$REPO/issues?state=open&creator=$OWNER&per_page=20" 2>/dev/null || printf '[]')"
     while IFS= read -r issue; do
       process_issue "$issue" || true
     done < <(jq -c '.[] | select(.pull_request == null)' <<<"$issues")
