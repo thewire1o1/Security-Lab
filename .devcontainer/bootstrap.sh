@@ -31,7 +31,7 @@ npm install -g @openai/codex
 # Installs current Go, ProjectDiscovery/PDTM, Nikto, and Impacket.
 printf '\n[+] Installing core security tooling...\n'
 bash "$WORKSPACE/bin/repair-tools" || true
-export PATH="/usr/local/go/bin:$GO_BIN:$HOME/.local/bin:$WORKSPACE/bin:$PATH"
+export PATH="/usr/local/go/bin:$GO_BIN:$HOME/.local/bin:$PATH"
 
 install_go() {
   local name="$1" pkg="$2"
@@ -55,25 +55,38 @@ if [ ! -d "$TOOLS_HOME/SecLists/.git" ]; then
   git clone --depth 1 https://github.com/danielmiessler/SecLists.git "$TOOLS_HOME/SecLists" || true
 fi
 
-BASH_MARKER='# >>> AI-SECURITY-LAB >>>'
-if ! grep -qF "$BASH_MARKER" "$HOME/.bashrc" 2>/dev/null; then
-  cat >> "$HOME/.bashrc" <<EOF
+# Ignore executable-bit changes in this Codespace. GitHub's Contents API stores
+# these helper scripts as ordinary text files, and every helper is invoked via bash.
+git config core.fileMode false || true
 
-$BASH_MARKER
-export PATH="/usr/local/go/bin:$GO_BIN:$HOME/.local/bin:$WORKSPACE/bin:\$PATH"
-export SECLISTS="$TOOLS_HOME/SecLists"
-alias sol='codex --model gpt-daybreak-blue'
-alias labup='sec up'
-alias labdown='sec down'
-alias labps='sec ps'
-alias labscan='sec scan'
-alias recon='bash $WORKSPACE/bin/recon'
-alias headers='bash $WORKSPACE/bin/headers'
-$BASH_MARKER END
-EOF
+BASH_MARKER='# >>> AI-SECURITY-LAB >>>'
+if grep -qF "$BASH_MARKER" "$HOME/.bashrc" 2>/dev/null; then
+  # Replace the managed block so existing Codespaces get updated behavior.
+  python3 - "$HOME/.bashrc" <<'PY'
+from pathlib import Path
+import re, sys
+p = Path(sys.argv[1])
+s = p.read_text()
+s = re.sub(r'\n# >>> AI-SECURITY-LAB >>>.*?# <<< AI-SECURITY-LAB <<<\n?', '\n', s, flags=re.S)
+p.write_text(s)
+PY
 fi
 
-chmod +x "$WORKSPACE"/bin/* 2>/dev/null || true
+cat >> "$HOME/.bashrc" <<EOF
+
+# >>> AI-SECURITY-LAB >>>
+export PATH="/usr/local/go/bin:$GO_BIN:$HOME/.local/bin:\$PATH"
+export SECLISTS="$TOOLS_HOME/SecLists"
+sec() { bash "$WORKSPACE/bin/sec" "\$@"; }
+alias sol='codex --model gpt-daybreak-blue'
+alias labup='bash $WORKSPACE/bin/sec up'
+alias labdown='bash $WORKSPACE/bin/sec down'
+alias labps='bash $WORKSPACE/bin/sec ps'
+alias labscan='bash $WORKSPACE/bin/sec scan'
+alias recon='bash $WORKSPACE/bin/recon'
+alias headers='bash $WORKSPACE/bin/headers'
+# <<< AI-SECURITY-LAB <<<
+EOF
 
 cat <<'BANNER'
 
