@@ -1,4 +1,4 @@
-"""Core implementation for Digital Paragon Security Research."""
+"""Core implementation for APOTHEON ONE."""
 
 from __future__ import annotations
 
