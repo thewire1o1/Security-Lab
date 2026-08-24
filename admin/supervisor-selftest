@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+read_pid() {
+  cat "$1" 2>/dev/null || true
+}
+
+wait_new_pid() {
+  local pidfile="$1"
+  local old_pid="$2"
+  local health_cmd="$3"
+  for _ in $(seq 1 40); do
+    local new_pid
+    new_pid="$(read_pid "$pidfile")"
+    if [ -n "$new_pid" ] && [ "$new_pid" != "$old_pid" ] && kill -0 "$new_pid" 2>/dev/null; then
+      if bash -c "$health_cmd" >/dev/null 2>&1; then
+        printf '%s\n' "$new_pid"
+        return 0
+      fi
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+if ! bash "$ROOT/admin/control-plane-supervisor" status >/dev/null 2>&1; then
+  printf 'Supervisor is not running.\n' >&2
+  exit 1
+fi
+
+old_gui="$(read_pid "$ROOT/.dashboard.pid")"
+if [ -z "$old_gui" ] || ! kill -0 "$old_gui" 2>/dev/null; then
+  printf 'Dashboard PID unavailable.\n' >&2
+  exit 1
+fi
+rm -f "$ROOT/.dashboard.disabled"
+kill -9 "$old_gui"
+new_gui="$(wait_new_pid "$ROOT/.dashboard.pid" "$old_gui" "bash '$ROOT/bin/dashboard-control' status")" || {
+  printf 'Dashboard was not recovered by supervisor.\n' >&2
+  exit 1
+}
+printf 'Dashboard recovered: %s -> %s\n' "$old_gui" "$new_gui"
+
+old_mcp="$(read_pid "$ROOT/.mcp.pid")"
+if [ -z "$old_mcp" ] || ! kill -0 "$old_mcp" 2>/dev/null; then
+  printf 'MCP PID unavailable.\n' >&2
+  exit 1
+fi
+rm -f "$ROOT/.mcp.disabled"
+kill -9 "$old_mcp"
+new_mcp="$(wait_new_pid "$ROOT/.mcp.pid" "$old_mcp" "bash '$ROOT/bin/mcp-control' status")" || {
+  printf 'MCP was not recovered by supervisor.\n' >&2
+  exit 1
+}
+printf 'MCP recovered: %s -> %s\n' "$old_mcp" "$new_mcp"
+
+bash "$ROOT/admin/control-plane-supervisor" status
