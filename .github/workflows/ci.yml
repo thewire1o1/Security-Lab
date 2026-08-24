@@ -17,14 +17,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Python syntax
-        run: python3 -m py_compile dashboard/server.py bin/sec-report
+        run: python3 -m compileall -q security_lab tests dashboard bin/sec-report
+      - name: Unit tests
+        run: python3 -m unittest discover -s tests -v
       - name: Shell syntax
         run: |
           for f in bin/* .devcontainer/*.sh; do
             [ -f "$f" ] || continue
-            case "$f" in
-              bin/sec-report) continue ;;
-            esac
+            head -n 1 "$f" | grep -q 'bash' || continue
             bash -n "$f"
           done
       - name: ShellCheck
@@ -70,4 +70,4 @@ jobs:
       - name: Semgrep
         run: semgrep scan --config auto --error --exclude reports --exclude artifacts --exclude cases .
       - name: Bandit
-        run: bandit -r dashboard bin -x reports,artifacts,cases -q
+        run: bandit -r dashboard bin security_lab -x reports,artifacts,cases -q

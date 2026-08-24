@@ -38,30 +38,33 @@ kali_up() {
 }
 
 kali_refresh() {
-  echo '[+] Pulling Kali operator image...'
+  printf '%s\n' '[+] Pulling Kali operator image...'
   if "${COMPOSE[@]}" --profile operator pull kali; then
     docker builder prune -af --filter 'until=24h' >/dev/null 2>&1 || true
     return 0
   fi
-  echo '[!] Prebuilt image unavailable; building locally.'
+  printf '%s\n' '[!] Prebuilt image unavailable; building locally.'
   "${COMPOSE[@]}" --profile operator build --pull kali
   docker builder prune -af >/dev/null 2>&1 || true
 }
 
 cmd="${1:-help}"
-shift || true
+if [ "$#" -gt 0 ]; then
+  shift
+fi
 
 case "$cmd" in
   help|-h|--help) usage ;;
-  doctor) exec bash "$ROOT/bin/doctor" ;;
+  doctor) exec bash "$ROOT/bin/doctor" "$@" ;;
   up) exec "${COMPOSE[@]}" up -d juice-shop dvwa webgoat ;;
   down) exec "${COMPOSE[@]}" --profile operator down ;;
   ps) exec "${COMPOSE[@]}" --profile operator ps ;;
-  scan) exec bash "$ROOT/bin/labscan" ;;
+  scan) exec bash "$ROOT/bin/labscan" "$@" ;;
   dashboard|gui)
-    echo 'Mission Control starting at http://127.0.0.1:8765'
-    echo 'In Codespaces, open forwarded port 8765 and keep its visibility Private.'
-    exec python3 "$ROOT/dashboard/server.py" "$@"
+    printf '%s\n' 'Mission Control starting at http://127.0.0.1:8765'
+    printf '%s\n' 'In Codespaces, open forwarded port 8765 and keep its visibility Private.'
+    cd "$ROOT"
+    exec python3 -m security_lab.dashboard "$@"
     ;;
   report) exec python3 "$ROOT/bin/sec-report" "$@" ;;
   defend) exec bash "$ROOT/bin/defense-run" "$@" ;;
@@ -79,10 +82,16 @@ case "$cmd" in
   clean) exec bash "$ROOT/bin/disk-guard" --force ;;
   disk)
     df -h /
-    echo
-    docker system df || true
+    if command -v docker >/dev/null 2>&1; then
+      printf '\n'
+      docker system df || true
+    fi
     ;;
   update) exec bash "$ROOT/bin/update-all" "$@" ;;
   new) exec bash "$ROOT/bin/new-engagement" "$@" ;;
-  *) echo "Unknown command: $cmd" >&2; usage; exit 2 ;;
+  *)
+    printf 'Unknown command: %s\n' "$cmd" >&2
+    usage >&2
+    exit 2
+    ;;
 esac
