@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO="${GITHUB_REPOSITORY:-thewire1o1/Security-Lab}"
+SECRET_NAME="DPSR_CODESPACES_TOKEN"
+
+if ! command -v gh >/dev/null 2>&1; then
+  exit 0
+fi
+
+TOKEN="$(env -u GH_TOKEN -u GITHUB_TOKEN gh auth token --hostname github.com 2>/dev/null || true)"
+if [ -z "$TOKEN" ]; then
+  exit 0
+fi
+
+if ! GH_TOKEN="$TOKEN" timeout 15 gh api '/user/codespaces?per_page=1' >/dev/null 2>&1; then
+  exit 0
+fi
+
+if printf '%s' "$TOKEN" | GH_TOKEN="$TOKEN" timeout 20 gh secret set "$SECRET_NAME" --repo "$REPO" >/dev/null 2>&1; then
+  printf 'DPSR wake controller credential ready.\n'
+  exit 0
+fi
+
+printf 'DPSR wake controller credential bootstrap unavailable.\n' >&2
+exit 0
