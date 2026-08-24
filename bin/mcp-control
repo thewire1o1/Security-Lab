@@ -41,6 +41,14 @@ healthy() {
   is_running && port_open
 }
 
+log_tail() {
+  if [ -f "$LOGFILE" ]; then
+    printf '%s\n' '--- recent MCP server log ---' >&2
+    tail -n 80 "$LOGFILE" >&2 || true
+    printf '%s\n' '--- end MCP server log ---' >&2
+  fi
+}
+
 install_sdk() {
   if [ ! -x "$PYTHON" ]; then
     python3 -m venv "$VENV"
@@ -72,7 +80,7 @@ start_server() {
     if ! kill -0 "$pid" 2>/dev/null; then
       rm -f "$PIDFILE"
       printf 'DPSR MCP server failed to start.\n' >&2
-      tail -n 60 "$LOGFILE" >&2 || true
+      log_tail
       return 1
     fi
     if port_open; then
@@ -87,6 +95,7 @@ start_server() {
   done
 
   printf 'DPSR MCP process is running but port %s is not ready.\n' "$PORT" >&2
+  log_tail
   return 1
 }
 
@@ -126,16 +135,19 @@ status_server() {
   fi
   if is_running; then
     printf 'DPSR MCP server unhealthy: pid=%s port=%s unavailable.\n' "$(read_pid)" "$PORT" >&2
+    log_tail
     return 1
   fi
   rm -f "$PIDFILE"
-  printf 'DPSR MCP server stopped.\n'
+  printf 'DPSR MCP server stopped.\n' >&2
+  log_tail
   return 1
 }
 
 test_server() {
   if ! healthy; then
     printf 'DPSR MCP server is not healthy.\n' >&2
+    log_tail
     return 1
   fi
   "$PYTHON" -m security_lab.mcp_probe
