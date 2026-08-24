@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PIDFILE="$ROOT/.dashboard.pid"
+LOGFILE="$ROOT/reports/dashboard.log"
+PORT=8765
+
+read_pid() {
+  if [ -f "$PIDFILE" ]; then
+    cat "$PIDFILE" 2>/dev/null || true
+  fi
+}
+
+is_running() {
+  local pid
+  pid="$(read_pid)"
+  [ -n "$pid" ] || return 1
+  kill -0 "$pid" 2>/dev/null || return 1
+  tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -q 'security_lab.dashboard'
+}
+
+console_url() {
+  if [ -n "${CODESPACE_NAME:-}" ]; then
+    printf 'https://%s-%s.app.github.dev\n' "$CODESPACE_NAME" "$PORT"
+  else
+    printf 'http://127.0.0.1:%s\n' "$PORT"
+  fi
+}
+
+start_console() {
+  mkdir -p "$ROOT/reports"
+  if is_running; then
+    printf 'DPSR Operations Console already running: pid=%s\n' "$(read_pid)"
+    printf 'URL: %s\n' "$(console_url)"
+    return 0
+  fi
+
+  rm -f "$PIDFILE"
+  cd "$ROOT"
+  nohup python3 -m security_lab.dashboard >>"$LOGFILE" 2>&1 </dev/null &
+  local pid=$!
+  printf '%s\n' "$pid" > "$PIDFILE"
+
+  for _ in $(seq 1 30); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      rm -f "$PIDFILE"
+      printf 'DPSR Operations Console failed to start.\n' >&2
+      tail -n 40 "$LOGFILE" >&2 || true
+      return 1
+    fi
+    if python3 - "$PORT" <<'PY'
+import socket
+import sys
+
+port = int(sys.argv[1])
+try:
+    with socket.create_connection(("127.0.0.1", port), timeout=0.25):
+        pass
+except OSError:
+    raise SystemExit(1)
+PY
+    then
+      printf 'DPSR Operations Console running: pid=%s\n' "$pid"
+      printf 'URL: %s\n' "$(console_url)"
+      return 0
+    fi
+    sleep 0.5
+  done
+
+  printf 'DPSR Operations Console process is running but port %s is not ready.\n' "$PORT" >&2
+  return 1
+}
+
+stop_console() {
+  if ! is_running; then
+    rm -f "$PIDFILE"
+    printf 'DPSR Operations Console is not running.\n'
+    return 0
+  fi
+
+  local pid
+  pid="$(read_pid)"
+  kill "$pid" 2>/dev/null || true
+  for _ in $(seq 1 30); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      rm -f "$PIDFILE"
+      printf 'DPSR Operations Console stopped.\n'
+      return 0
+    fi
+    sleep 0.1
+  done
+  kill -9 "$pid" 2>/dev/null || true
+  rm -f "$PIDFILE"
+  printf 'DPSR Operations Console stopped.\n'
+}
+
+status_console() {
+  if is_running; then
+    printf 'DPSR Operations Console running: pid=%s\n' "$(read_pid)"
+    printf 'URL: %s\n' "$(console_url)"
+    return 0
+  fi
+  rm -f "$PIDFILE"
+  printf 'DPSR Operations Console stopped.\n'
+  return 1
+}
+
+case "${1:-status}" in
+  start) start_console ;;
+  stop) stop_console ;;
+  status) status_console ;;
+  *)
+    printf 'Usage: %s {start|stop|status}\n' "$0" >&2
+    exit 2
+    ;;
+esac
