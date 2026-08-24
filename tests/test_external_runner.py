@@ -69,7 +69,7 @@ timeout = 3600
             metadata={"repository": {}},
         )
         with mock.patch.object(github_actions, "PROJECTS_ROOT", Path("/workspaces/dpsr-projects")):
-            with self.assertRaisesRegex(ValueError, "managed DPSR projects"):
+            with self.assertRaisesRegex(ValueError, "managed APOTHEON ONE projects"):
                 github_actions.publish_project(project)
 
     def test_publish_creates_repo_binds_manifest_and_pushes(self) -> None:
