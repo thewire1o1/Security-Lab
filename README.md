@@ -1,3 +1,5 @@
+<div align="center">
+
 # APOTHEON ONE
 
 ### Unified. Elevated.
@@ -9,91 +11,113 @@ Created by **TheWire1o1** · James Porath
 
 [![APOTHEON ONE CI](https://github.com/thewire1o1/Security-Lab/actions/workflows/ci.yml/badge.svg)](https://github.com/thewire1o1/Security-Lab/actions/workflows/ci.yml)
 
-**APOTHEON ONE is a unified engineering control plane for building, validating, running, automating, and researching software across full-stack web, mobile, hosted CI, and isolated security environments.**
+**Build · Validate · Research · Recover**
 
-It combines framework-native provisioning, persistent project and job state, local/Docker/GitHub-hosted execution, a private operations console, structured MCP automation, out-of-band recovery, and a complete security research environment behind one reviewed control plane.
+[Architecture](ARCHITECTURE.md) · [Platform](docs/PLATFORM.md) · [Security](docs/SECURITY-RESEARCH.md) · [Contributing](CONTRIBUTING.md) · [Security Policy](SECURITY.md)
 
-The platform began as a serious security lab. That system remains intact. APOTHEON ONE expands it into a broader engineering environment without reducing the security side to a demo or removing the boundaries that made it useful.
-
-**APOTHEON** represents elevation toward the highest attainable form. **ONE** represents convergence: one environment, one control plane, and one coherent system. **Unified. Elevated.** compresses both ideas into the operating philosophy of the platform.
+</div>
 
 ---
 
-## What APOTHEON ONE contains
+## What APOTHEON ONE is
 
-| System | Production behavior |
+**APOTHEON ONE is a unified engineering control plane for building, validating, running, automating, securing, and researching software across full-stack web, mobile, hosted CI, containerized infrastructure, and isolated security environments.**
+
+It began as a serious security lab and expanded without sacrificing the boundaries that made the original system useful. Development, security, automation, recovery, and execution now operate as one platform rather than a pile of disconnected scripts.
+
+**APOTHEON** represents elevation toward the highest attainable form. **ONE** represents convergence: one environment, one control plane, one coherent system. **Unified. Elevated.** is the operating principle behind the platform.
+
+### The four operating planes
+
+| Plane | Responsibility |
 | --- | --- |
-| **Full-stack provisioning** | Generates integrated Next.js + FastAPI projects with PostgreSQL, Dockerfiles, Compose, environment scaffolding, health routing, and bounded build/test/lint jobs |
-| **Framework-native projects** | Provisions Next.js and FastAPI through real framework toolchains rather than placeholder directory templates |
-| **Mobile engineering** | Generates Flutter, React Native, native Android, and native iOS projects with Linux/macOS runner routing based on actual platform requirements |
-| **Project registry** | Tracks managed projects, manifests, profiles, repository bindings, commands, runner type, ports, and persistent lifecycle state |
-| **Job engine** | Persists queued/running/succeeded/failed jobs with timestamps, return codes, bounded output, and external workflow identity |
-| **GitHub Actions runner** | Publishes managed projects, dispatches generated workflows, discovers delayed run IDs, and refreshes external job state |
-| **Private console** | Unified views for Overview, Projects, Development, Mobile, Security, Jobs, Infrastructure, and Activity |
-| **MCP control plane** | Exposes structured project, job, repository, platform, security, and lifecycle operations without an arbitrary browser shell |
-| **Recovery plane** | Keeps wake/recovery control outside the Codespace runtime so the environment can be recovered even when the main process is unavailable |
-| **Security research environment** | Isolated vulnerable targets, disposable Kali operator plane, defensive analysis, recon, fuzzing, static artifact triage, research cases, engagements, validation, and evidence generation |
+| **Control** | Private console, CLI, MCP, project registry, job state, orchestration |
+| **Execution** | Local processes, Docker, GitHub-hosted Linux/macOS runners, generated project CI |
+| **Security** | Isolated training range, Kali operator environment, defensive analysis, fuzzing, triage, research state |
+| **Recovery** | Out-of-band GitHub bridge, wake controller, Codespace lifecycle, environment repair |
+
+The point is not to make every subsystem identical. The point is to make them **coherent, observable, bounded, and operable from one architecture**.
 
 ---
 
-# Platform architecture
+## Capability map
+
+| System | What it does |
+| --- | --- |
+| **Full-stack provisioning** | Generates integrated Next.js + FastAPI systems with PostgreSQL, Dockerfiles, Compose, environment scaffolding, health routing, and bounded verification jobs |
+| **Framework-native development** | Uses real framework toolchains instead of placeholder project templates |
+| **Mobile engineering** | Provisions Flutter, React Native, native Android, and native iOS projects with runner selection based on actual platform requirements |
+| **Project registry** | Persists project identity, profile, repository binding, commands, services, runner type, and lifecycle state |
+| **Job engine** | Tracks queued, running, succeeded, and failed work with timestamps, bounded output, return codes, and hosted-run identity |
+| **Hosted execution** | Publishes managed projects, dispatches GitHub Actions, discovers delayed run IDs, and refreshes external job state |
+| **Private console** | Presents operational state across projects, development, mobile, security, jobs, infrastructure, and activity |
+| **Structured MCP** | Exposes typed platform and repository operations without turning the browser or MCP surface into an arbitrary shell |
+| **Security research system** | Runs isolated vulnerable targets, a disposable Kali operator plane, recon, defensive analysis, fuzzing, triage, validation, cases, and evidence workflows |
+| **Recovery plane** | Keeps critical wake and repair capability outside the runtime it manages |
+
+---
+
+## Architecture
 
 ```text
-                              GITHUB
-                 ┌────────────────────────────┐
-                 │ Actions · Repositories · CI│
-                 └──────────────┬─────────────┘
-                                │
-                     hosted jobs / recovery
-                                │
-┌───────────────────────────────▼────────────────────────────────┐
-│                    APOTHEON ONE CONTROL PLANE                  │
-│                                                                │
-│   Private Console         CLI                MCP               │
-│         │                 │                   │                │
-│         └─────────────────┼───────────────────┘                │
-│                           │                                    │
-│       ┌───────────────────┼─────────────────────┐              │
-│       │                   │                     │              │
-│  Project Registry     Persistent Jobs      Runner Layer        │
-│       │                   │             local · Docker · hosted│
-└───────┼───────────────────┼─────────────────────┼──────────────┘
-        │                   │                     │
-        ▼                   ▼                     ▼
-┌───────────────┐   ┌───────────────┐   ┌──────────────────────┐
-│ Web / API     │   │ Mobile        │   │ Security Profile     │
-│ Full-stack    │   │ iOS / Android │   │ isolated research    │
-└───────────────┘   └───────────────┘   └──────────┬───────────┘
-                                                   │
-                              ┌────────────────────┼──────────────────┐
-                              ▼                    ▼                  ▼
-                         Kali Operator       Training Range      Evidence State
-                                              Juice Shop         Reports / Cases
-                                              DVWA               Engagements
-                                              WebGoat            Artifacts
+                                   GITHUB
+                    ┌──────────────────────────────┐
+                    │ Repositories · Actions · CI │
+                    └───────────────┬──────────────┘
+                                    │
+                         hosted execution / recovery
+                                    │
+┌───────────────────────────────────▼────────────────────────────────────┐
+│                         APOTHEON ONE CONTROL PLANE                    │
+│                                                                        │
+│      Private Console              CLI                 MCP              │
+│             │                     │                    │               │
+│             └─────────────────────┼────────────────────┘               │
+│                                   │                                    │
+│        ┌──────────────────────────┼──────────────────────────┐         │
+│        │                          │                          │         │
+│  Project Registry          Persistent Jobs             Runner Layer    │
+│        │                          │              local · Docker · hosted│
+└────────┼──────────────────────────┼──────────────────────────┼─────────┘
+         │                          │                          │
+         ▼                          ▼                          ▼
+┌────────────────┐        ┌────────────────┐        ┌────────────────────┐
+│ Web / API      │        │ Mobile         │        │ Security Profile   │
+│ Full-stack     │        │ iOS / Android  │        │ isolated research  │
+└────────────────┘        └────────────────┘        └─────────┬──────────┘
+                                                             │
+                              ┌──────────────────────────────┼─────────────────────┐
+                              ▼                              ▼                     ▼
+                       Kali Operator                  Training Range          Evidence State
+                                                     Juice Shop             Reports
+                                                     DVWA                   Cases
+                                                     WebGoat                Engagements
+                                                                            Artifacts
 ```
 
-The general development plane and security profile share orchestration, observability, job persistence, and automation. The vulnerable range and operator environment retain explicit trust boundaries.
+Development and security share orchestration, observability, job persistence, and automation. Vulnerable targets and operator tooling retain explicit trust boundaries instead of being flattened into the same privilege domain.
+
+For the security model and invariants, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
-# Development platform
+# Development system
 
 ## Full-stack web
 
-The `fullstack-web` profile creates an integrated application rather than a pair of unrelated sample folders:
+The `fullstack-web` profile creates an integrated application system:
 
-- Next.js application under `apps/web`
-- FastAPI service under `apps/api`
-- PostgreSQL service and persistent volume in `compose.yaml`
-- generated local database credentials in ignored `.env`
+- Next.js under `apps/web`
+- FastAPI under `apps/api`
+- PostgreSQL in `compose.yaml`
+- ignored local `.env`
 - credential-free `.env.example`
 - Dockerfiles for both application tiers
-- Next.js backend-health route wired through `API_INTERNAL_URL`
-- shared package and infrastructure areas
-- bounded `lint`, `test`, `build`, and separate `container-build` jobs
+- backend health routing through `API_INTERNAL_URL`
+- shared package, infrastructure, and tooling areas
+- bounded `lint`, `test`, `build`, and container-build jobs
 
-Ordinary verification validates the application and Compose definition without forcing a full image build every time.
+The generated stack is intended to be operated and verified, not merely scaffolded.
 
 ## Next.js
 
@@ -108,60 +132,54 @@ Provisioning uses the official `create-next-app` flow with explicit noninteracti
 - npm
 - nested Git initialization disabled
 
-APOTHEON ONE then registers and verifies the generated project through its bounded job layer.
-
 ## FastAPI
 
-The FastAPI profile creates an isolated virtual environment, installs project-local dependencies, writes a health endpoint and pytest health check, and exposes bounded lint/test execution through the same persistent job model.
+The FastAPI profile creates a project-local virtual environment, installs isolated dependencies, writes a health endpoint and test, and exposes bounded verification through the same persistent job model used by the rest of the platform.
 
 ## Mobile
 
-Mobile projects are treated as first-class workloads rather than pretending every build can happen inside one Linux container.
+APOTHEON ONE treats mobile as real native work rather than pretending every build belongs inside one Linux container.
 
 | Profile | Provisioning / execution model |
 | --- | --- |
-| **Flutter** | Uses a stable Flutter SDK, generates Android/iOS/web sources, runs analyze/test/web build locally, and emits CI support |
-| **React Native** | Uses the React Native Community CLI, installs npm dependencies, keeps native Android/iOS projects, and runs local lint/test validation |
-| **Android** | Generates native Kotlin with API 37, Android Gradle Plugin 9.3, Gradle 9.5, and routes native compilation to Ubuntu GitHub Actions |
-| **iOS** | Generates SwiftUI + XcodeGen metadata and routes simulator builds to a GitHub-hosted macOS runner with signing disabled for CI |
-
-Failed managed-project provisioning is cleaned only inside the managed project root. Externally registered project paths are not recursively removed by the provisioner.
+| **Flutter** | Stable Flutter SDK, Android/iOS/web sources, analyze/test/web build, generated CI support |
+| **React Native** | Community CLI, npm dependencies, native Android/iOS projects, local lint/test validation |
+| **Android** | Kotlin, API 37, AGP 9.3, Gradle 9.5, native build routed to GitHub-hosted Ubuntu |
+| **iOS** | SwiftUI + XcodeGen, simulator build routed to GitHub-hosted macOS with signing disabled for CI |
 
 ---
 
-# Persistent execution model
+# Persistent execution
 
-A managed project declares its platform contract in `dpsr.toml`:
+Managed projects declare their execution contract in `dpsr.toml`:
 
 ```text
 identity + profile
         │
-        ├── commands (pre-tokenized argv)
-        ├── working directories
-        ├── execution timeouts
+        ├── commands as pre-tokenized argv
+        ├── bounded working directories
+        ├── explicit timeouts
         ├── service ports
         └── runner identity
 ```
 
-Project jobs follow an explicit persistent lifecycle:
+Jobs persist through an explicit lifecycle:
 
 ```text
 queued → running → succeeded | failed
 ```
 
-Commands execute without shell interpolation inside bounded project roots. Native or platform-specific work can be routed to GitHub-hosted runners instead of faking support inside the Linux control plane.
+This is deliberately different from terminal history. Project and job state survives shell sessions, and hosted jobs retain external workflow identity so the control plane can reconcile them later.
 
-Project and job state persists outside terminal sessions, giving the platform a durable operational view rather than relying on shell history.
+The `dpsr` command, `DPSR_*` variables, and `dpsr.toml` remain compatibility contracts. They are not the public product identity.
 
 ---
 
-# Security research system
+# Security system
 
-Security is a complete APOTHEON ONE subsystem, not a feature tile attached to the development platform.
+Security is a complete APOTHEON ONE subsystem, not a decorative feature attached to the development platform.
 
 ## Isolated training range
-
-The default range contains three intentionally vulnerable applications for repeatable local research and validation:
 
 | Target | Host binding |
 | --- | --- |
@@ -169,57 +187,51 @@ The default range contains three intentionally vulnerable applications for repea
 | DVWA | `127.0.0.1:8080` |
 | WebGoat | `127.0.0.1:8081` |
 
-The vulnerable applications are attached to an internal Docker network and are not given direct external egress. Host bindings remain local by default.
+The intentionally vulnerable applications are placed on an internal Docker network and are not given direct external egress. Host bindings remain local by default.
 
 ## Disposable Kali operator plane
 
-The operator environment is a dedicated Kali Rolling container separated from the vulnerable applications. It carries the capabilities required for network research without granting those capabilities to the target services.
+The operator environment is separate from vulnerable targets and carries the capabilities required for authorized research without granting those capabilities to the target services.
 
-The current image includes tooling across the following domains.
-
-**Web / discovery**
-
+**Web / discovery**  
 `kali-tools-top10` · `feroxbuster` · `gobuster` · `whatweb` · `wafw00f` · `wpscan` · `testssl.sh` · `theHarvester` · `Recon-ng` · `SecLists`
 
-**Identity / Windows / directory services**
-
+**Identity / Windows / directory services**  
 `BloodHound` · `Impacket` · `enum4linux-ng` · `Evil-WinRM` · `Kerberoast` · `krbrelayx` · `mitm6` · `smbclient` · LDAP tooling
 
-**Network / pivoting / inspection**
-
+**Network / pivoting / inspection**  
 `Ligolo-ng` · `proxychains4` · `sshuttle` · `socat` · `netcat` · `tshark` · SNMP tooling · `nbtscan` · `onesixtyone`
 
-**Reverse engineering / artifact analysis**
-
+**Reverse engineering / artifact analysis**  
 `YARA` · `radare2` · `Binwalk` · `GDB` · `strace` · `ltrace` · `patchelf` · `file` · `binutils` · ClamAV
 
-**Fuzzing / compilation**
-
+**Fuzzing / compilation**  
 `AFL++` · `Clang` · `LLVM`
 
-**Security validation**
+**Security validation**  
+`Trivy` · `Gitleaks` · Semgrep · Bandit · `pip-audit`
 
-`Trivy` · `Gitleaks`
+## Defensive pipeline
 
-## Defensive analysis pipeline
+```bash
+dpsr defend
+```
 
-`dpsr defend` coordinates a reproducible defensive run and writes timestamped evidence under `reports/`.
-
-The pipeline records:
+A defensive run records:
 
 1. repository and runtime inventory
 2. Semgrep source analysis
-3. Gitleaks credential/secret detection
-4. Trivy vulnerability, secret, and misconfiguration scanning
+3. Gitleaks secret detection
+4. Trivy vulnerability, secret, and misconfiguration analysis
 5. Bandit Python security analysis
-6. `pip-audit` when a Python requirements file is present
-7. normalized finding summaries and severity counts
+6. `pip-audit` when Python requirements are present
+7. normalized scanner coverage and finding severity
 8. bounded fuzzing results
-9. baseline comparison and regression state
-10. optional locally configured external review status
+9. validation baseline and regression state
+10. optional external review status
 11. final machine-readable pipeline state
 
-Individual stages remain callable when isolating a result:
+Individual stages remain callable:
 
 ```bash
 dpsr review
@@ -230,31 +242,15 @@ dpsr report
 
 ## Static artifact triage
 
-Supplied files are inspected statically. The triage path does not execute the submitted artifact.
-
-Current triage captures:
-
-- file identification
-- filesystem metadata
-- printable strings
-- ExifTool metadata when available
-- recursive YARA matching against local rules
-- ELF structure via `readelf`
-- object/binary headers through `objdump`
-- embedded-content discovery with Binwalk
-- normalized triage summaries and evidence output
-
 ```bash
 dpsr triage path/to/sample
 ```
 
-## Fuzzing
+Triage is static and does not execute the supplied artifact. It can collect hashes, file identification, filesystem metadata, printable strings, ExifTool metadata, YARA results, ELF/object structure, and embedded-content discovery.
 
-APOTHEON ONE supports bounded fuzz execution and custom executable harnesses. Harness output is written into the current run and summarized into the same evidence model as the rest of the defensive pipeline.
+## Research state
 
-## Research cases
-
-Research state survives terminal sessions. Cases carry explicit notes, tasks, evidence, and output directories rather than relying on shell history or scratch files.
+Cases survive terminal sessions with explicit notes, tasks, evidence, and output directories:
 
 ```bash
 dpsr research new parser-review
@@ -263,13 +259,32 @@ dpsr research task parser-review "Minimize crashing input"
 dpsr research status parser-review
 ```
 
-## Engagement workspaces
+Scoped engagement workspaces remain separate from runtime reports and case state.
 
-Scoped engagement workspaces are separate from runtime reports and cases, giving authorized assessment work its own persistent boundary.
+---
 
-## Recon and range operations
+# Security engineering posture
 
-The repository retains dedicated `recon`, `labscan`, range lifecycle, Kali lifecycle, engagement, reporting, and research entry points in addition to the unified platform CLI.
+APOTHEON ONE treats repository security controls as executable engineering, not README promises.
+
+Current controls include:
+
+- Python compilation and unit regression tests
+- shell syntax validation and ShellCheck
+- Docker Compose validation
+- Gitleaks secret scanning
+- Trivy vulnerability, secret, and misconfiguration scanning
+- Semgrep static analysis
+- Bandit Python security analysis
+- CodeQL semantic analysis for Python and JavaScript/TypeScript
+- dependency review on pull requests
+- Dependabot updates
+- least-privilege workflow permissions
+- immutable commit pinning for third-party GitHub Actions
+- CI concurrency cancellation and job timeouts
+- identity regression tests preventing historical public branding from reappearing
+
+Security disclosure and scope are documented in [SECURITY.md](SECURITY.md).
 
 ---
 
@@ -277,39 +292,19 @@ The repository retains dedicated `recon`, `labscan`, range lifecycle, Kali lifec
 
 ## Structured MCP
 
-The MCP sidecar exposes structured tools for platform state, repository operations, projects, jobs, service status, and approved lifecycle actions. Browser and MCP surfaces do not accept arbitrary shell text and interpolate it into commands.
+The MCP sidecar exposes structured operations for platform state, repositories, projects, jobs, service status, and approved lifecycle actions. It does not accept arbitrary shell text and interpolate it into commands.
 
 ## Out-of-band GitHub bridge
 
-APOTHEON ONE keeps a separate GitHub issue-based recovery path outside the MCP process. It can remain usable when MCP itself is unhealthy and uses a fixed task vocabulary with explicit execution timeouts.
-
-Current remote tasks include environment diagnostics, status, repository sync, bootstrap, defensive analysis, validation, fuzzing, reporting, training-range lifecycle, Kali image refresh, system updates, disk maintenance, and Codespace lifecycle operations.
+The issue-based recovery path is separate from MCP. It uses a fixed task vocabulary and explicit execution timeouts so critical operations remain available even if the normal process is unhealthy.
 
 ## Wake controller
 
-Codespace wake/restart control runs in GitHub Actions, outside the Codespace it manages. That keeps the recovery path available when nothing inside the environment can answer.
+Codespace wake and recovery logic runs in GitHub Actions, outside the Codespace it manages. The recovery path therefore does not depend on the primary runtime being responsive.
 
 ---
 
-# Continuous validation
-
-The controller repository is continuously checked with:
-
-- Python compilation
-- unit tests
-- shell syntax validation
-- ShellCheck
-- Docker Compose validation
-- Gitleaks
-- Trivy
-- Semgrep
-- Bandit
-
-Security findings and environment validation are part of the repository workflow rather than a documentation-only policy.
-
----
-
-# Control surfaces
+# Control surface
 
 ```text
 dpsr platform                  platform summary
@@ -332,12 +327,10 @@ dpsr triage FILE               static artifact triage
 dpsr research ...              persistent research cases
 dpsr new NAME                  create an engagement workspace
 dpsr kali                      enter the operator plane
-dpsr kali-build                refresh the Kali image
+dpsr kali-build                refresh the security operator image
 dpsr gui                       launch the private APOTHEON ONE console
 dpsr mcp ACTION                manage the MCP sidecar
 ```
-
-The lower-level `sec` command and `dpsr` / `DPSR_*` compatibility identifiers remain where existing automation depends on them. They are implementation contracts, not the public product identity.
 
 ---
 
@@ -347,11 +340,11 @@ The lower-level `sec` command and `dpsr` / `DPSR_*` compatibility identifiers re
 platform/                  profile definitions + platform documentation
 security_lab/platform/     provisioning, jobs, runners, registry, mobile, GitHub Actions
 security_lab/              security pipeline, research, reporting, MCP, recovery, console backend
-lab/                       isolated training range + Kali operator image
+lab/                       isolated training range + security operator image
 bin/                       platform/security command entry points
 dashboard/                 private APOTHEON ONE console
 docs/                      platform, recovery, bridge, and public presentation
-.github/workflows/         CI, Kali image, wake and recovery automation
+.github/workflows/         CI, semantic analysis, dependency review, image, wake, recovery
 tests/                     regression coverage for platform and control-plane behavior
 ```
 
@@ -359,18 +352,24 @@ tests/                     regression coverage for platform and control-plane be
 
 # Documentation
 
-- [APOTHEON ONE platform architecture](docs/PLATFORM.md)
+- [Platform architecture](docs/PLATFORM.md)
 - [Security research subsystem](docs/SECURITY-RESEARCH.md)
 - [Trust boundaries and security architecture](ARCHITECTURE.md)
 - [Framework provisioning](platform/PROVISIONING.md)
 - [Mobile provisioning](platform/MOBILE.md)
 - [MCP bridge](docs/MCP_BRIDGE.md)
 - [Wake controller](docs/WAKE-CONTROLLER.md)
+- [Contribution guide](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
 
 ---
 
+<div align="center">
+
 **APOTHEON ONE** · **Unified. Elevated.**  
-A Development & Security Platform by **Digital Paragon**.  
-*Information Technology Excellence.*
+Development & Security Platform by **Digital Paragon**  
+*Information Technology Excellence*
 
 Created by **TheWire1o1** · James Porath
+
+</div>
