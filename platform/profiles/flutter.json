@@ -1,0 +1,18 @@
+{
+  "profile": {
+    "name": "flutter",
+    "title": "Flutter Mobile",
+    "category": "mobile",
+    "description": "Cross-platform Flutter application profile for Android, iOS, web, testing, and CI automation.",
+    "runner": "local",
+    "stack": ["dart", "flutter"],
+    "capabilities": ["android", "ios", "web", "testing", "ci", "release"],
+    "scaffold": "flutter"
+  },
+  "commands": {
+    "lint": {"argv": ["flutter", "analyze"], "cwd": "app", "timeout": 900},
+    "test": {"argv": ["flutter", "test"], "cwd": "app", "timeout": 1200},
+    "build": {"argv": ["flutter", "build", "apk"], "cwd": "app", "timeout": 3600}
+  },
+  "services": {}
+}
