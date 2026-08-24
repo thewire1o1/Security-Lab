@@ -1,0 +1,287 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+STAMP="$(date -u +%Y%m%d-%H%M%S)"
+OUT="$ROOT/reports/acceptance-$STAMP"
+mkdir -p "$OUT"
+export PATH="$ROOT/bin:/usr/local/go/bin:$HOME/go/bin:$HOME/.local/bin:$PATH"
+
+PASS=0
+FAIL=0
+WARN=0
+DASH_PID=""
+declare -a FAILURES=()
+declare -a WARNINGS=()
+
+if command -v dpsr >/dev/null 2>&1; then
+  DPSR=(dpsr)
+else
+  DPSR=(bash "$ROOT/bin/dpsr")
+fi
+
+slug() {
+  printf '%s' "$1" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9._-'
+}
+
+pass() {
+  PASS=$((PASS + 1))
+  printf '[PASS] %s\n' "$1"
+}
+
+fail() {
+  FAIL=$((FAIL + 1))
+  FAILURES+=("$1")
+  printf '[FAIL] %s\n' "$1"
+}
+
+warn() {
+  WARN=$((WARN + 1))
+  WARNINGS+=("$1")
+  printf '[WARN] %s\n' "$1"
+}
+
+run_step() {
+  local name="$1"
+  shift
+  local logfile="$OUT/$(slug "$name").log"
+  printf '\n== %s ==\n' "$name"
+  if "$@" >"$logfile" 2>&1; then
+    tail -n 120 "$logfile" || true
+    pass "$name"
+    return 0
+  fi
+  local rc=$?
+  tail -n 120 "$logfile" || true
+  printf 'exit=%s\n' "$rc"
+  fail "$name"
+  return 0
+}
+
+wait_http() {
+  local url="$1"
+  local attempts="${2:-60}"
+  local i
+  for ((i=1; i<=attempts; i++)); do
+    if curl -fsS --max-time 4 -- "$url" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
+cleanup() {
+  if [ -n "$DASH_PID" ] && kill -0 "$DASH_PID" >/dev/null 2>&1; then
+    kill "$DASH_PID" >/dev/null 2>&1 || true
+    wait "$DASH_PID" 2>/dev/null || true
+  fi
+  "${DPSR[@]}" down >/dev/null 2>&1 || true
+}
+trap cleanup EXIT INT TERM
+
+check_entrypoint() {
+  command -v dpsr >/dev/null 2>&1
+}
+
+check_doctor() {
+  local logfile="$OUT/doctor-full.log"
+  "${DPSR[@]}" doctor >"$logfile" 2>&1 || return 1
+  cat "$logfile"
+  if grep -Eq '\[--\].*(missing|import failed)' "$logfile"; then
+    return 1
+  fi
+  return 0
+}
+
+check_json_file() {
+  python3 - "$1" <<'PY'
+import json
+import pathlib
+import sys
+path = pathlib.Path(sys.argv[1])
+with path.open(encoding="utf-8") as handle:
+    json.load(handle)
+PY
+}
+
+check_latest_defense() {
+  local latest
+  latest="$(find "$ROOT/reports" -maxdepth 1 -type d -name 'defense-*' -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n1 | cut -d' ' -f2-)"
+  [ -n "$latest" ] || return 1
+  python3 - "$latest/pipeline.json" "$latest/summary.json" <<'PY'
+import json
+import pathlib
+import sys
+pipeline_path, summary_path = map(pathlib.Path, sys.argv[1:])
+pipeline = json.loads(pipeline_path.read_text(encoding="utf-8"))
+summary = json.loads(summary_path.read_text(encoding="utf-8"))
+stages = pipeline.get("stages", {})
+required = {"inventory", "review", "validation", "fuzz"}
+missing = required - set(stages)
+if missing:
+    raise SystemExit(f"missing pipeline stages: {sorted(missing)}")
+if stages.get("inventory") != "complete":
+    raise SystemExit(f"inventory stage: {stages.get('inventory')}")
+if stages.get("review") != "complete":
+    raise SystemExit(f"review stage: {stages.get('review')}")
+if stages.get("validation") not in {"complete", "no-baseline"}:
+    raise SystemExit(f"validation stage: {stages.get('validation')}")
+if stages.get("fuzz") != "complete":
+    raise SystemExit(f"fuzz stage: {stages.get('fuzz')}")
+coverage = summary.get("coverage", {})
+if not coverage.get("complete"):
+    raise SystemExit(f"scanner coverage incomplete: {coverage}")
+PY
+}
+
+research_flow() {
+  local name="acceptance-$STAMP"
+  "${DPSR[@]}" research new "$name" >/dev/null
+  "${DPSR[@]}" research note "$name" "acceptance note" >/dev/null
+  "${DPSR[@]}" research task "$name" "acceptance task" >/dev/null
+  "${DPSR[@]}" research status "$name" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d["notes"] >= 1 and d["tasks"] >= 1'
+  "${DPSR[@]}" research close "$name" >/dev/null
+  rm -rf -- "$ROOT/cases/$name"
+}
+
+engagement_flow() {
+  local name="acceptance-$STAMP"
+  local path
+  path="$("${DPSR[@]}" new "$name")"
+  [ -d "$path/scope" ] && [ -d "$path/evidence" ] && [ -d "$path/reports" ]
+  rm -rf -- "$path"
+}
+
+start_dashboard() {
+  (
+    cd "$ROOT"
+    exec python3 -m security_lab.dashboard
+  ) >"$OUT/dashboard.log" 2>&1 &
+  DASH_PID=$!
+  wait_http "http://127.0.0.1:8765/health" 30
+}
+
+check_dashboard_status() {
+  curl -fsS --max-time 5 -- http://127.0.0.1:8765/api/status \
+    | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d["lab"] in {"online","partial","offline"}; assert "services" in d and "tools" in d'
+}
+
+check_dashboard_action() {
+  local response="$OUT/dashboard-action.json"
+  local code
+  code="$(curl -sS -o "$response" -w '%{http_code}' \
+    -H 'Content-Type: application/json' \
+    -H 'Origin: http://127.0.0.1:8765' \
+    --data '{"action":"report"}' \
+    http://127.0.0.1:8765/api/action)"
+  [ "$code" = "202" ] || { cat "$response"; return 1; }
+  local i
+  for ((i=1; i<=30; i++)); do
+    if curl -fsS --max-time 5 -- http://127.0.0.1:8765/api/status \
+      | python3 -c 'import json,sys; raise SystemExit(0 if json.load(sys.stdin).get("active_action") is None else 1)' >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+check_cross_origin_denial() {
+  local code
+  code="$(curl -sS -o "$OUT/cross-origin.json" -w '%{http_code}' \
+    -H 'Content-Type: application/json' \
+    -H 'Origin: https://example.invalid' \
+    -H 'Sec-Fetch-Site: cross-site' \
+    --data '{"action":"report"}' \
+    http://127.0.0.1:8765/api/action)"
+  [ "$code" = "403" ]
+}
+
+kali_smoke() {
+  local compose=(docker compose -f "$ROOT/lab/docker-compose.yml" --profile operator)
+  "${compose[@]}" up -d kali >/dev/null
+  "${compose[@]}" exec -T kali bash -lc '
+    set -e
+    test "$(id -u)" = "0"
+    for tool in nmap sqlmap hydra john trivy gitleaks yara radare2 gdb; do
+      command -v "$tool" >/dev/null
+    done
+    curl -fsS --max-time 5 http://juice-shop:3000/ >/dev/null
+  '
+}
+
+printf 'DPSR acceptance run: %s\nOutput: %s\n' "$STAMP" "$OUT"
+
+run_step "DPSR entry point" check_entrypoint
+run_step "CLI help" "${DPSR[@]}" help
+run_step "Environment doctor" check_doctor
+run_step "Python compilation" python3 -m compileall -q "$ROOT/security_lab" "$ROOT/tests" "$ROOT/dashboard"
+run_step "Unit tests" bash -lc "cd '$ROOT' && python3 -m unittest discover -s tests -v"
+run_step "Compose validation" docker compose -f "$ROOT/lab/docker-compose.yml" --profile operator config --quiet
+run_step "Start training range" "${DPSR[@]}" up
+run_step "Juice Shop readiness" wait_http "http://127.0.0.1:3000"
+run_step "DVWA readiness" wait_http "http://127.0.0.1:8080"
+run_step "WebGoat readiness" wait_http "http://127.0.0.1:8081"
+run_step "Container status" "${DPSR[@]}" ps
+run_step "Local range scan" "${DPSR[@]}" scan
+run_step "Evidence report" "${DPSR[@]}" report
+
+LATEST_REPORT_JSON="$(find "$ROOT/reports" -maxdepth 1 -type f -name '*report*.json' -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n1 | cut -d' ' -f2-)"
+if [ -n "$LATEST_REPORT_JSON" ]; then
+  run_step "Evidence JSON validity" check_json_file "$LATEST_REPORT_JSON"
+else
+  fail "Evidence JSON validity"
+fi
+
+printf 'DPSR acceptance sample\n' >"$OUT/sample.txt"
+run_step "Static artifact triage" "${DPSR[@]}" triage "$OUT/sample.txt"
+run_step "Research case lifecycle" research_flow
+run_step "Engagement workspace lifecycle" engagement_flow
+run_step "Defensive pipeline" "${DPSR[@]}" defend
+run_step "Pipeline invariants" check_latest_defense
+run_step "Operations console startup" start_dashboard
+run_step "Operations console status API" check_dashboard_status
+run_step "Operations console allowlisted action" check_dashboard_action
+run_step "Operations console cross-origin rejection" check_cross_origin_denial
+run_step "Disk diagnostics" "${DPSR[@]}" disk
+
+if [ "${DPSR_ACCEPTANCE_KALI:-0}" = "1" ]; then
+  run_step "Kali image refresh" "${DPSR[@]}" kali-build
+  run_step "Kali operator smoke test" kali_smoke
+else
+  warn "Kali operator smoke test skipped (set DPSR_ACCEPTANCE_KALI=1)"
+fi
+
+if [ "${DPSR_ACCEPTANCE_MAINTENANCE:-0}" = "1" ]; then
+  run_step "Tool and template update" "${DPSR[@]}" update
+else
+  warn "Maintenance update skipped (set DPSR_ACCEPTANCE_MAINTENANCE=1)"
+fi
+
+run_step "Stop training range" "${DPSR[@]}" down
+
+if docker ps --format '{{.Names}}' | grep -Eq '^dpsr-(juice-shop|dvwa|webgoat|kali)$'; then
+  fail "Runtime cleanup"
+else
+  pass "Runtime cleanup"
+fi
+
+{
+  printf 'DPSR ACCEPTANCE SUMMARY\n'
+  printf 'UTC: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf 'PASS: %d\nFAIL: %d\nWARN: %d\n' "$PASS" "$FAIL" "$WARN"
+  if [ "$FAIL" -gt 0 ]; then
+    printf '\nFailures:\n'
+    printf ' - %s\n' "${FAILURES[@]}"
+  fi
+  if [ "$WARN" -gt 0 ]; then
+    printf '\nWarnings:\n'
+    printf ' - %s\n' "${WARNINGS[@]}"
+  fi
+} | tee "$OUT/summary.txt"
+
+if [ "$FAIL" -gt 0 ]; then
+  exit 1
+fi
+exit 0
