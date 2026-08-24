@@ -1,18 +1,15 @@
 from __future__ import annotations
 
 import json
-import os
 import secrets
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from security_lab.common import ROOT
-
+from .paths import STATE_ROOT
 from .registry import get_project
 from .runners import get_runner
 
-STATE_ROOT = Path(os.environ.get("DPSR_PLATFORM_STATE", str(ROOT / ".dpsr" / "platform"))).expanduser()
 JOBS_ROOT = STATE_ROOT / "jobs"
 VALID_STATES = {"queued", "running", "succeeded", "failed"}
 
