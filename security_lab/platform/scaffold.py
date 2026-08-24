@@ -3,9 +3,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from security_lab.common import ROOT
-
 from .models import CommandSpec, Profile
+from .paths import PROJECTS_ROOT
 from .profiles import get_profile
 from .registry import register_project
 
@@ -68,7 +67,7 @@ def init_project(name: str, profile_name: str, target: Path | None = None):
     if not PROJECT_NAME.fullmatch(normalized):
         raise ValueError("Project name must be 2-63 lowercase letters, digits, dots, underscores, or hyphens.")
     profile = get_profile(profile_name)
-    destination = (target or (ROOT / "projects" / normalized)).resolve()
+    destination = (target or (PROJECTS_ROOT / normalized)).resolve()
     if destination.exists() and any(destination.iterdir()):
         raise ValueError(f"Project directory is not empty: {destination}")
     destination.mkdir(parents=True, exist_ok=True)
