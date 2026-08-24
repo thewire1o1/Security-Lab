@@ -54,6 +54,9 @@ class TaskRunner(base.TaskRunner):
                 "mcp-test": base.TaskSpec(("bash", f"{root}/bin/mcp-control", "test"), 90),
                 "mcp-tools": base.TaskSpec((mcp_python, "-m", "security_lab.mcp_bridge_client", "--list"), 30),
                 "wake-bootstrap": base.TaskSpec(("bash", f"{root}/bin/wake-bootstrap"), 60),
+                "wake-auth-start": base.TaskSpec(("bash", f"{root}/bin/wake-auth-control", "start"), 15),
+                "wake-auth-status": base.TaskSpec(("bash", f"{root}/bin/wake-auth-control", "status"), 15),
+                "wake-auth-stop": base.TaskSpec(("bash", f"{root}/bin/wake-auth-control", "stop"), 15),
                 "bridge-reload": base.TaskSpec(("bash", f"{root}/bin/bridge-reload"), 30),
             }
         )
