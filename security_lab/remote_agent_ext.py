@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
-import subprocess
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
 from typing import Any
@@ -52,9 +52,9 @@ class BridgeGitHubClient(base.GitHubClient):
     def _read_dedicated_token(cls) -> str:
         target = cls._token_file()
         try:
-            token = target.read_text(encoding="utf-8").strip()
+            token: str | None = target.read_text(encoding="utf-8").strip()
         except OSError:
-            token = ""
+            token = None
         if token:
             return token
 
@@ -154,7 +154,7 @@ class RemoteAgent(base.RemoteAgent):
         self.client.resolve_token()
         self.config.reports.mkdir(parents=True, exist_ok=True)
         with self.config.logfile.open("a", encoding="utf-8") as log:
-            process = subprocess.Popen(
+            process = subprocess.Popen(  # nosec B603
                 [sys.executable, "-m", "security_lab.remote_agent_ext", "run"],
                 cwd=self.config.root,
                 stdin=subprocess.DEVNULL,
