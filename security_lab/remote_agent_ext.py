@@ -83,16 +83,21 @@ class TaskRunner(base.TaskRunner):
                 "mcp-status": base.TaskSpec(("bash", f"{root}/bin/mcp-control", "status"), 30),
                 "mcp-test": base.TaskSpec(("bash", f"{root}/bin/mcp-control", "test"), 90),
                 "mcp-tools": base.TaskSpec((mcp_python, "-m", "security_lab.mcp_bridge_client", "--list"), 30),
-                "supervisor-start": base.TaskSpec(("bash", f"{root}/admin/control-plane-supervisor", "start"), 30),
-                "supervisor-status": base.TaskSpec(("bash", f"{root}/admin/control-plane-supervisor", "status"), 30),
-                "supervisor-restart": base.TaskSpec(("bash", f"{root}/admin/control-plane-supervisor", "restart"), 30),
-                "bridge-credential-status": base.TaskSpec(("bash", f"{root}/admin/bridge-credential-status"), 30),
-                "bridge-auth-start": base.TaskSpec(("bash", f"{root}/admin/bridge-auth-control", "start"), 15),
-                "bridge-auth-status": base.TaskSpec(("bash", f"{root}/admin/bridge-auth-control", "status"), 15),
-                "bridge-auth-stop": base.TaskSpec(("bash", f"{root}/admin/bridge-auth-control", "stop"), 15),
-                "bridge-reload": base.TaskSpec(("bash", f"{root}/admin/bridge-reload"), 30),
             }
         )
+        if isinstance(client, BridgeGitHubClient):
+            self.specs.update(
+                {
+                    "supervisor-start": base.TaskSpec(("bash", f"{root}/admin/control-plane-supervisor", "start"), 30),
+                    "supervisor-status": base.TaskSpec(("bash", f"{root}/admin/control-plane-supervisor", "status"), 30),
+                    "supervisor-restart": base.TaskSpec(("bash", f"{root}/admin/control-plane-supervisor", "restart"), 30),
+                    "bridge-credential-status": base.TaskSpec(("bash", f"{root}/admin/bridge-credential-status"), 30),
+                    "bridge-auth-start": base.TaskSpec(("bash", f"{root}/admin/bridge-auth-control", "start"), 15),
+                    "bridge-auth-status": base.TaskSpec(("bash", f"{root}/admin/bridge-auth-control", "status"), 15),
+                    "bridge-auth-stop": base.TaskSpec(("bash", f"{root}/admin/bridge-auth-control", "stop"), 15),
+                    "bridge-reload": base.TaskSpec(("bash", f"{root}/admin/bridge-reload"), 30),
+                }
+            )
 
     @property
     def allowed_tasks(self) -> frozenset[str]:
