@@ -25,11 +25,11 @@ SENSITIVE_NAMES = frozenset({".env", "secrets", ".git"})
 SENSITIVE_SUFFIXES = (".key", ".pem", ".p12", ".pfx", ".kdbx")
 
 mcp = MCPServer(
-    "Digital Paragon Security Research",
+    "Digital Paragon",
     instructions=(
-        "Control the DPSR development and security platform. Prefer structured project, job, repository, "
-        "and service tools over generic command execution. The GitHub recovery bridge remains an independent "
-        "fallback control path."
+        "Control the Digital Paragon development and security platform. Prefer structured project, job, "
+        "repository, and service tools over generic command execution. The GitHub recovery bridge remains "
+        "an independent fallback control path."
     ),
 )
 
@@ -72,7 +72,7 @@ def health() -> dict[str, Any]:
     head = _git("rev-parse", "--short", "HEAD")
     return {
         "status": "ok",
-        "server": "dpsr-mcp",
+        "server": "digital-paragon-mcp",
         "transport": "streamable-http",
         "endpoint": f"http://127.0.0.1:{MCP_PORT}/mcp",
         "codespace": os.environ.get("CODESPACE_NAME", ""),
@@ -84,7 +84,7 @@ def health() -> dict[str, Any]:
 
 @mcp.tool()
 def platform_status(job_limit: int = 20) -> dict[str, Any]:
-    """Return DPSR platform profiles, registered projects, runner inventory, and recent jobs."""
+    """Return platform profiles, registered projects, runner inventory, and recent jobs."""
     return platform_api.snapshot(max(1, min(job_limit, 100)))
 
 
@@ -96,37 +96,37 @@ def platform_profile(name: str) -> dict[str, Any]:
 
 @mcp.tool()
 def platform_project(name: str) -> dict[str, Any]:
-    """Return one registered DPSR project by name."""
+    """Return one registered platform project by name."""
     return platform_api.project(name)
 
 
 @mcp.tool()
 def platform_project_init(name: str, profile_name: str) -> dict[str, Any]:
-    """Create and register a project in the managed DPSR project workspace using a built-in profile."""
+    """Create and register a project in the managed project workspace using a built-in profile."""
     return platform_api.create_project(name, profile_name)
 
 
 @mcp.tool()
 def platform_project_refresh_template(name: str) -> dict[str, Any]:
-    """Refresh DPSR-managed mobile build and CI files without overwriting application source."""
+    """Refresh managed mobile build and CI files without overwriting application source."""
     return platform_api.refresh_project_template(name)
 
 
 @mcp.tool()
 def platform_project_delete(name: str) -> dict[str, Any]:
-    """Delete one registered project only when it resides inside the managed DPSR project workspace."""
+    """Delete one registered project only when it resides inside the managed project workspace."""
     return platform_api.delete_project(name)
 
 
 @mcp.tool()
 def platform_job(job_id: str) -> dict[str, Any]:
-    """Return one persisted DPSR job by id."""
+    """Return one persisted platform job by id."""
     return platform_api.job(job_id)
 
 
 @mcp.tool()
 def platform_job_run(project_name: str, command_name: str) -> dict[str, Any]:
-    """Execute one bounded manifest command as a persisted DPSR job."""
+    """Execute one bounded manifest command as a persisted platform job."""
     return platform_api.execute_job(project_name, command_name)
 
 
@@ -138,7 +138,7 @@ def list_tasks() -> list[str]:
 
 @mcp.tool()
 def run_task(task: str) -> dict[str, Any]:
-    """Run one allowlisted DPSR task and return its exit code and bounded output."""
+    """Run one allowlisted platform task and return its exit code and bounded output."""
     runner = _runner()
     if task in PROTECTED_TASKS:
         return {"ok": False, "task": task, "error": "Task is reserved for the fallback control plane."}
