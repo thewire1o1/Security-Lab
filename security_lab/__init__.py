@@ -1,4 +1,4 @@
-"""Security Lab core utilities."""
+"""Core implementation for Digital Paragon Security Research."""
 
 from __future__ import annotations
 
