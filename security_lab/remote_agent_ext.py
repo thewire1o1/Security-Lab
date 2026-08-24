@@ -1,15 +1,47 @@
 from __future__ import annotations
 
+import json
+import re
 import subprocess
 import sys
+from typing import Any
 
 from security_lab import remote_agent as base
+
+MCP_TOOL_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
+MCP_TOOL_FIELD = re.compile(r"^tool:[ \t]*([^\r\n]+?)[ \t]*$", re.MULTILINE)
+MCP_ARGS_FIELD = re.compile(r"^args-json:[ \t]*(.*?)[ \t]*$", re.MULTILINE)
+MAX_MCP_ARGS_BYTES = 32_768
+
+
+def parse_mcp_request(body: str) -> tuple[str, dict[str, Any]]:
+    tools = MCP_TOOL_FIELD.findall(body)
+    if len(tools) != 1:
+        raise ValueError("mcp-call requires exactly one `tool:` field.")
+    tool = tools[0].strip()
+    if not MCP_TOOL_PATTERN.fullmatch(tool):
+        raise ValueError("Invalid MCP tool name.")
+
+    args_fields = MCP_ARGS_FIELD.findall(body)
+    if len(args_fields) > 1:
+        raise ValueError("mcp-call accepts at most one `args-json:` field.")
+    raw = args_fields[0].strip() if args_fields else "{}"
+    if len(raw.encode("utf-8")) > MAX_MCP_ARGS_BYTES:
+        raise ValueError("MCP arguments exceed bridge limit.")
+    try:
+        arguments = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError("`args-json:` must contain valid single-line JSON.") from exc
+    if not isinstance(arguments, dict):
+        raise ValueError("`args-json:` must decode to a JSON object.")
+    return tool, arguments
 
 
 class TaskRunner(base.TaskRunner):
     def __init__(self, config: base.Config, client: base.GitHubClient) -> None:
         super().__init__(config, client)
         root = str(config.root)
+        mcp_python = f"{root}/.venv-mcp/bin/python"
         self.specs.update(
             {
                 "gui": base.TaskSpec(("bash", f"{root}/bin/dashboard-control", "start"), 30),
@@ -20,9 +52,31 @@ class TaskRunner(base.TaskRunner):
                 "mcp-stop": base.TaskSpec(("bash", f"{root}/bin/mcp-control", "stop"), 30),
                 "mcp-status": base.TaskSpec(("bash", f"{root}/bin/mcp-control", "status"), 30),
                 "mcp-test": base.TaskSpec(("bash", f"{root}/bin/mcp-control", "test"), 90),
+                "mcp-tools": base.TaskSpec((mcp_python, "-m", "security_lab.mcp_bridge_client", "--list"), 30),
                 "bridge-reload": base.TaskSpec(("bash", f"{root}/bin/bridge-reload"), 30),
             }
         )
+
+    @property
+    def allowed_tasks(self) -> frozenset[str]:
+        return super().allowed_tasks | {"mcp-call"}
+
+    def run_mcp_call(self, tool: str, arguments: dict[str, Any]) -> tuple[int, str]:
+        root = str(self.config.root)
+        canonical_args = json.dumps(arguments, separators=(",", ":"), sort_keys=True)
+        spec = base.TaskSpec(
+            (
+                f"{root}/.venv-mcp/bin/python",
+                "-m",
+                "security_lab.mcp_bridge_client",
+                "--tool",
+                tool,
+                "--args-json",
+                canonical_args,
+            ),
+            3660,
+        )
+        return self._run_process(spec)
 
 
 class RemoteAgent(base.RemoteAgent):
@@ -53,6 +107,52 @@ class RemoteAgent(base.RemoteAgent):
         self.config.pidfile.write_text(f"{process.pid}\n", encoding="utf-8")
         print(f"remote-agent started: {process.pid}")
         return 0
+
+    def _process_issue(self, issue: dict[str, Any]) -> None:
+        body = str(issue.get("body") or "")
+        task = base.parse_task(body)
+        if task != "mcp-call":
+            super()._process_issue(issue)
+            return
+
+        title = str(issue.get("title") or "")
+        author = str((issue.get("user") or {}).get("login") or "")
+        if not title.startswith(base.TITLE_PREFIX) or author != self.config.owner:
+            return
+
+        try:
+            number = int(issue.get("number") or 0)
+        except (TypeError, ValueError):
+            return
+        if number <= 0:
+            return
+        if task not in self.runner.allowed_tasks:
+            self._reject(number, task, f"Rejected: task `{task}` is not allowlisted.")
+            return
+
+        try:
+            tool, arguments = parse_mcp_request(body)
+        except ValueError as exc:
+            self._reject(number, task, f"Rejected: {exc}")
+            return
+
+        try:
+            self._set_title(number, f"[DPSR-RUNNING] mcp-call:{tool}")
+            returncode, output = self.runner.run_mcp_call(tool, arguments)
+            result = "OK" if returncode == 0 else "FAIL"
+            indented_output = output.replace("\n", "\n    ")
+            result_body = (
+                f"Task: mcp-call\n"
+                f"Tool: {tool}\n"
+                f"Exit code: {returncode}\n"
+                f"Codespace: {base._env('CODESPACE_NAME', 'unknown')}\n"
+                f"UTC: {base.utc_timestamp()}\n\n"
+                f"Output:\n\n    {indented_output}"
+            )
+            self._comment(number, result_body)
+            self._close(number, f"[DPSR-{result}] mcp-call:{tool}")
+        except base.GitHubError as exc:
+            print(f"[{base.utc_timestamp()}] issue {number} failed: {exc}", flush=True)
 
 
 def main() -> int:
