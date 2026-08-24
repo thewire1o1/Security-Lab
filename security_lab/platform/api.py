@@ -6,7 +6,7 @@ from .github_actions import auth_status as github_actions_auth_status
 from .github_actions import publish_project as publish_github_project
 from .github_actions import repository_binding
 from .jobs import list_jobs, refresh_job, refresh_pending_jobs, run_job
-from .mobile import MOBILE_PROFILES, init_mobile_project
+from .mobile import MOBILE_PROFILES, init_mobile_project, refresh_mobile_build_files
 from .models import Profile, Project
 from .profiles import get_profile, load_profiles
 from .registry import delete_managed_project, get_project, list_projects
@@ -98,6 +98,11 @@ def create_project(name: str, profile_name: str) -> dict[str, Any]:
     if profile_name in MOBILE_PROFILES:
         return project_row(init_mobile_project(name, profile_name))
     return project_row(init_project(name, profile_name))
+
+
+def refresh_project_template(name: str) -> dict[str, Any]:
+    project_model = get_project(name)
+    return project_row(refresh_mobile_build_files(project_model))
 
 
 def publish_project(
