@@ -5,6 +5,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from . import github_actions
 from .github_actions import dispatch as dispatch_github_actions
@@ -121,42 +122,31 @@ def _discover_github_actions_run(job: dict[str, Any], external: dict[str, Any]) 
     upper = dispatched + timedelta(minutes=DISCOVERY_WINDOW_MINUTES)
     excluded = _claimed_external_run_ids(str(job.get("id") or ""))
 
-    result = github_actions._gh(
-        "run",
-        "list",
-        "--repo",
-        repository,
-        "--workflow",
-        workflow,
-        "--event",
-        "workflow_dispatch",
-        "--branch",
-        branch,
-        "--limit",
-        "20",
-        "--json",
-        "databaseId,createdAt,status,conclusion,url",
-        timeout=30,
+    endpoint = (
+        f"repos/{repository}/actions/workflows/{quote(workflow, safe='')}/runs"
+        f"?event=workflow_dispatch&branch={quote(branch, safe='')}&per_page=20"
     )
+    result = github_actions._gh("api", endpoint, timeout=30)
     if result["returncode"] != 0:
         raise ValueError(f"GitHub Actions run discovery failed: {github_actions._detail(result)}")
     try:
-        rows = json.loads(result["stdout"] or "[]")
+        payload = json.loads(result["stdout"] or "{}")
     except json.JSONDecodeError as exc:
         raise ValueError("GitHub Actions returned invalid run-list metadata.") from exc
+    rows = payload.get("workflow_runs", []) if isinstance(payload, dict) else []
 
     candidates: list[tuple[datetime, dict[str, Any]]] = []
     for row in rows if isinstance(rows, list) else []:
         if not isinstance(row, dict):
             continue
         try:
-            run_id = int(row.get("databaseId") or 0)
+            run_id = int(row.get("id") or 0)
         except (TypeError, ValueError):
             continue
         if run_id <= 0 or run_id in excluded:
             continue
         try:
-            created = _parse_utc(str(row.get("createdAt") or ""))
+            created = _parse_utc(str(row.get("created_at") or ""))
         except ValueError:
             continue
         if lower <= created <= upper:
@@ -168,10 +158,10 @@ def _discover_github_actions_run(job: dict[str, Any], external: dict[str, Any]) 
     _created, row = min(candidates, key=lambda item: item[0])
     return {
         **external,
-        "run_id": int(row.get("databaseId") or 0),
+        "run_id": int(row.get("id") or 0),
         "status": str(row.get("status") or external.get("status") or "submitted"),
         "conclusion": str(row.get("conclusion") or external.get("conclusion") or ""),
-        "url": str(row.get("url") or external.get("url") or ""),
+        "url": str(row.get("html_url") or external.get("url") or ""),
         "discovered_at": _utc(),
     }
 
