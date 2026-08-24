@@ -1,0 +1,99 @@
+name: DPSR Wake Controller
+
+on:
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  wake:
+    if: >-
+      github.event.issue.user.login == github.repository_owner &&
+      github.event.issue.title == '[DPSR-WAKE] start Codespace'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      WAKE_TOKEN: ${{ secrets.DPSR_CODESPACES_TOKEN }}
+      REPOSITORY: ${{ github.repository }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Start latest repository Codespace
+        id: wake
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [ -z "${WAKE_TOKEN:-}" ]; then
+            printf '%s\n' 'DPSR_CODESPACES_TOKEN is not configured.' >&2
+            exit 2
+          fi
+
+          payload="$(curl --fail-with-body --silent --show-error \
+            -H 'Accept: application/vnd.github+json' \
+            -H "Authorization: Bearer ${WAKE_TOKEN}" \
+            -H 'X-GitHub-Api-Version: 2026-03-10' \
+            'https://api.github.com/user/codespaces?per_page=100')"
+
+          selection="$(printf '%s' "$payload" | jq -c --arg repo "$REPOSITORY" '
+            [.codespaces[] | select(.repository.full_name == $repo)]
+            | sort_by(.last_used_at // .updated_at // .created_at)
+            | reverse
+            | .[0] // empty
+          ')"
+
+          if [ -z "$selection" ]; then
+            printf 'No Codespace found for %s.\n' "$REPOSITORY" >&2
+            exit 3
+          fi
+
+          name="$(printf '%s' "$selection" | jq -r '.name')"
+          state="$(printf '%s' "$selection" | jq -r '.state // "Unknown"')"
+          printf 'codespace=%s\n' "$name" >> "$GITHUB_OUTPUT"
+          printf 'previous_state=%s\n' "$state" >> "$GITHUB_OUTPUT"
+
+          if [ "$state" != 'Available' ]; then
+            curl --fail-with-body --silent --show-error \
+              -X POST \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer ${WAKE_TOKEN}" \
+              -H 'X-GitHub-Api-Version: 2026-03-10' \
+              "https://api.github.com/user/codespaces/${name}/start" >/dev/null
+          fi
+
+          printf 'web_url=https://%s.github.dev\n' "$name" >> "$GITHUB_OUTPUT"
+          printf 'console_url=https://%s-8765.app.github.dev\n' "$name" >> "$GITHUB_OUTPUT"
+          printf 'mcp_url=https://%s-8766.app.github.dev/mcp\n' "$name" >> "$GITHUB_OUTPUT"
+
+      - name: Report wake request
+        if: success()
+        shell: bash
+        env:
+          CODESPACE: ${{ steps.wake.outputs.codespace }}
+          PREVIOUS_STATE: ${{ steps.wake.outputs.previous_state }}
+          WEB_URL: ${{ steps.wake.outputs.web_url }}
+          CONSOLE_URL: ${{ steps.wake.outputs.console_url }}
+          MCP_URL: ${{ steps.wake.outputs.mcp_url }}
+        run: |
+          body=$(cat <<EOF
+          Wake request accepted.
+
+          Codespace: \`${CODESPACE}\`
+          Previous state: \`${PREVIOUS_STATE}\`
+          Codespace: ${WEB_URL}
+          Operations console: ${CONSOLE_URL}
+          MCP: ${MCP_URL}
+          EOF
+          )
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$body"
+          gh issue close "$ISSUE_NUMBER" --repo "$REPOSITORY" --reason completed
+
+      - name: Report wake failure
+        if: failure()
+        shell: bash
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" \
+            --body 'Wake request failed. Check the DPSR Wake Controller workflow run and the `DPSR_CODESPACES_TOKEN` repository secret.' || true
+          gh issue close "$ISSUE_NUMBER" --repo "$REPOSITORY" --reason not_planned || true
