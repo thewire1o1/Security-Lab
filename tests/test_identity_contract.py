@@ -10,11 +10,19 @@ PUBLIC_SURFACES = (
     ROOT / "ARCHITECTURE.md",
     ROOT / "docs" / "index.html",
     ROOT / "dashboard" / "web" / "index.html",
+    ROOT / "bin" / "dpsr",
+    ROOT / "bin" / "sec",
     ROOT / "bin" / "doctor",
+    ROOT / "bin" / "dashboard-control",
+    ROOT / "bin" / "mcp-control",
+    ROOT / "bin" / "repair-tools",
+    ROOT / "bin" / "update-all",
 )
 FORBIDDEN_PUBLIC_IDENTITIES = (
     "Digital Paragon Security Research",
+    "DPSR Platform",
     "DPSR is a reproducible security-research environment",
+    "DPSR Operations Console",
     "DPSR containers",
     "FORGE",
 )
