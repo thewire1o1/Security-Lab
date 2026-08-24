@@ -48,7 +48,7 @@ start_auth() {
 
   nohup bash -c '
     set -o pipefail
-    printf "\n" | script -qefc "env -u GH_TOKEN -u GITHUB_TOKEN BROWSER=true gh auth login --hostname github.com --git-protocol https --web --scopes codespace" "$1"
+    yes "" | script -qefc "env -u GH_TOKEN -u GITHUB_TOKEN BROWSER=true gh auth login --hostname github.com --git-protocol https --web --scopes codespace" "$1"
   ' _ "$LOGFILE" >>"$RUNNER_LOG" 2>&1 </dev/null &
   local pid=$!
   printf '%s\n' "$pid" > "$PIDFILE"
