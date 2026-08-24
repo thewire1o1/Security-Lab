@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any
 
 from security_lab import remote_agent as base
@@ -12,6 +14,7 @@ MCP_TOOL_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 MCP_TOOL_FIELD = re.compile(r"^tool:[ \t]*([^\r\n]+?)[ \t]*$", re.MULTILINE)
 MCP_ARGS_FIELD = re.compile(r"^args-json:[ \t]*(.*?)[ \t]*$", re.MULTILINE)
 MAX_MCP_ARGS_BYTES = 32_768
+BLOCKED_REMOTE_TASKS = frozenset({"codespace-list", "codespace-create", "codespace-retire-current"})
 
 
 def parse_mcp_request(body: str) -> tuple[str, dict[str, Any]]:
@@ -37,6 +40,33 @@ def parse_mcp_request(body: str) -> tuple[str, dict[str, Any]]:
     return tool, arguments
 
 
+class BridgeGitHubClient(base.GitHubClient):
+    def resolve_token(self) -> str:
+        if self._token:
+            return self._token
+
+        dedicated = os.environ.get("DPSR_BRIDGE_TOKEN", "").strip()
+        if dedicated:
+            self._token = dedicated
+            return dedicated
+
+        token_path = Path(
+            os.environ.get(
+                "SEC_BRIDGE_TOKEN_FILE",
+                str(Path.home() / ".config" / "dpsr" / "bridge-token"),
+            )
+        ).expanduser()
+        try:
+            dedicated = token_path.read_text(encoding="utf-8").strip()
+        except OSError:
+            dedicated = ""
+        if dedicated:
+            self._token = dedicated
+            return dedicated
+
+        return super().resolve_token()
+
+
 class TaskRunner(base.TaskRunner):
     def __init__(self, config: base.Config, client: base.GitHubClient) -> None:
         super().__init__(config, client)
@@ -53,17 +83,16 @@ class TaskRunner(base.TaskRunner):
                 "mcp-status": base.TaskSpec(("bash", f"{root}/bin/mcp-control", "status"), 30),
                 "mcp-test": base.TaskSpec(("bash", f"{root}/bin/mcp-control", "test"), 90),
                 "mcp-tools": base.TaskSpec((mcp_python, "-m", "security_lab.mcp_bridge_client", "--list"), 30),
-                "wake-bootstrap": base.TaskSpec(("bash", f"{root}/bin/wake-bootstrap"), 60),
-                "wake-auth-start": base.TaskSpec(("bash", f"{root}/bin/wake-auth-control", "start"), 15),
-                "wake-auth-status": base.TaskSpec(("bash", f"{root}/bin/wake-auth-control", "status"), 15),
-                "wake-auth-stop": base.TaskSpec(("bash", f"{root}/bin/wake-auth-control", "stop"), 15),
-                "bridge-reload": base.TaskSpec(("bash", f"{root}/bin/bridge-reload"), 30),
+                "bridge-auth-start": base.TaskSpec(("bash", f"{root}/admin/bridge-auth-control", "start"), 15),
+                "bridge-auth-status": base.TaskSpec(("bash", f"{root}/admin/bridge-auth-control", "status"), 15),
+                "bridge-auth-stop": base.TaskSpec(("bash", f"{root}/admin/bridge-auth-control", "stop"), 15),
+                "bridge-reload": base.TaskSpec(("bash", f"{root}/admin/bridge-reload"), 30),
             }
         )
 
     @property
     def allowed_tasks(self) -> frozenset[str]:
-        return super().allowed_tasks | {"mcp-call"}
+        return (super().allowed_tasks - BLOCKED_REMOTE_TASKS) | {"mcp-call"}
 
     def run_mcp_call(self, tool: str, arguments: dict[str, Any]) -> tuple[int, str]:
         root = str(self.config.root)
@@ -86,7 +115,7 @@ class TaskRunner(base.TaskRunner):
 class RemoteAgent(base.RemoteAgent):
     def __init__(self, config: base.Config) -> None:
         self.config = config
-        self.client = base.GitHubClient(config)
+        self.client = BridgeGitHubClient(config)
         self.runner = TaskRunner(config, self.client)
         self._stop_requested = False
 
