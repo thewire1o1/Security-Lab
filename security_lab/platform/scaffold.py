@@ -207,10 +207,10 @@ def init_project(name: str, profile_name: str, target: Path | None = None):
     profile = get_profile(profile_name)
     destination = (target or (PROJECTS_ROOT / normalized)).expanduser().resolve()
     existed = destination.exists()
-    if existed and any(destination.iterdir()):
-        raise ValueError(f"Project directory is not empty: {destination}")
     if existed and not destination.is_dir():
         raise ValueError(f"Project path is not a directory: {destination}")
+    if existed and any(destination.iterdir()):
+        raise ValueError(f"Project directory is not empty: {destination}")
 
     try:
         if profile.scaffold == "nextjs":
