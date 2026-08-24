@@ -21,6 +21,7 @@ async def probe() -> int:
             tools = await client.list_tools()
             names = sorted(tool.name for tool in tools.tools)
             health = await client.call_tool("health", {})
+            platform = await client.call_tool("platform_status", {"job_limit": 5})
             repo_status = await client.call_tool("repo_status", {})
             command = await client.call_tool(
                 "run_project_command",
@@ -37,8 +38,14 @@ async def probe() -> int:
 
             read_content = read_result.structured_content or {}
             content = read_content.get("content", "") if isinstance(read_content, dict) else ""
+            platform_content = platform.structured_content or {}
             checks = {
                 "health": not health.is_error,
+                "platform": (
+                    not platform.is_error
+                    and isinstance(platform_content, dict)
+                    and platform_content.get("platform") == "dpsr-v2"
+                ),
                 "repo_status": not repo_status.is_error,
                 "project_command": not command.is_error,
                 "repo_write": not write_result.is_error,
