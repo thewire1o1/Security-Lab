@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from security_lab.platform import cli, jobs, registry
-from security_lab.platform.models import CommandSpec, load_project_manifest
+from security_lab.platform import api, cli, jobs, registry
+from security_lab.platform.models import CommandSpec, Project, load_project_manifest
 from security_lab.platform.profiles import load_profiles
 from security_lab.platform.runners import get_runner
 
@@ -87,6 +87,20 @@ timeout = 30
         self.assertEqual(args.job_command, "run")
         self.assertEqual(args.project, "demo")
         self.assertEqual(args.command_name, "lint")
+
+    def test_structured_job_rejects_long_running_command(self) -> None:
+        project = Project(
+            name="demo",
+            path=Path("/tmp/demo"),
+            profile="generic",
+            runner="local",
+            commands={"dev": CommandSpec(("python3",), timeout=86400)},
+            services={},
+            metadata={},
+        )
+        with mock.patch.object(api, "get_project", return_value=project):
+            with self.assertRaisesRegex(ValueError, "not eligible for synchronous MCP execution"):
+                api.execute_job("demo", "dev")
 
     def test_command_string_is_tokenized_without_shell(self) -> None:
         command = CommandSpec.from_value("python3 -c 'print(123)'")
