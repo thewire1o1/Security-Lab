@@ -21,12 +21,13 @@
   "postCreateCommand": "bash .devcontainer/bootstrap.sh",
   "postStartCommand": "bash bin/codespace-ensure || true; bash bin/disk-guard --auto || true; bash bin/remote-agent start || true",
   "remoteUser": "node",
-  "forwardPorts": [3000, 8080, 8081, 8765, 9090],
+  "forwardPorts": [3000, 8080, 8081, 8765, 8766, 9090],
   "portsAttributes": {
     "3000": { "label": "OWASP Juice Shop", "onAutoForward": "silent" },
     "8080": { "label": "DVWA", "onAutoForward": "silent" },
     "8081": { "label": "WebGoat", "onAutoForward": "silent" },
     "8765": { "label": "DPSR Operations Console", "onAutoForward": "notify" },
+    "8766": { "label": "DPSR MCP", "onAutoForward": "silent" },
     "9090": { "label": "WebWolf", "onAutoForward": "silent" }
   },
   "customizations": {
