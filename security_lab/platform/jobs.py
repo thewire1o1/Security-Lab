@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import json
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from . import github_actions
 from .github_actions import dispatch as dispatch_github_actions
 from .github_actions import external_state, refresh as refresh_github_actions
 from .paths import STATE_ROOT
@@ -15,10 +16,27 @@ from .runners import get_runner
 JOBS_ROOT = STATE_ROOT / "jobs"
 VALID_STATES = {"queued", "running", "submitted", "succeeded", "failed"}
 ACTIVE_STATES = {"queued", "running", "submitted"}
+DISCOVERY_SKEW_SECONDS = 5
+DISCOVERY_WINDOW_MINUTES = 15
 
 
 def _utc() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _parse_utc(value: str) -> datetime:
+    text = value.strip()
+    if not text:
+        raise ValueError("External job is missing its dispatch timestamp.")
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError as exc:
+        raise ValueError("External job has an invalid dispatch timestamp.") from exc
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _job_path(job_id: str) -> Path:
@@ -71,6 +89,91 @@ def list_jobs(limit: int = 50) -> list[dict[str, Any]]:
         except (OSError, json.JSONDecodeError):
             continue
     return rows
+
+
+def _claimed_external_run_ids(current_job_id: str) -> set[int]:
+    claimed: set[int] = set()
+    for row in list_jobs(500):
+        if str(row.get("id") or "") == current_job_id:
+            continue
+        external = row.get("external")
+        if not isinstance(external, dict):
+            continue
+        try:
+            run_id = int(external.get("run_id") or 0)
+        except (TypeError, ValueError):
+            continue
+        if run_id > 0:
+            claimed.add(run_id)
+    return claimed
+
+
+def _discover_github_actions_run(job: dict[str, Any], external: dict[str, Any]) -> dict[str, Any]:
+    github_actions.require_auth()
+    repository = github_actions._validate_repository(str(external.get("repository", "")))
+    workflow = str(external.get("workflow") or "").strip()
+    branch = str(external.get("ref") or "main").strip() or "main"
+    if not workflow:
+        raise ValueError("External job is missing its GitHub Actions workflow.")
+
+    dispatched = _parse_utc(str(external.get("dispatched_at") or ""))
+    lower = dispatched - timedelta(seconds=DISCOVERY_SKEW_SECONDS)
+    upper = dispatched + timedelta(minutes=DISCOVERY_WINDOW_MINUTES)
+    excluded = _claimed_external_run_ids(str(job.get("id") or ""))
+
+    result = github_actions._gh(
+        "run",
+        "list",
+        "--repo",
+        repository,
+        "--workflow",
+        workflow,
+        "--event",
+        "workflow_dispatch",
+        "--branch",
+        branch,
+        "--limit",
+        "20",
+        "--json",
+        "databaseId,createdAt,status,conclusion,url",
+        timeout=30,
+    )
+    if result["returncode"] != 0:
+        raise ValueError(f"GitHub Actions run discovery failed: {github_actions._detail(result)}")
+    try:
+        rows = json.loads(result["stdout"] or "[]")
+    except json.JSONDecodeError as exc:
+        raise ValueError("GitHub Actions returned invalid run-list metadata.") from exc
+
+    candidates: list[tuple[datetime, dict[str, Any]]] = []
+    for row in rows if isinstance(rows, list) else []:
+        if not isinstance(row, dict):
+            continue
+        try:
+            run_id = int(row.get("databaseId") or 0)
+        except (TypeError, ValueError):
+            continue
+        if run_id <= 0 or run_id in excluded:
+            continue
+        try:
+            created = _parse_utc(str(row.get("createdAt") or ""))
+        except ValueError:
+            continue
+        if lower <= created <= upper:
+            candidates.append((created, row))
+
+    if not candidates:
+        raise ValueError("Dispatched GitHub Actions run is not visible yet.")
+
+    _created, row = min(candidates, key=lambda item: item[0])
+    return {
+        **external,
+        "run_id": int(row.get("databaseId") or 0),
+        "status": str(row.get("status") or external.get("status") or "submitted"),
+        "conclusion": str(row.get("conclusion") or external.get("conclusion") or ""),
+        "url": str(row.get("url") or external.get("url") or ""),
+        "discovered_at": _utc(),
+    }
 
 
 def _finish_external(job: dict[str, Any], external: dict[str, Any]) -> dict[str, Any]:
@@ -134,7 +237,13 @@ def refresh_job(job_id: str) -> dict[str, Any]:
     if job.get("state") not in ACTIVE_STATES:
         return job
     try:
+        if int(external.get("run_id") or 0) <= 0:
+            external = _discover_github_actions_run(job, external)
+            job["external"] = external
+            job["stderr"] = ""
+            _write(job)
         refreshed = refresh_github_actions(external)
+        job["stderr"] = ""
         return _finish_external(job, refreshed)
     except Exception as exc:
         job["stderr"] = str(exc)
