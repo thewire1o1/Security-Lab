@@ -44,7 +44,7 @@ async def probe() -> int:
                 "platform": (
                     not platform.is_error
                     and isinstance(platform_content, dict)
-                    and platform_content.get("platform") == "dpsr-v2"
+                    and platform_content.get("platform") == "Digital Paragon"
                 ),
                 "repo_status": not repo_status.is_error,
                 "project_command": not command.is_error,
