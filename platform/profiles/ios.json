@@ -1,0 +1,16 @@
+{
+  "profile": {
+    "name": "ios",
+    "title": "Native iOS",
+    "category": "mobile",
+    "description": "Native SwiftUI iOS application profile generated with XcodeGen metadata and built on GitHub-hosted macOS runners without requiring Xcode in the Linux control plane.",
+    "runner": "github-actions",
+    "stack": ["swift", "swiftui", "ios", "xcode", "xcodegen"],
+    "capabilities": ["ios", "simulator", "ci", "signing", "release"],
+    "scaffold": "ios"
+  },
+  "commands": {
+    "build": {"argv": ["xcodegen", "generate", "--spec", "app/project.yml"], "cwd": ".", "timeout": 600}
+  },
+  "services": {}
+}

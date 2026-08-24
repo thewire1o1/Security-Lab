@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+STAMP="$(date -u +%Y%m%d-%H%M%S)"
+OUT="${1:-$ROOT/reports/fuzz-$STAMP}"
+mkdir -p "$OUT"
+
+targets=(
+  "juice-shop|http://127.0.0.1:3000/FUZZ"
+  "dvwa|http://127.0.0.1:8080/FUZZ"
+  "webgoat|http://127.0.0.1:8081/FUZZ"
+)
+
+wordlist=""
+for candidate in \
+  "$HOME/tools/SecLists/Discovery/Web-Content/common.txt" \
+  "/usr/share/seclists/Discovery/Web-Content/common.txt" \
+  "/usr/share/wordlists/dirb/common.txt"; do
+  if [ -f "$candidate" ]; then
+    wordlist="$candidate"
+    break
+  fi
+done
+
+if [ -z "$wordlist" ]; then
+  wordlist="$OUT/common-paths.txt"
+  printf '%s\n' admin api assets config dashboard docs health login logout robots.txt static status test upload >"$wordlist"
+fi
+
+if command -v ffuf >/dev/null 2>&1; then
+  for entry in "${targets[@]}"; do
+    name="${entry%%|*}"
+    url="${entry#*|}"
+    if curl -fsS --max-time 3 -- "${url%/FUZZ}" >/dev/null 2>&1; then
+      ffuf -s -noninteractive -rate 40 -maxtime 25 -w "$wordlist" -u "$url" \
+        -of json -o "$OUT/$name.json" >/dev/null 2>"$OUT/$name.stderr" || true
+    fi
+  done
+fi
+
+if [ -d "$ROOT/fuzz/harnesses" ]; then
+  for harness in "$ROOT"/fuzz/harnesses/*; do
+    [ -f "$harness" ] || continue
+    [ -x "$harness" ] || continue
+    name="$(basename -- "$harness")"
+    timeout 60 "$harness" >"$OUT/harness-$name.log" 2>&1 || true
+  done
+fi
+
+(
+  cd "$ROOT"
+  python3 -m security_lab.fuzz_summary "$OUT"
+)
+
+printf '[+] Fuzz artifacts: %s\n' "$OUT"

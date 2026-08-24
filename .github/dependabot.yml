@@ -1,0 +1,23 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Los_Angeles
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: docker
+    directory: "/lab/kali"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:15"
+      timezone: America/Los_Angeles
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+if [ $# -lt 1 ]; then
+  echo "Usage: headers <https://host-or-url>"
+  exit 1
+fi
+
+URL="$1"
+echo "== HTTP headers =="
+curl -skI --max-time 15 -- "$URL" || true
+
+if [[ "$URL" == https://* ]]; then
+  HOST="${URL#https://}"
+  HOST="${HOST%%/*}"
+  HOST="${HOST%%:*}"
+  echo
+  echo "== TLS certificate =="
+  printf '' | openssl s_client -connect "$HOST:443" -servername "$HOST" 2>/dev/null \
+    | openssl x509 -noout -subject -issuer -dates -ext subjectAltName 2>/dev/null || true
+fi
