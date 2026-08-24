@@ -1,0 +1,21 @@
+{
+  "profile": {
+    "name": "fullstack-web",
+    "title": "Full-Stack Web",
+    "category": "web",
+    "description": "Integrated Next.js and FastAPI application with PostgreSQL, containers, health bridging, CI, previews, and deployment automation.",
+    "runner": "local",
+    "stack": ["nextjs", "fastapi", "postgresql", "docker"],
+    "capabilities": ["frontend", "api", "database", "containers", "health", "preview", "ci", "deploy"],
+    "scaffold": "fullstack-web"
+  },
+  "commands": {
+    "lint": {"argv": ["python3", "tools/stack_check.py", "lint"], "cwd": ".", "timeout": 1200},
+    "test": {"argv": ["python3", "tools/stack_check.py", "test"], "cwd": ".", "timeout": 1200},
+    "build": {"argv": ["python3", "tools/stack_check.py", "build"], "cwd": ".", "timeout": 2400},
+    "container-build": {"argv": ["docker", "compose", "build"], "cwd": ".", "timeout": 3600},
+    "dev": {"argv": ["docker", "compose", "up", "--build"], "cwd": ".", "timeout": 86400},
+    "down": {"argv": ["docker", "compose", "down"], "cwd": ".", "timeout": 120}
+  },
+  "services": {"web": 3000, "api": 8000}
+}

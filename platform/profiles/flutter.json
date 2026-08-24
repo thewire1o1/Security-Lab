@@ -1,0 +1,20 @@
+{
+  "profile": {
+    "name": "flutter",
+    "title": "Flutter Mobile",
+    "category": "mobile",
+    "description": "Cross-platform Flutter application profile with managed SDK bootstrap, Android/iOS/web sources, local analysis/tests/web builds, and CI automation.",
+    "runner": "local",
+    "stack": ["dart", "flutter"],
+    "capabilities": ["android", "ios", "web", "testing", "ci", "release"],
+    "scaffold": "flutter"
+  },
+  "commands": {
+    "lint": {"argv": ["flutter", "analyze"], "cwd": "app", "timeout": 900},
+    "test": {"argv": ["flutter", "test"], "cwd": "app", "timeout": 1200},
+    "build": {"argv": ["flutter", "build", "web"], "cwd": "app", "timeout": 3600},
+    "android-build": {"argv": ["flutter", "build", "apk"], "cwd": "app", "timeout": 3600},
+    "dev": {"argv": ["flutter", "run", "-d", "web-server", "--web-hostname", "0.0.0.0", "--web-port", "8082"], "cwd": "app", "timeout": 86400}
+  },
+  "services": {"web": 8082}
+}
