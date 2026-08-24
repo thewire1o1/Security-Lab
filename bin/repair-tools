@@ -10,7 +10,7 @@ mkdir -p "$TOOLS_HOME" "$GO_BIN" "$HOME/.local/bin" "$WORKSPACE/reports"
 LOG="$WORKSPACE/reports/repair-tools-$(date +%Y%m%d-%H%M%S).log"
 exec > >(tee -a "$LOG") 2>&1
 
-printf '\n[+] Repairing DPSR tooling...\n'
+printf '\n[+] Repairing APOTHEON ONE tooling...\n'
 printf '[+] Log: %s\n' "$LOG"
 
 sudo apt-get update -y >/dev/null
@@ -103,11 +103,12 @@ fi
 
 sed -i '/SECURITY-GO/,/SECURITY-GO.*<<</d' "$HOME/.bashrc" 2>/dev/null || true
 sed -i '/DPSR-GO/,/DPSR-GO.*<<</d' "$HOME/.bashrc" 2>/dev/null || true
+sed -i '/APOTHEON-ONE-GO/,/APOTHEON-ONE-GO.*<<</d' "$HOME/.bashrc" 2>/dev/null || true
 cat >> "$HOME/.bashrc" <<'EOF'
 
-# >>> DPSR-GO >>>
+# >>> APOTHEON-ONE-GO >>>
 export PATH="/usr/local/go/bin:$HOME/go/bin:$HOME/.local/bin:$PATH"
-# <<< DPSR-GO <<<
+# <<< APOTHEON-ONE-GO <<<
 EOF
 
 if [ -x "$GO_BIN/nuclei" ]; then
