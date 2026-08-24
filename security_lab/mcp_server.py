@@ -107,6 +107,12 @@ def platform_project_init(name: str, profile_name: str) -> dict[str, Any]:
 
 
 @mcp.tool()
+def platform_project_delete(name: str) -> dict[str, Any]:
+    """Delete one registered project only when it resides inside the managed DPSR project workspace."""
+    return platform_api.delete_project(name)
+
+
+@mcp.tool()
 def platform_job(job_id: str) -> dict[str, Any]:
     """Return one persisted DPSR job by id."""
     return platform_api.job(job_id)
