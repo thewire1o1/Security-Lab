@@ -10,7 +10,7 @@ from .github_actions import auth_status as github_actions_auth_status
 from .github_actions import publish_project as publish_github_project
 from .github_actions import repository_binding
 from .jobs import list_jobs, refresh_job, run_job
-from .mobile import MOBILE_PROFILES, init_mobile_project
+from .mobile import MOBILE_PROFILES, init_mobile_project, refresh_mobile_build_files
 from .profiles import get_profile, load_profiles
 from .registry import delete_managed_project, get_project, list_projects, register_project, unregister_project
 from .runners import RUNNERS
@@ -108,6 +108,10 @@ def cmd_project(args: argparse.Namespace) -> int:
             project = init_project(args.name, args.profile, target)
         print(json.dumps(_project_row(project), indent=2, sort_keys=True))
         return 0
+    if action == "refresh-template":
+        project = refresh_mobile_build_files(get_project(args.name))
+        print(json.dumps(_project_row(project), indent=2, sort_keys=True))
+        return 0
     if action == "publish":
         project = get_project(args.name)
         result = publish_github_project(project, args.repo or "", args.visibility)
@@ -185,6 +189,8 @@ def build_parser() -> argparse.ArgumentParser:
     project_init.add_argument("name")
     project_init.add_argument("--profile", required=True)
     project_init.add_argument("--path")
+    project_refresh = project_sub.add_parser("refresh-template")
+    project_refresh.add_argument("name")
     project_publish = project_sub.add_parser("publish")
     project_publish.add_argument("name")
     project_publish.add_argument("--repo")
