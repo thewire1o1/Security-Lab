@@ -2,14 +2,19 @@
 set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DISABLED="$ROOT/.remote-agent.disabled"
 cd "$ROOT"
 
-if [ "${1:-}" = "start" ]; then
-  python3 -m security_lab.remote_agent_ext start
-  rc=$?
-  bash "$ROOT/bin/mcp-control" start || true
-  bash "$ROOT/bin/dashboard-control" start || true
-  exit "$rc"
-fi
-
-exec python3 -m security_lab.remote_agent_ext "$@"
+case "${1:-}" in
+  start)
+    rm -f "$DISABLED"
+    exec python3 -m security_lab.remote_agent_ext start
+    ;;
+  stop)
+    touch "$DISABLED"
+    exec python3 -m security_lab.remote_agent_ext stop
+    ;;
+  *)
+    exec python3 -m security_lab.remote_agent_ext "$@"
+    ;;
+esac
