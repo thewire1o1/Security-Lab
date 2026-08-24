@@ -14,7 +14,7 @@ printf '\n[+] Repairing DPSR tooling...\n'
 printf '[+] Log: %s\n' "$LOG"
 
 sudo apt-get update -y >/dev/null
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y jq curl ca-certificates perl libnet-ssleay-perl pipx git unzip >/dev/null
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y jq curl ca-certificates perl libnet-ssleay-perl pipx git unzip gnupg >/dev/null
 
 case "$(uname -m)" in
   x86_64) GOARCH=amd64 ;;
@@ -62,6 +62,22 @@ for cmd in nuclei httpx subfinder naabu dnsx katana; do
     GOBIN="$GO_BIN" /usr/local/go/bin/go install "${PD_MODULES[$cmd]}" || true
   fi
 done
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  printf '[+] Installing Gitleaks\n'
+  GOBIN="$GO_BIN" /usr/local/go/bin/go install github.com/zricethezav/gitleaks/v8@latest
+fi
+
+if ! command -v trivy >/dev/null 2>&1; then
+  printf '[+] Installing Trivy\n'
+  curl -fsSL https://aquasecurity.github.io/trivy-repo/deb/public.key \
+    | gpg --dearmor \
+    | sudo tee /usr/share/keyrings/trivy.gpg >/dev/null
+  printf '%s\n' 'deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main' \
+    | sudo tee /etc/apt/sources.list.d/trivy.list >/dev/null
+  sudo apt-get update -y >/dev/null
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y trivy >/dev/null
+fi
 
 rm -rf "$TOOLS_HOME/nikto.tmp"
 if git -C "$TOOLS_HOME/nikto" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
