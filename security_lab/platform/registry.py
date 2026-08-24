@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Any
 
-from security_lab.common import ROOT
-
 from .models import Project, load_project_manifest
+from .paths import STATE_ROOT
 
-STATE_ROOT = Path(os.environ.get("DPSR_PLATFORM_STATE", str(ROOT / ".dpsr" / "platform"))).expanduser()
 REGISTRY_PATH = STATE_ROOT / "projects.json"
 
 
@@ -54,7 +51,7 @@ def unregister_project(name: str) -> bool:
 def list_projects() -> list[Project]:
     data = _load_raw()
     rows: list[Project] = []
-    for name, entry in sorted(data["projects"].items()):
+    for _name, entry in sorted(data["projects"].items()):
         try:
             path = Path(str(entry["path"]))
             rows.append(load_project_manifest(path))
