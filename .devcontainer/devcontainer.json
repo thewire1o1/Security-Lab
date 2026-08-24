@@ -19,7 +19,7 @@
     }
   },
   "postCreateCommand": "bash .devcontainer/bootstrap.sh",
-  "postStartCommand": "bash bin/codespace-ensure || true; bash bin/disk-guard --auto || true; bash bin/wake-bootstrap || true; bash bin/remote-agent start || true; bash bin/mcp-control start || true; bash bin/dashboard-control start || true",
+  "postStartCommand": "bash bin/codespace-ensure || true; bash bin/disk-guard --auto || true; bash admin/control-plane-supervisor start || true",
   "remoteUser": "node",
   "forwardPorts": [3000, 8080, 8081, 8765, 8766, 9090],
   "portsAttributes": {
