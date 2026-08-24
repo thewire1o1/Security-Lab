@@ -51,6 +51,11 @@ pipx install bandit >/dev/null 2>&1 || pipx upgrade bandit >/dev/null 2>&1 || tr
 
 rm -rf "$TOOLS_HOME/SecLists" 2>/dev/null || true
 
+if command -v docker >/dev/null 2>&1; then
+  # These containers are disposable. Removing only the legacy names prevents port collisions during the DPSR rename.
+  docker rm -f sec-lab-juice-shop sec-lab-dvwa sec-lab-webgoat sec-lab-kali >/dev/null 2>&1 || true
+fi
+
 if command -v docker >/dev/null 2>&1 && [ -n "${GITHUB_TOKEN:-}" ] && [ -n "${GITHUB_USER:-}" ]; then
   printf '%s' "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_USER" --password-stdin >/dev/null 2>&1 || true
 fi
