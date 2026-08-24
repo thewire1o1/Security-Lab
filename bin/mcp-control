@@ -135,12 +135,12 @@ start_server() {
   for _ in $(seq 1 40); do
     if ! kill -0 "$pid" 2>/dev/null; then
       rm -f "$PIDFILE"
-      printf 'FORGE MCP server failed to start.\n' >&2
+      printf 'APOTHEON ONE MCP server failed to start.\n' >&2
       log_tail
       return 1
     fi
     if port_open; then
-      printf 'FORGE MCP server running: pid=%s\n' "$pid"
+      printf 'APOTHEON ONE MCP server running: pid=%s\n' "$pid"
       printf 'Local endpoint: http://127.0.0.1:%s/mcp\n' "$PORT"
       if [ -n "${CODESPACE_NAME:-}" ]; then
         printf 'Codespaces endpoint: https://%s-%s.app.github.dev/mcp\n' "$CODESPACE_NAME" "$PORT"
@@ -150,7 +150,7 @@ start_server() {
     sleep 0.5
   done
 
-  printf 'FORGE MCP process is running but port %s is not ready.\n' "$PORT" >&2
+  printf 'APOTHEON ONE MCP process is running but port %s is not ready.\n' "$PORT" >&2
   log_tail
   return 1
 }
@@ -170,12 +170,12 @@ stop_process() {
 stop_server() {
   touch "$DISABLED"
   stop_process
-  printf 'FORGE MCP server stopped.\n'
+  printf 'APOTHEON ONE MCP server stopped.\n'
 }
 
 status_server() {
   if healthy; then
-    printf 'FORGE MCP server running: pid=%s\n' "$(read_pid)"
+    printf 'APOTHEON ONE MCP server running: pid=%s\n' "$(read_pid)"
     printf 'Local endpoint: http://127.0.0.1:%s/mcp\n' "$PORT"
     if [ -n "${CODESPACE_NAME:-}" ]; then
       printf 'Codespaces endpoint: https://%s-%s.app.github.dev/mcp\n' "$CODESPACE_NAME" "$PORT"
@@ -183,19 +183,19 @@ status_server() {
     return 0
   fi
   if is_running; then
-    printf 'FORGE MCP server unhealthy: pid=%s port=%s unavailable.\n' "$(read_pid)" "$PORT" >&2
+    printf 'APOTHEON ONE MCP server unhealthy: pid=%s port=%s unavailable.\n' "$(read_pid)" "$PORT" >&2
     log_tail
     return 1
   fi
   rm -f "$PIDFILE"
-  printf 'FORGE MCP server stopped.\n' >&2
+  printf 'APOTHEON ONE MCP server stopped.\n' >&2
   log_tail
   return 1
 }
 
 test_server() {
   if ! healthy; then
-    printf 'FORGE MCP server is not healthy.\n' >&2
+    printf 'APOTHEON ONE MCP server is not healthy.\n' >&2
     log_tail
     return 1
   fi
