@@ -15,6 +15,8 @@ MCP_TOOL_FIELD = re.compile(r"^tool:[ \t]*([^\r\n]+?)[ \t]*$", re.MULTILINE)
 MCP_ARGS_FIELD = re.compile(r"^args-json:[ \t]*(.*?)[ \t]*$", re.MULTILINE)
 MAX_MCP_ARGS_BYTES = 32_768
 BLOCKED_REMOTE_TASKS = frozenset({"codespace-list", "codespace-create", "codespace-retire-current"})
+DEFAULT_BRIDGE_TOKEN_FILE = Path("/workspaces/.dpsr/bridge-token")
+LEGACY_BRIDGE_TOKEN_FILE = Path.home() / ".config" / "dpsr" / "bridge-token"
 
 
 def parse_mcp_request(body: str) -> tuple[str, dict[str, Any]]:
@@ -41,30 +43,48 @@ def parse_mcp_request(body: str) -> tuple[str, dict[str, Any]]:
 
 
 class BridgeGitHubClient(base.GitHubClient):
+    @staticmethod
+    def _token_file() -> Path:
+        configured = os.environ.get("SEC_BRIDGE_TOKEN_FILE", "").strip()
+        return Path(configured).expanduser() if configured else DEFAULT_BRIDGE_TOKEN_FILE
+
+    @classmethod
+    def _read_dedicated_token(cls) -> str:
+        target = cls._token_file()
+        try:
+            token = target.read_text(encoding="utf-8").strip()
+        except OSError:
+            token = ""
+        if token:
+            return token
+
+        if target == LEGACY_BRIDGE_TOKEN_FILE:
+            return ""
+        try:
+            legacy = LEGACY_BRIDGE_TOKEN_FILE.read_text(encoding="utf-8").strip()
+        except OSError:
+            return ""
+        if not legacy:
+            return ""
+
+        target.parent.mkdir(parents=True, exist_ok=True)
+        os.chmod(target.parent, 0o700)
+        target.write_text(legacy + "\n", encoding="utf-8")
+        os.chmod(target, 0o600)
+        return legacy
+
     def resolve_token(self) -> str:
         if self._token:
             return self._token
 
         dedicated = os.environ.get("DPSR_BRIDGE_TOKEN", "").strip()
-        if dedicated:
-            self._token = dedicated
-            return dedicated
+        if not dedicated:
+            dedicated = self._read_dedicated_token()
+        if not dedicated:
+            raise base.GitHubError("Dedicated bridge credential is unavailable; refusing broader credential fallback.")
 
-        token_path = Path(
-            os.environ.get(
-                "SEC_BRIDGE_TOKEN_FILE",
-                str(Path.home() / ".config" / "dpsr" / "bridge-token"),
-            )
-        ).expanduser()
-        try:
-            dedicated = token_path.read_text(encoding="utf-8").strip()
-        except OSError:
-            dedicated = ""
-        if dedicated:
-            self._token = dedicated
-            return dedicated
-
-        return super().resolve_token()
+        self._token = dedicated
+        return dedicated
 
 
 class TaskRunner(base.TaskRunner):
