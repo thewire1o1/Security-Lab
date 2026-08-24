@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+STAMP="$(date -u +%Y%m%d-%H%M%S)"
+OUT="$ROOT/reports/defense-$STAMP"
+mkdir -p "$OUT"
+
+(
+  cd "$ROOT"
+  python3 -m security_lab.pipeline inventory "$OUT"
+)
+
+bash "$ROOT/bin/code-review" "$OUT"
+bash "$ROOT/bin/fuzz-run" "$OUT/fuzz"
+bash "$ROOT/bin/validate-findings" "$OUT" || true
+
+if [ -n "${SEC_ANALYSIS_COMMAND:-}" ]; then
+  set +e
+  bash "$ROOT/bin/review-engine" "$OUT/summary.json" \
+    >"$OUT/external-review.txt" 2>"$OUT/external-review.stderr"
+  external_rc=$?
+  set -e
+  printf '%s\n' "$external_rc" >"$OUT/external-review.rc"
+fi
+
+(
+  cd "$ROOT"
+  python3 -m security_lab.pipeline finalize "$OUT"
+)
+
+printf '[+] Defensive run: %s\n' "$OUT"

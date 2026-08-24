@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+STAMP="$(date -u +%Y%m%d-%H%M%S)"
+OUT="${1:-$ROOT/reports/defense-$STAMP}"
+mkdir -p "$OUT"
+
+mark_unavailable() {
+  : >"$OUT/$1.unavailable"
+}
+
+run_semgrep() {
+  if ! command -v semgrep >/dev/null 2>&1; then
+    mark_unavailable semgrep
+    printf '{"results":[],"errors":[{"message":"semgrep unavailable"}]}\n' >"$OUT/semgrep.json"
+    return
+  fi
+  semgrep scan --config auto --json --quiet "$ROOT" \
+    >"$OUT/semgrep.json" 2>"$OUT/semgrep.stderr" || true
+}
+
+run_gitleaks() {
+  if ! command -v gitleaks >/dev/null 2>&1; then
+    mark_unavailable gitleaks
+    printf '[]\n' >"$OUT/gitleaks.json"
+    return
+  fi
+  gitleaks detect --source "$ROOT" --report-format json --report-path "$OUT/gitleaks.json" \
+    --redact --no-banner >/dev/null 2>"$OUT/gitleaks.stderr" || true
+  [ -f "$OUT/gitleaks.json" ] || printf '[]\n' >"$OUT/gitleaks.json"
+}
+
+run_trivy() {
+  if ! command -v trivy >/dev/null 2>&1; then
+    mark_unavailable trivy
+    printf '{"Results":[]}\n' >"$OUT/trivy.json"
+    return
+  fi
+  trivy fs --quiet --format json --scanners vuln,secret,misconfig "$ROOT" \
+    >"$OUT/trivy.json" 2>"$OUT/trivy.stderr" || true
+}
+
+run_bandit() {
+  if ! command -v bandit >/dev/null 2>&1; then
+    mark_unavailable bandit
+    printf '{"results":[]}\n' >"$OUT/bandit.json"
+    return
+  fi
+  bandit -r "$ROOT" -f json -q -x "$ROOT/.git,$ROOT/reports,$ROOT/artifacts,$ROOT/cases" \
+    >"$OUT/bandit.json" 2>"$OUT/bandit.stderr" || true
+}
+
+run_pip_audit() {
+  if [ ! -f "$ROOT/requirements.txt" ]; then
+    return
+  fi
+  if ! command -v pip-audit >/dev/null 2>&1; then
+    mark_unavailable pip-audit
+    return
+  fi
+  pip-audit -r "$ROOT/requirements.txt" -f json \
+    >"$OUT/pip-audit.json" 2>"$OUT/pip-audit.stderr" || true
+}
+
+run_semgrep
+run_gitleaks
+run_trivy
+run_bandit
+run_pip_audit
+
+(
+  cd "$ROOT"
+  python3 -m security_lab.review_summary "$OUT"
+)
+
+printf '[+] Review artifacts: %s\n' "$OUT"

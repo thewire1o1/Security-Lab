@@ -1,0 +1,18 @@
+{
+  "profile": {
+    "name": "android",
+    "title": "Native Android",
+    "category": "mobile",
+    "description": "Native Kotlin Android application profile targeting API 36 with AGP 9.3, Gradle 9.5, CI lint/tests/debug builds, and release-ready project structure.",
+    "runner": "github-actions",
+    "stack": ["kotlin", "android", "gradle"],
+    "capabilities": ["android", "testing", "ci", "release"],
+    "scaffold": "android"
+  },
+  "commands": {
+    "lint": {"argv": ["gradle", "lint"], "cwd": "app", "timeout": 1800},
+    "test": {"argv": ["gradle", "test"], "cwd": "app", "timeout": 2400},
+    "build": {"argv": ["gradle", "assembleDebug"], "cwd": "app", "timeout": 3600}
+  },
+  "services": {}
+}
