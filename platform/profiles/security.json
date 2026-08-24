@@ -3,7 +3,7 @@
     "name": "security",
     "title": "Security Research",
     "category": "security",
-    "description": "DPSR isolated security research, training, defensive validation, fuzzing, triage, and operator tooling.",
+    "description": "Isolated security research, training, defensive validation, fuzzing, triage, and operator tooling.",
     "runner": "local",
     "stack": ["python", "docker", "kali", "mcp"],
     "capabilities": ["pentest-lab", "defensive-analysis", "fuzzing", "triage", "research"],
