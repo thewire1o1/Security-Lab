@@ -10,6 +10,7 @@ from mcp.server import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
 
 from security_lab.common import ROOT, run_command, utc_timestamp
+from security_lab.platform import api as platform_api
 from security_lab.remote_agent import Config, GitHubClient
 from security_lab.remote_agent_ext import TaskRunner
 
@@ -26,8 +27,9 @@ SENSITIVE_SUFFIXES = (".key", ".pem", ".p12", ".pfx", ".kdbx")
 mcp = MCPServer(
     "Digital Paragon Security Research",
     instructions=(
-        "Control and inspect the DPSR Codespace. Prefer structured tools over shell-like operations. "
-        "The legacy GitHub remote-command bridge is intentionally independent and remains available as fallback."
+        "Control the DPSR development and security platform. Prefer structured project, job, repository, "
+        "and service tools over generic command execution. The GitHub recovery bridge remains an independent "
+        "fallback control path."
     ),
 )
 
@@ -78,6 +80,42 @@ def health() -> dict[str, Any]:
         "git_head": head.get("stdout", "").strip(),
         "utc": utc_timestamp(),
     }
+
+
+@mcp.tool()
+def platform_status(job_limit: int = 20) -> dict[str, Any]:
+    """Return DPSR platform profiles, registered projects, runner inventory, and recent jobs."""
+    return platform_api.snapshot(max(1, min(job_limit, 100)))
+
+
+@mcp.tool()
+def platform_profile(name: str) -> dict[str, Any]:
+    """Return one development or security profile by name."""
+    return platform_api.profile(name)
+
+
+@mcp.tool()
+def platform_project(name: str) -> dict[str, Any]:
+    """Return one registered DPSR project by name."""
+    return platform_api.project(name)
+
+
+@mcp.tool()
+def platform_project_init(name: str, profile_name: str) -> dict[str, Any]:
+    """Create and register a project in the managed DPSR project workspace using a built-in profile."""
+    return platform_api.create_project(name, profile_name)
+
+
+@mcp.tool()
+def platform_job(job_id: str) -> dict[str, Any]:
+    """Return one persisted DPSR job by id."""
+    return platform_api.job(job_id)
+
+
+@mcp.tool()
+def platform_job_run(project_name: str, command_name: str) -> dict[str, Any]:
+    """Execute one bounded manifest command as a persisted DPSR job."""
+    return platform_api.execute_job(project_name, command_name)
 
 
 @mcp.tool()

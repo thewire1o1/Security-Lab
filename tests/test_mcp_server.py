@@ -12,14 +12,29 @@ class MCPServerTests(unittest.IsolatedAsyncioTestCase):
         async with Client(mcp) as client:
             tools = await client.list_tools()
             names = {tool.name for tool in tools.tools}
-            self.assertIn("health", names)
-            self.assertIn("run_task", names)
-            self.assertIn("repo_read", names)
-            self.assertIn("repo_write", names)
-            self.assertIn("run_project_command", names)
-            result = await client.call_tool("health", {})
-            self.assertFalse(result.is_error)
-            self.assertIsNotNone(result.structured_content)
+            expected = {
+                "health",
+                "run_task",
+                "repo_read",
+                "repo_write",
+                "run_project_command",
+                "platform_status",
+                "platform_profile",
+                "platform_project",
+                "platform_project_init",
+                "platform_job",
+                "platform_job_run",
+            }
+            self.assertTrue(expected.issubset(names))
+
+            health = await client.call_tool("health", {})
+            self.assertFalse(health.is_error)
+            self.assertIsNotNone(health.structured_content)
+
+            platform = await client.call_tool("platform_status", {"job_limit": 5})
+            self.assertFalse(platform.is_error)
+            self.assertIsInstance(platform.structured_content, dict)
+            self.assertEqual(platform.structured_content.get("platform"), "dpsr-v2")
 
 
 if __name__ == "__main__":
