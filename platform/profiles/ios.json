@@ -3,15 +3,14 @@
     "name": "ios",
     "title": "Native iOS",
     "category": "mobile",
-    "description": "Native iOS application profile for Xcode builds, tests, simulator workflows, CI, signing, and release automation on macOS runners.",
+    "description": "Native SwiftUI iOS application profile generated with XcodeGen metadata and built on GitHub-hosted macOS runners without requiring Xcode in the Linux control plane.",
     "runner": "github-actions",
-    "stack": ["swift", "ios", "xcode"],
-    "capabilities": ["ios", "testing", "simulator", "ci", "signing", "release"],
+    "stack": ["swift", "swiftui", "ios", "xcode", "xcodegen"],
+    "capabilities": ["ios", "simulator", "ci", "signing", "release"],
     "scaffold": "ios"
   },
   "commands": {
-    "test": {"argv": ["xcodebuild", "test"], "cwd": "app", "timeout": 3600},
-    "build": {"argv": ["xcodebuild", "build"], "cwd": "app", "timeout": 3600}
+    "build": {"argv": ["bash", "tools/ios-build"], "cwd": ".", "timeout": 3600}
   },
   "services": {}
 }
