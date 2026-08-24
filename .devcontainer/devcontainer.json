@@ -1,5 +1,5 @@
 {
-  "name": "Digital Paragon Security Research",
+  "name": "APOTHEON ONE",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
   "hostRequirements": {
     "cpus": 2,
@@ -26,8 +26,8 @@
     "3000": { "label": "OWASP Juice Shop", "onAutoForward": "silent" },
     "8080": { "label": "DVWA", "onAutoForward": "silent" },
     "8081": { "label": "WebGoat", "onAutoForward": "silent" },
-    "8765": { "label": "DPSR Operations Console", "onAutoForward": "notify" },
-    "8766": { "label": "DPSR MCP", "onAutoForward": "silent" },
+    "8765": { "label": "APOTHEON ONE Operations Console", "onAutoForward": "notify" },
+    "8766": { "label": "APOTHEON ONE MCP", "onAutoForward": "silent" },
     "9090": { "label": "WebWolf", "onAutoForward": "silent" }
   },
   "customizations": {
