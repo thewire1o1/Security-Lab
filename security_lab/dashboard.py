@@ -4,7 +4,7 @@ import json
 import os
 import re
 import shutil
-import subprocess  # nosec B404
+import subprocess  # nosec B404 - required for fixed argv execution; shell invocation is not used.
 import sys
 import threading
 import time
@@ -37,10 +37,10 @@ class CommandResult:
 
 
 SERVICES = {
-    "juice-shop": Service("sec-lab-juice-shop", 3000, "Juice Shop"),
-    "dvwa": Service("sec-lab-dvwa", 8080, "DVWA"),
-    "webgoat": Service("sec-lab-webgoat", 8081, "WebGoat"),
-    "kali": Service("sec-lab-kali", None, "Kali Operator"),
+    "juice-shop": Service("dpsr-juice-shop", 3000, "Juice Shop"),
+    "dvwa": Service("dpsr-dvwa", 8080, "DVWA"),
+    "webgoat": Service("dpsr-webgoat", 8081, "WebGoat"),
+    "kali": Service("dpsr-kali", None, "Kali Operator"),
 }
 
 
@@ -48,7 +48,7 @@ class CommandRunner:
     @staticmethod
     def run(argv: list[str], timeout: float = 8) -> CommandResult:
         try:
-            result = subprocess.run(  # nosec B603
+            result = subprocess.run(  # nosec B603 - argv is preconstructed and never evaluated by a shell.
                 argv,
                 cwd=ROOT,
                 text=True,
@@ -104,7 +104,7 @@ class ActionManager:
     def _worker(self, name: str, argv: tuple[str, ...]) -> None:
         self.log.write(f"ACTION {name}: started")
         try:
-            process = subprocess.Popen(  # nosec B603
+            process = subprocess.Popen(  # nosec B603 - action argv comes exclusively from ACTION_COMMANDS.
                 list(argv),
                 cwd=ROOT,
                 text=True,
@@ -285,10 +285,11 @@ class DashboardState:
         return {tool: shutil.which(tool) is not None for tool in tools}
 
 
+# Security boundary: browser input selects a key only; argv remains static and server-controlled.
 ACTION_COMMANDS: dict[str, tuple[str, tuple[str, ...]]] = {
-    "up": ("lab-up", (*COMPOSE, "up", "-d", "juice-shop", "dvwa", "webgoat")),
-    "down": ("lab-down", (*COMPOSE, "--profile", "operator", "down")),
-    "scan": ("lab-scan", ("bash", str(ROOT / "bin" / "labscan"))),
+    "up": ("range-up", (*COMPOSE, "up", "-d", "juice-shop", "dvwa", "webgoat")),
+    "down": ("range-down", (*COMPOSE, "--profile", "operator", "down")),
+    "scan": ("range-scan", ("bash", str(ROOT / "bin" / "labscan"))),
     "report": ("report", ("python3", str(ROOT / "bin" / "sec-report"))),
     "kali-start": ("kali-start", (*COMPOSE, "--profile", "operator", "up", "-d", "kali")),
     "review": ("review", ("bash", str(ROOT / "bin" / "code-review"))),
@@ -332,6 +333,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
     def request_origin_allowed(self) -> bool:
+        """Reject explicit cross-site requests and require exact Origin/Host agreement when present."""
         if self.headers.get("Sec-Fetch-Site", "").lower() == "cross-site":
             return False
         origin = self.headers.get("Origin")
@@ -421,15 +423,15 @@ def main() -> int:
 
     try:
         with ThreadingHTTPServer((host, port), Handler) as server:
-            activity.write(f"Mission Control listening on http://{host}:{port}")
-            print(f"Mission Control: http://{host}:{port}")
+            activity.write(f"DPSR Operations Console listening on http://{host}:{port}")
+            print(f"DPSR Operations Console: http://{host}:{port}")
             print("Keep the forwarded Codespaces port private. Ctrl-C to stop.")
             try:
                 server.serve_forever()
             except KeyboardInterrupt:
                 return 0
     except OSError as exc:
-        print(f"Unable to start Mission Control: {exc}", file=sys.stderr)
+        print(f"Unable to start DPSR Operations Console: {exc}", file=sys.stderr)
         return 1
     return 0
 
