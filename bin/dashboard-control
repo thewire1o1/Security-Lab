@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PIDFILE="$ROOT/.dashboard.pid"
+DISABLED="$ROOT/.dashboard.disabled"
 LOGFILE="$ROOT/reports/dashboard.log"
 PORT=8765
 
@@ -20,6 +21,24 @@ is_running() {
   tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -q 'security_lab.dashboard'
 }
 
+health_check() {
+  python3 - <<'PY'
+import json
+import urllib.request
+
+try:
+    with urllib.request.urlopen("http://127.0.0.1:8765/health", timeout=1.0) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+except Exception:
+    raise SystemExit(1)
+raise SystemExit(0 if payload.get("ok") is True else 1)
+PY
+}
+
+healthy() {
+  is_running && health_check
+}
+
 console_url() {
   if [ -n "${CODESPACE_NAME:-}" ]; then
     printf 'https://%s-%s.app.github.dev\n' "$CODESPACE_NAME" "$PORT"
@@ -28,12 +47,35 @@ console_url() {
   fi
 }
 
+stop_process() {
+  if ! is_running; then
+    rm -f "$PIDFILE"
+    return 0
+  fi
+  local pid
+  pid="$(read_pid)"
+  kill "$pid" 2>/dev/null || true
+  for _ in $(seq 1 30); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      rm -f "$PIDFILE"
+      return 0
+    fi
+    sleep 0.1
+  done
+  kill -9 "$pid" 2>/dev/null || true
+  rm -f "$PIDFILE"
+}
+
 start_console() {
   mkdir -p "$ROOT/reports"
-  if is_running; then
+  rm -f "$DISABLED"
+  if healthy; then
     printf 'DPSR Operations Console already running: pid=%s\n' "$(read_pid)"
     printf 'URL: %s\n' "$(console_url)"
     return 0
+  fi
+  if is_running; then
+    stop_process
   fi
 
   rm -f "$PIDFILE"
@@ -49,18 +91,7 @@ start_console() {
       tail -n 40 "$LOGFILE" >&2 || true
       return 1
     fi
-    if python3 - "$PORT" <<'PY'
-import socket
-import sys
-
-port = int(sys.argv[1])
-try:
-    with socket.create_connection(("127.0.0.1", port), timeout=0.25):
-        pass
-except OSError:
-    raise SystemExit(1)
-PY
-    then
+    if health_check; then
       printf 'DPSR Operations Console running: pid=%s\n' "$pid"
       printf 'URL: %s\n' "$(console_url)"
       return 0
@@ -68,38 +99,25 @@ PY
     sleep 0.5
   done
 
-  printf 'DPSR Operations Console process is running but port %s is not ready.\n' "$PORT" >&2
+  printf 'DPSR Operations Console process is running but health endpoint is not ready.\n' >&2
   return 1
 }
 
 stop_console() {
-  if ! is_running; then
-    rm -f "$PIDFILE"
-    printf 'DPSR Operations Console is not running.\n'
-    return 0
-  fi
-
-  local pid
-  pid="$(read_pid)"
-  kill "$pid" 2>/dev/null || true
-  for _ in $(seq 1 30); do
-    if ! kill -0 "$pid" 2>/dev/null; then
-      rm -f "$PIDFILE"
-      printf 'DPSR Operations Console stopped.\n'
-      return 0
-    fi
-    sleep 0.1
-  done
-  kill -9 "$pid" 2>/dev/null || true
-  rm -f "$PIDFILE"
+  touch "$DISABLED"
+  stop_process
   printf 'DPSR Operations Console stopped.\n'
 }
 
 status_console() {
-  if is_running; then
+  if healthy; then
     printf 'DPSR Operations Console running: pid=%s\n' "$(read_pid)"
     printf 'URL: %s\n' "$(console_url)"
     return 0
+  fi
+  if is_running; then
+    printf 'DPSR Operations Console unhealthy: pid=%s health check failed.\n' "$(read_pid)" >&2
+    return 1
   fi
   rm -f "$PIDFILE"
   printf 'DPSR Operations Console stopped.\n'
@@ -109,9 +127,10 @@ status_console() {
 case "${1:-status}" in
   start) start_console ;;
   stop) stop_console ;;
+  restart) stop_process; start_console ;;
   status) status_console ;;
   *)
-    printf 'Usage: %s {start|stop|status}\n' "$0" >&2
+    printf 'Usage: %s {start|stop|restart|status}\n' "$0" >&2
     exit 2
     ;;
 esac
