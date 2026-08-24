@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-WORKSPACE="${PWD}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WORKSPACE="$ROOT"
 TOOLS_HOME="$HOME/tools"
 GO_BIN="$HOME/go/bin"
 mkdir -p "$TOOLS_HOME" "$GO_BIN" "$HOME/.local/bin" "$WORKSPACE/reports"
@@ -63,8 +64,11 @@ for cmd in nuclei httpx subfinder naabu dnsx katana; do
 done
 
 rm -rf "$TOOLS_HOME/nikto.tmp"
-if [ -d "$TOOLS_HOME/nikto/.git" ]; then
-  git -C "$TOOLS_HOME/nikto" pull --ff-only || true
+if git -C "$TOOLS_HOME/nikto" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  if ! git -C "$TOOLS_HOME/nikto" pull --ff-only; then
+    rm -rf "$TOOLS_HOME/nikto"
+    git clone --depth 1 https://github.com/sullo/nikto.git "$TOOLS_HOME/nikto"
+  fi
 else
   rm -rf "$TOOLS_HOME/nikto"
   git clone --depth 1 https://github.com/sullo/nikto.git "$TOOLS_HOME/nikto"
