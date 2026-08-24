@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PIDFILE="$ROOT/.bridge-auth.pid"
+STATUSFILE="$ROOT/reports/bridge-auth-status.json"
+LOGFILE="$ROOT/reports/bridge-auth.log"
+TOKENFILE="${SEC_BRIDGE_TOKEN_FILE:-$HOME/.config/dpsr/bridge-token}"
+
+read_pid() {
+  if [ -f "$PIDFILE" ]; then
+    cat "$PIDFILE" 2>/dev/null || true
+  fi
+}
+
+is_running() {
+  local pid
+  pid="$(read_pid)"
+  [ -n "$pid" ] || return 1
+  kill -0 "$pid" 2>/dev/null
+}
+
+show_status() {
+  if [ -f "$STATUSFILE" ]; then
+    python3 - "$STATUSFILE" <<'PY'
+import json
+import sys
+from pathlib import Path
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+state = payload.get("state", "unknown")
+print(f"Bridge authorization: {state}")
+if payload.get("user_code"):
+    print(f"One-time code: {payload['user_code']}")
+if payload.get("verification_uri"):
+    print(f"Authorize at: {payload['verification_uri']}")
+if payload.get("scopes"):
+    print("Scopes: " + ", ".join(payload["scopes"]))
+if payload.get("login"):
+    print(f"Account: {payload['login']}")
+if payload.get("error"):
+    print(f"Error: {payload['error']}")
+PY
+  else
+    printf 'Bridge authorization: no status yet.\n'
+  fi
+}
+
+start_auth() {
+  mkdir -p "$ROOT/reports"
+  if is_running; then
+    printf 'Bridge authorization already running: pid=%s\n' "$(read_pid)"
+    show_status
+    return 0
+  fi
+  rm -f "$PIDFILE" "$STATUSFILE"
+  : > "$LOGFILE"
+  nohup python3 "$ROOT/admin/bridge-auth.py" \
+    --status-file "$STATUSFILE" \
+    --token-file "$TOKENFILE" \
+    >>"$LOGFILE" 2>&1 </dev/null &
+  local pid=$!
+  printf '%s\n' "$pid" > "$PIDFILE"
+  for _ in $(seq 1 20); do
+    if [ -f "$STATUSFILE" ]; then
+      break
+    fi
+    sleep 0.25
+  done
+  printf 'Bridge authorization started: pid=%s\n' "$pid"
+  show_status
+}
+
+status_auth() {
+  if is_running; then
+    printf 'Bridge authorization process running: pid=%s\n' "$(read_pid)"
+  else
+    rm -f "$PIDFILE"
+    printf 'Bridge authorization process not running.\n'
+  fi
+  show_status
+}
+
+stop_auth() {
+  if is_running; then
+    kill "$(read_pid)" 2>/dev/null || true
+  fi
+  rm -f "$PIDFILE"
+  printf 'Bridge authorization stopped.\n'
+}
+
+case "${1:-status}" in
+  start) start_auth ;;
+  status) status_auth ;;
+  stop) stop_auth ;;
+  *)
+    printf 'Usage: %s {start|status|stop}\n' "$0" >&2
+    exit 2
+    ;;
+esac
