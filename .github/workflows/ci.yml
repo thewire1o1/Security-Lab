@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Install MCP SDK
+        run: python3 -m pip install --disable-pip-version-check -q -r requirements-mcp.txt
       - name: Python syntax
         run: python3 -m compileall -q security_lab tests dashboard bin/sec-report
       - name: Unit tests
