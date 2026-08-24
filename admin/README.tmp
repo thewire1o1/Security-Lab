@@ -1,0 +1,1 @@
+DPSR administrative control scripts are intentionally outside bin/ so MCP generic project-command execution cannot invoke them.
