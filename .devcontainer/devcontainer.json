@@ -1,5 +1,5 @@
 {
-  "name": "Security Lab",
+  "name": "Digital Paragon Security Research",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
   "hostRequirements": {
     "cpus": 2,
@@ -26,8 +26,8 @@
     "3000": { "label": "OWASP Juice Shop", "onAutoForward": "silent" },
     "8080": { "label": "DVWA", "onAutoForward": "silent" },
     "8081": { "label": "WebGoat", "onAutoForward": "silent" },
-    "8765": { "label": "Security Lab Mission Control", "onAutoForward": "notify" },
-    "9090": { "label": "Lab Web", "onAutoForward": "ignore" }
+    "8765": { "label": "DPSR Operations Console", "onAutoForward": "notify" },
+    "9090": { "label": "DPSR Web", "onAutoForward": "ignore" }
   },
   "customizations": {
     "vscode": {
