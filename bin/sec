@@ -6,7 +6,8 @@ COMPOSE=(docker compose -f "$ROOT/lab/docker-compose.yml")
 
 usage() {
   cat <<'EOF'
-Digital Paragon Security Research
+APOTHEON ONE
+Unified. Elevated.
 
   dpsr doctor                 validate local dependencies and runtime state
   dpsr up                     start intentionally vulnerable training targets
@@ -24,15 +25,15 @@ Digital Paragon Security Research
   dpsr triage FILE            perform static artifact triage
   dpsr research ...           manage persistent research cases
   dpsr engine [FILE]          invoke the configured external review hook
-  dpsr kali-build             refresh the Kali operator image
-  dpsr kali                   enter the Kali operator shell
+  dpsr kali-build             refresh the security operator image
+  dpsr kali                   enter the security operator shell
   dpsr clean                  reclaim disposable caches and Docker build data
   dpsr disk                   show disk and Docker storage usage
   dpsr update                 update tools and templates
-  dpsr update --full          update tools and refresh the Kali image
+  dpsr update --full          update tools and refresh the security operator image
   dpsr new NAME               create an engagement workspace
 
-The legacy `sec` entry point remains available for compatibility.
+The lower-level `sec` entry point remains available for compatibility.
 EOF
 }
 
@@ -41,7 +42,7 @@ kali_up() {
 }
 
 kali_refresh() {
-  printf '%s\n' '[+] Pulling Kali operator image...'
+  printf '%s\n' '[+] Pulling APOTHEON ONE security operator image...'
   if "${COMPOSE[@]}" --profile operator pull kali; then
     docker builder prune -af --filter 'until=24h' >/dev/null 2>&1 || true
     return 0
@@ -64,7 +65,7 @@ case "$cmd" in
   ps) exec "${COMPOSE[@]}" --profile operator ps ;;
   scan) exec bash "$ROOT/bin/labscan" "$@" ;;
   dashboard|gui)
-    printf '%s\n' 'DPSR Operations Console starting at http://127.0.0.1:8765'
+    printf '%s\n' 'APOTHEON ONE Operations Console starting at http://127.0.0.1:8765'
     printf '%s\n' 'In Codespaces, open forwarded port 8765 and keep its visibility Private.'
     cd "$ROOT"
     exec python3 -m security_lab.dashboard "$@"
