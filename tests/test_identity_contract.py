@@ -26,6 +26,31 @@ FORBIDDEN_PUBLIC_IDENTITIES = (
     "DPSR containers",
     "FORGE",
 )
+TEXT_SUFFIXES = {
+    ".css",
+    ".html",
+    ".js",
+    ".json",
+    ".md",
+    ".py",
+    ".sh",
+    ".toml",
+    ".ts",
+    ".tsx",
+    ".txt",
+    ".yaml",
+    ".yml",
+}
+IGNORED_PARTS = {".git", "artifacts", "cases", "reports"}
+
+
+def repository_text_files():
+    for path in ROOT.rglob("*"):
+        if not path.is_file() or path.suffix.lower() not in TEXT_SUFFIXES:
+            continue
+        if IGNORED_PARTS.intersection(path.relative_to(ROOT).parts):
+            continue
+        yield path
 
 
 class IdentityContractTests(unittest.TestCase):
@@ -34,8 +59,15 @@ class IdentityContractTests(unittest.TestCase):
             with self.subTest(path=path.relative_to(ROOT)):
                 text = path.read_text(encoding="utf-8")
                 self.assertIn("APOTHEON ONE", text)
-                for legacy in FORBIDDEN_PUBLIC_IDENTITIES:
-                    self.assertNotIn(legacy, text)
+
+    def test_retired_product_names_do_not_reappear_in_source(self) -> None:
+        violations: list[str] = []
+        for path in repository_text_files():
+            text = path.read_text(encoding="utf-8", errors="replace")
+            for legacy in FORBIDDEN_PUBLIC_IDENTITIES:
+                if legacy in text:
+                    violations.append(f"{path.relative_to(ROOT)}: {legacy}")
+        self.assertEqual(violations, [], "Retired public identity found:\n" + "\n".join(violations))
 
     def test_readme_preserves_brand_hierarchy(self) -> None:
         text = (ROOT / "README.md").read_text(encoding="utf-8")
