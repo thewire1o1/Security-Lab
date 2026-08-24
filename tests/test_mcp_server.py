@@ -35,7 +35,7 @@ class MCPServerTests(unittest.IsolatedAsyncioTestCase):
             platform = await client.call_tool("platform_status", {"job_limit": 5})
             self.assertFalse(platform.is_error)
             self.assertIsInstance(platform.structured_content, dict)
-            self.assertEqual(platform.structured_content.get("platform"), "dpsr-v2")
+            self.assertEqual(platform.structured_content.get("platform"), "Digital Paragon")
 
 
 if __name__ == "__main__":
