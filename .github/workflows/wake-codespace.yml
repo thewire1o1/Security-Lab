@@ -18,7 +18,9 @@ jobs:
       github.event.issue.user.login == github.repository_owner &&
       (github.event.issue.title == '[DPSR-WAKE] start Codespace' ||
        github.event.issue.title == '[DPSR-WAKE] restart Codespace' ||
-       github.event.issue.title == '[DPSR-WAKE] refresh Codespace')
+       github.event.issue.title == '[DPSR-WAKE] refresh Codespace' ||
+       github.event.issue.title == '[DPSR-WAKE] stop Codespace' ||
+       github.event.issue.title == '[DPSR-WAKE] retire Codespace')
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     env:
@@ -26,6 +28,7 @@ jobs:
       REPOSITORY: ${{ github.repository }}
       ISSUE_NUMBER: ${{ github.event.issue.number }}
       ISSUE_TITLE: ${{ github.event.issue.title }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Apply Codespace lifecycle request
@@ -60,20 +63,86 @@ jobs:
             curl "${args[@]}" "https://api.github.com${path}"
           }
 
+          state_of() {
+            api GET "/user/codespaces/$1" | jq -r '.state // "Unknown"'
+          }
+
+          wait_for_state() {
+            local name="$1"
+            local desired="$2"
+            local state='Unknown'
+            for _ in $(seq 1 150); do
+              state="$(state_of "$name")"
+              if [ "$state" = "$desired" ]; then
+                printf '%s\n' "$state"
+                return 0
+              fi
+              sleep 2
+            done
+            printf 'Codespace %s did not reach %s state; final state=%s.\n' "$name" "$desired" "$state" >&2
+            return 1
+          }
+
+          wait_for_stable() {
+            local name="$1"
+            local state='Unknown'
+            for _ in $(seq 1 150); do
+              state="$(state_of "$name")"
+              case "$state" in
+                Available|Shutdown)
+                  printf '%s\n' "$state"
+                  return 0
+                  ;;
+              esac
+              sleep 2
+            done
+            printf 'Codespace %s did not reach a stable state; final state=%s.\n' "$name" "$state" >&2
+            return 1
+          }
+
+          ensure_available() {
+            local name="$1"
+            local state
+            state="$(wait_for_stable "$name")"
+            if [ "$state" = 'Shutdown' ]; then
+              api POST "/user/codespaces/${name}/start" >/dev/null
+              wait_for_state "$name" 'Available' >/dev/null
+            fi
+          }
+
+          ensure_shutdown() {
+            local name="$1"
+            local state
+            state="$(wait_for_stable "$name")"
+            if [ "$state" = 'Available' ]; then
+              api POST "/user/codespaces/${name}/stop" >/dev/null
+              wait_for_state "$name" 'Shutdown' >/dev/null
+            fi
+          }
+
+          requested_name="$(printf '%s\n' "${ISSUE_BODY:-}" | sed -nE 's/^codespace:[[:space:]]*([A-Za-z0-9][A-Za-z0-9-]{0,127})[[:space:]]*$/\1/p' | head -n 1)"
           payload="$(api GET '/user/codespaces?per_page=100')"
-          selection="$(printf '%s' "$payload" | jq -c --arg repo "$REPOSITORY" '
-            [.codespaces[] | select(.repository.full_name == $repo)]
-            | sort_by(.last_used_at // .updated_at // .created_at)
-            | reverse
-            | .[0] // empty
-          ')"
+          if [ -n "$requested_name" ]; then
+            selection="$(printf '%s' "$payload" | jq -c --arg repo "$REPOSITORY" --arg name "$requested_name" '
+              [.codespaces[] | select(.repository.full_name == $repo and .name == $name)]
+              | .[0] // empty
+            ')"
+          else
+            selection="$(printf '%s' "$payload" | jq -c --arg repo "$REPOSITORY" '
+              [.codespaces[] | select(.repository.full_name == $repo)]
+              | sort_by(.last_used_at // .updated_at // .created_at)
+              | reverse
+              | .[0] // empty
+            ')"
+          fi
 
           action='start'
-          if [ "$ISSUE_TITLE" = '[DPSR-WAKE] restart Codespace' ]; then
-            action='restart'
-          elif [ "$ISSUE_TITLE" = '[DPSR-WAKE] refresh Codespace' ]; then
-            action='refresh'
-          fi
+          case "$ISSUE_TITLE" in
+            '[DPSR-WAKE] restart Codespace') action='restart' ;;
+            '[DPSR-WAKE] refresh Codespace') action='refresh' ;;
+            '[DPSR-WAKE] stop Codespace') action='stop' ;;
+            '[DPSR-WAKE] retire Codespace') action='retire' ;;
+          esac
           printf 'action=%s\n' "$action" >> "$GITHUB_OUTPUT"
 
           if [ "$action" = 'refresh' ]; then
@@ -115,24 +184,8 @@ jobs:
 
             printf 'codespace=%s\n' "$name" >> "$GITHUB_OUTPUT"
             printf 'previous_state=%s\n' "$old_state" >> "$GITHUB_OUTPUT"
-
-            if [ "$state" = 'Shutdown' ]; then
-              api POST "/user/codespaces/${name}/start" >/dev/null
-            fi
-
-            ready='false'
-            for _ in $(seq 1 150); do
-              state="$(api GET "/user/codespaces/${name}" | jq -r '.state // "Unknown"')"
-              if [ "$state" = 'Available' ]; then
-                ready='true'
-                break
-              fi
-              sleep 2
-            done
-            if [ "$ready" != 'true' ]; then
-              printf 'New Codespace did not reach Available state before timeout; final state=%s.\n' "$state" >&2
-              exit 8
-            fi
+            ensure_available "$name"
+            printf 'final_state=Available\n' >> "$GITHUB_OUTPUT"
 
             if [ -n "$old_name" ] && [ "$old_name" != "$name" ]; then
               safe_to_retire="$(printf '%s' "$selection" | jq -r '
@@ -152,7 +205,11 @@ jobs:
             fi
           else
             if [ -z "$selection" ]; then
-              printf 'No Codespace found for %s.\n' "$REPOSITORY" >&2
+              if [ -n "$requested_name" ]; then
+                printf 'Codespace %s was not found for %s.\n' "$requested_name" "$REPOSITORY" >&2
+              else
+                printf 'No Codespace found for %s.\n' "$REPOSITORY" >&2
+              fi
               exit 3
             fi
 
@@ -161,47 +218,51 @@ jobs:
             printf 'codespace=%s\n' "$name" >> "$GITHUB_OUTPUT"
             printf 'previous_state=%s\n' "$state" >> "$GITHUB_OUTPUT"
 
-            if [ "$action" = 'restart' ] && [ "$state" != 'Shutdown' ]; then
-              if [ "$state" = 'Available' ]; then
-                api POST "/user/codespaces/${name}/stop" >/dev/null
-              fi
-              stopped='false'
-              for _ in $(seq 1 150); do
-                state="$(api GET "/user/codespaces/${name}" | jq -r '.state // "Unknown"')"
-                if [ "$state" = 'Shutdown' ]; then
-                  stopped='true'
-                  break
+            case "$action" in
+              start)
+                ensure_available "$name"
+                printf 'final_state=Available\n' >> "$GITHUB_OUTPUT"
+                ;;
+              restart)
+                ensure_shutdown "$name"
+                ensure_available "$name"
+                printf 'final_state=Available\n' >> "$GITHUB_OUTPUT"
+                ;;
+              stop)
+                ensure_shutdown "$name"
+                printf 'final_state=Shutdown\n' >> "$GITHUB_OUTPUT"
+                ;;
+              retire)
+                if [ -z "$requested_name" ]; then
+                  printf '%s\n' 'Retirement requires an explicit `codespace: NAME` field.' >&2
+                  exit 9
                 fi
-                sleep 2
-              done
-              if [ "$stopped" != 'true' ]; then
-                printf 'Codespace did not reach Shutdown state before restart timeout; final state=%s.\n' "$state" >&2
-                exit 4
-              fi
-            fi
-
-            if [ "$state" != 'Available' ]; then
-              api POST "/user/codespaces/${name}/start" >/dev/null
-            fi
-
-            ready='false'
-            for _ in $(seq 1 150); do
-              state="$(api GET "/user/codespaces/${name}" | jq -r '.state // "Unknown"')"
-              if [ "$state" = 'Available' ]; then
-                ready='true'
-                break
-              fi
-              sleep 2
-            done
-            if [ "$ready" != 'true' ]; then
-              printf 'Codespace did not reach Available state before timeout; final state=%s.\n' "$state" >&2
-              exit 5
-            fi
+                if ! printf '%s\n' "${ISSUE_BODY:-}" | grep -Fxq "confirm: ${name}"; then
+                  printf 'Retirement requires exact confirmation: confirm: %s\n' "$name" >&2
+                  exit 10
+                fi
+                safe_to_retire="$(printf '%s' "$selection" | jq -r '
+                  (.git_status != null) and
+                  (.git_status.has_uncommitted_changes == false) and
+                  (.git_status.has_unpushed_changes == false)
+                ')"
+                if [ "$safe_to_retire" != 'true' ] && ! printf '%s\n' "${ISSUE_BODY:-}" | grep -Fxq 'allow-unverified-retire: true'; then
+                  printf '%s\n' 'Codespace working state is not proven clean. Add `allow-unverified-retire: true` only after preserving or independently verifying its work.' >&2
+                  exit 11
+                fi
+                ensure_shutdown "$name"
+                api DELETE "/user/codespaces/${name}" >/dev/null
+                printf 'final_state=Retired\n' >> "$GITHUB_OUTPUT"
+                printf 'retired_codespace=%s\n' "$name" >> "$GITHUB_OUTPUT"
+                ;;
+            esac
           fi
 
-          printf 'web_url=https://%s.github.dev\n' "$name" >> "$GITHUB_OUTPUT"
-          printf 'console_url=https://%s-8765.app.github.dev\n' "$name" >> "$GITHUB_OUTPUT"
-          printf 'mcp_url=https://%s-8766.app.github.dev/mcp\n' "$name" >> "$GITHUB_OUTPUT"
+          if [ "$action" != 'retire' ]; then
+            printf 'web_url=https://%s.github.dev\n' "$name" >> "$GITHUB_OUTPUT"
+            printf 'console_url=https://%s-8765.app.github.dev\n' "$name" >> "$GITHUB_OUTPUT"
+            printf 'mcp_url=https://%s-8766.app.github.dev/mcp\n' "$name" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Report lifecycle request
         if: success()
@@ -210,6 +271,7 @@ jobs:
           ACTION: ${{ steps.wake.outputs.action }}
           CODESPACE: ${{ steps.wake.outputs.codespace }}
           PREVIOUS_STATE: ${{ steps.wake.outputs.previous_state }}
+          FINAL_STATE: ${{ steps.wake.outputs.final_state }}
           RETIRED_CODESPACE: ${{ steps.wake.outputs.retired_codespace }}
           PRESERVED_CODESPACE: ${{ steps.wake.outputs.preserved_codespace }}
           WEB_URL: ${{ steps.wake.outputs.web_url }}
@@ -221,13 +283,14 @@ jobs:
 
           Codespace: \`${CODESPACE}\`
           Previous state: \`${PREVIOUS_STATE}\`
-          Codespace: ${WEB_URL}
-          APOTHEON ONE console: ${CONSOLE_URL}
-          MCP: ${MCP_URL}
+          Final state: \`${FINAL_STATE}\`
           EOF
           )
+          if [ -n "${WEB_URL:-}" ]; then
+            body="${body}\nCodespace: ${WEB_URL}\nAPOTHEON ONE console: ${CONSOLE_URL}\nMCP: ${MCP_URL}"
+          fi
           if [ -n "${RETIRED_CODESPACE:-}" ]; then
-            body="${body}\nRetired clean predecessor: \`${RETIRED_CODESPACE}\`"
+            body="${body}\nRetired Codespace: \`${RETIRED_CODESPACE}\`"
           fi
           if [ -n "${PRESERVED_CODESPACE:-}" ]; then
             body="${body}\nPreserved predecessor because its working state could not be proven clean: \`${PRESERVED_CODESPACE}\`"
