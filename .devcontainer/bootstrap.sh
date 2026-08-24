@@ -6,7 +6,7 @@ TOOLS_HOME="$HOME/tools"
 GO_BIN="$HOME/go/bin"
 mkdir -p "$TOOLS_HOME" "$GO_BIN" "$WORKSPACE/reports" "$WORKSPACE/notes" "$WORKSPACE/targets" "$WORKSPACE/loot" "$WORKSPACE/engagements" "$WORKSPACE/artifacts" "$WORKSPACE/cases" "$WORKSPACE/fuzz/harnesses"
 
-printf '\n[+] Bootstrapping Security Lab...\n'
+printf '\n[+] Bootstrapping Digital Paragon Security Research...\n'
 sudo apt-get update -y
 
 packages=(
@@ -51,24 +51,24 @@ pipx install bandit >/dev/null 2>&1 || pipx upgrade bandit >/dev/null 2>&1 || tr
 
 rm -rf "$TOOLS_HOME/SecLists" 2>/dev/null || true
 
+if command -v docker >/dev/null 2>&1; then
+  # These containers are disposable. Removing only the legacy names prevents port collisions during the DPSR rename.
+  docker rm -f sec-lab-juice-shop sec-lab-dvwa sec-lab-webgoat sec-lab-kali >/dev/null 2>&1 || true
+fi
+
 if command -v docker >/dev/null 2>&1 && [ -n "${GITHUB_TOKEN:-}" ] && [ -n "${GITHUB_USER:-}" ]; then
   printf '%s' "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_USER" --password-stdin >/dev/null 2>&1 || true
 fi
 
 sed -i '/SECURITY-LAB/,/SECURITY-LAB.*END/d' "$HOME/.bashrc" 2>/dev/null || true
+sed -i '/DPSR/,/DPSR.*END/d' "$HOME/.bashrc" 2>/dev/null || true
 cat >> "$HOME/.bashrc" <<EOF
 
-# >>> SECURITY-LAB >>>
+# >>> DPSR >>>
 export PATH="/usr/local/go/bin:$GO_BIN:$HOME/.local/bin:$WORKSPACE/bin:\$PATH"
-alias labup='sec up'
-alias labdown='sec down'
-alias labps='sec ps'
-alias labscan='sec scan'
-alias labgui='sec gui'
-alias labreport='sec report'
 alias recon='bash $WORKSPACE/bin/recon'
 alias headers='bash $WORKSPACE/bin/headers'
-# >>> SECURITY-LAB >>> END
+# >>> DPSR >>> END
 EOF
 
 chmod +x "$WORKSPACE"/bin/* 2>/dev/null || true
@@ -81,19 +81,19 @@ bash "$WORKSPACE/bin/disk-guard" --auto || true
 cat <<'BANNER'
 
 ============================================================
- Security Lab ready
+ Digital Paragon Security Research
 ------------------------------------------------------------
- sec help       control surface
- sec up         start vulnerable training targets
- sec gui        launch Mission Control
- sec defend     run the defensive pipeline
- sec review     run repository security review
- sec validate   compare and validate findings
- sec fuzz       fuzz local training targets and harnesses
- sec triage     statically triage a file
- sec research   manage persistent research cases
- sec kali       open dedicated Kali operator shell
+ dpsr help       control surface
+ dpsr up         start the vulnerable training range
+ dpsr gui        launch the operations console
+ dpsr defend     run the defensive pipeline
+ dpsr review     run repository security analysis
+ dpsr validate   compare and validate findings
+ dpsr fuzz       run bounded local fuzzing
+ dpsr triage     statically triage an artifact
+ dpsr research   manage persistent research cases
+ dpsr kali       enter the Kali operator shell
 ============================================================
 
-Run: source ~/.bashrc && sec doctor
+Run: source ~/.bashrc && dpsr doctor
 BANNER

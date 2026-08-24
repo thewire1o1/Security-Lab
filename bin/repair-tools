@@ -9,7 +9,7 @@ mkdir -p "$TOOLS_HOME" "$GO_BIN" "$HOME/.local/bin" "$WORKSPACE/reports"
 LOG="$WORKSPACE/reports/repair-tools-$(date +%Y%m%d-%H%M%S).log"
 exec > >(tee -a "$LOG") 2>&1
 
-printf '\n[+] Repairing Security Lab tooling...\n'
+printf '\n[+] Repairing DPSR tooling...\n'
 printf '[+] Log: %s\n' "$LOG"
 
 sudo apt-get update -y >/dev/null
@@ -82,14 +82,13 @@ else
 fi
 
 sed -i '/SECURITY-GO/,/SECURITY-GO.*<<</d' "$HOME/.bashrc" 2>/dev/null || true
-if ! grep -qF '# >>> SECURITY-LAB-GO >>>' "$HOME/.bashrc" 2>/dev/null; then
-  cat >> "$HOME/.bashrc" <<'EOF'
+sed -i '/DPSR-GO/,/DPSR-GO.*<<</d' "$HOME/.bashrc" 2>/dev/null || true
+cat >> "$HOME/.bashrc" <<'EOF'
 
-# >>> SECURITY-LAB-GO >>>
+# >>> DPSR-GO >>>
 export PATH="/usr/local/go/bin:$HOME/go/bin:$HOME/.local/bin:$PATH"
-# <<< SECURITY-LAB-GO <<<
+# <<< DPSR-GO <<<
 EOF
-fi
 
 if [ -x "$GO_BIN/nuclei" ]; then
   "$GO_BIN/nuclei" -update-templates >/dev/null 2>&1 || true

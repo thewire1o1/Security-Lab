@@ -9,7 +9,7 @@ import re
 import shutil
 import signal
 import ssl
-import subprocess  # nosec B404
+import subprocess  # nosec B404 - required for fixed argv execution; shell invocation is not used.
 import sys
 import time
 import urllib.parse
@@ -22,7 +22,7 @@ from security_lab.common import ROOT, utc_timestamp
 API_HOST: Final = "api.github.com"
 DEFAULT_REPO: Final = "thewire1o1/Security-Lab"
 DEFAULT_OWNER: Final = "thewire1o1"
-TITLE_PREFIX: Final = "[LAB-CMD]"
+TITLE_PREFIX: Final = "[DPSR-CMD]"
 MAX_RESULT_BYTES: Final = 12_000
 TOKEN_PATTERN: Final = re.compile(
     r"\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})\b",
@@ -135,7 +135,7 @@ class GitHubClient:
         env.pop("GH_TOKEN", None)
         env.pop("GITHUB_TOKEN", None)
         try:
-            result = subprocess.run(  # nosec B603
+            result = subprocess.run(  # nosec B603 - executable is resolved explicitly and argv is constant.
                 [gh, "auth", "token", "--hostname", "github.com"],
                 cwd=self.config.root,
                 env=env,
@@ -154,7 +154,7 @@ class GitHubClient:
             return ""
         request = "protocol=https\nhost=github.com\n\n"
         try:
-            result = subprocess.run(  # nosec B603
+            result = subprocess.run(  # nosec B603 - executable is resolved explicitly and argv is constant.
                 [git, "credential", "fill"],
                 cwd=self.config.root,
                 input=request,
@@ -186,12 +186,13 @@ class GitHubClient:
             "Authorization": f"Bearer {token}",
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
-            "User-Agent": "security-lab-remote-agent",
+            "User-Agent": "dpsr-remote-agent",
         }
         if payload is not None:
             body = json.dumps(payload).encode("utf-8")
             headers["Content-Type"] = "application/json"
 
+        # The destination is a compile-time constant; the SSL context verifies certificates and requires TLS 1.2+.
         connection = http.client.HTTPSConnection(  # nosemgrep: python.lang.security.audit.httpsconnection-detected.httpsconnection-detected
             API_HOST,
             timeout=30,
@@ -228,6 +229,8 @@ class TaskRunner:
         self.config = config
         self.client = client
         root = str(config.root)
+
+        # Remote requests select an allowlisted task name only. Every executable and argument is defined here.
         self.specs: dict[str, TaskSpec] = {
             "doctor": TaskSpec(("bash", f"{root}/bin/doctor"), 120),
             "status": TaskSpec(("bash", f"{root}/bin/sec", "ps"), 120),
@@ -268,7 +271,7 @@ class TaskRunner:
 
     def _run_process(self, spec: TaskSpec) -> tuple[int, str]:
         try:
-            result = subprocess.run(  # nosec B603
+            result = subprocess.run(  # nosec B603 - TaskSpec contains only preconstructed argv vectors.
                 list(spec.argv),
                 cwd=self.config.root,
                 text=True,
@@ -381,7 +384,7 @@ class TaskRunner:
         self.config.reports.mkdir(parents=True, exist_ok=True)
         log_path = self.config.reports / "codespace-retire.log"
         with log_path.open("a", encoding="utf-8") as log:
-            subprocess.Popen(  # nosec B603
+            subprocess.Popen(  # nosec B603 - sys.executable re-enters this module with validated arguments.
                 [
                     sys.executable,
                     "-m",
@@ -432,7 +435,7 @@ class RemoteAgent:
         self.client.resolve_token()
         self.config.reports.mkdir(parents=True, exist_ok=True)
         with self.config.logfile.open("a", encoding="utf-8") as log:
-            process = subprocess.Popen(  # nosec B603
+            process = subprocess.Popen(  # nosec B603 - sys.executable starts this module with constant argv.
                 [sys.executable, "-m", "security_lab.remote_agent", "run"],
                 cwd=self.config.root,
                 stdin=subprocess.DEVNULL,
@@ -550,7 +553,7 @@ class RemoteAgent:
                 return
 
         try:
-            self._set_title(number, f"[LAB-RUNNING] {task}")
+            self._set_title(number, f"[DPSR-RUNNING] {task}")
             returncode, output = self.runner.run(task)
             result = "OK" if returncode == 0 else "FAIL"
             indented_output = output.replace("\n", "\n    ")
@@ -562,14 +565,14 @@ class RemoteAgent:
                 f"Output:\n\n    {indented_output}"
             )
             self._comment(number, result_body)
-            self._close(number, f"[LAB-{result}] {task}")
+            self._close(number, f"[DPSR-{result}] {task}")
         except GitHubError as exc:
             print(f"[{utc_timestamp()}] issue {number} failed: {exc}", flush=True)
 
     def _reject(self, number: int, task: str, message: str) -> None:
         try:
             self._comment(number, message)
-            self._close(number, f"[LAB-REJECTED] {task}")
+            self._close(number, f"[DPSR-REJECTED] {task}")
         except GitHubError as exc:
             print(f"[{utc_timestamp()}] issue {number} rejection failed: {exc}", flush=True)
 
@@ -638,7 +641,7 @@ def delete_codespace(config: Config, name: str, delay: float) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Security Lab remote command agent.")
+    parser = argparse.ArgumentParser(description="DPSR remote command agent.")
     subparsers = parser.add_subparsers(dest="command", required=True)
     for command in ("start", "stop", "status", "run"):
         subparsers.add_parser(command)

@@ -83,7 +83,7 @@ def finalize_pipeline(output_dir: Path) -> dict[str, Any]:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Security Lab defensive pipeline helpers.")
+    parser = argparse.ArgumentParser(description="DPSR defensive pipeline helpers.")
     subparsers = parser.add_subparsers(dest="command", required=True)
     for command in ("inventory", "finalize"):
         subparser = subparsers.add_parser(command)

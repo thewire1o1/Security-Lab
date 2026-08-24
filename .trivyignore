@@ -1,4 +1,3 @@
-# Kali is an isolated, disposable operator container that intentionally runs as root
-# because the lab tooling requires raw-socket/network-administration capabilities.
-# The operator service is not published as a public port.
+# AVD-DS-0002 is accepted only for the disposable Kali operator. Network tooling requires root
+# inside that container; the vulnerable services do not receive this exception or publish operator ports.
 AVD-DS-0002

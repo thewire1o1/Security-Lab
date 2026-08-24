@@ -6,30 +6,32 @@ COMPOSE=(docker compose -f "$ROOT/lab/docker-compose.yml")
 
 usage() {
   cat <<'EOF'
-Security Lab control
+Digital Paragon Security Research
 
-  sec doctor                 health check
-  sec up                     start vulnerable training targets
-  sec down                   stop training targets
-  sec ps                     show lab containers
-  sec scan                   scan the local lab
-  sec dashboard              launch Mission Control on 127.0.0.1:8765
-  sec gui                    alias for sec dashboard
-  sec report                 generate HTML/JSON report from latest local scan
-  sec defend                 run the complete defensive pipeline
-  sec review                 run repository security review
-  sec validate               compare current findings with prior run
-  sec fuzz                   fuzz local training targets and custom harnesses
-  sec triage FILE            statically triage a file
-  sec research ...           manage persistent research cases
-  sec engine [FILE]          run configured external review command
-  sec kali-build             refresh Kali operator image
-  sec kali                   open Kali operator shell
-  sec clean                  reclaim disposable caches and Docker build data
-  sec disk                   show disk and Docker storage usage
-  sec update                 update tools and templates
-  sec update --full          also refresh Kali image
-  sec new NAME               create an engagement workspace
+  dpsr doctor                 validate local dependencies and runtime state
+  dpsr up                     start intentionally vulnerable training targets
+  dpsr down                   stop the training range
+  dpsr ps                     show container state
+  dpsr scan                   scan the local training range
+  dpsr dashboard              launch the operations console on 127.0.0.1:8765
+  dpsr gui                    alias for dpsr dashboard
+  dpsr report                 generate HTML/JSON evidence from the latest scan
+  dpsr defend                 execute the complete defensive pipeline
+  dpsr review                 run repository security analysis
+  dpsr validate               compare current findings with the previous baseline
+  dpsr fuzz                   run bounded local fuzzing and custom harnesses
+  dpsr triage FILE            perform static artifact triage
+  dpsr research ...           manage persistent research cases
+  dpsr engine [FILE]          invoke the configured external review hook
+  dpsr kali-build             refresh the Kali operator image
+  dpsr kali                   enter the Kali operator shell
+  dpsr clean                  reclaim disposable caches and Docker build data
+  dpsr disk                   show disk and Docker storage usage
+  dpsr update                 update tools and templates
+  dpsr update --full          update tools and refresh the Kali image
+  dpsr new NAME               create an engagement workspace
+
+The legacy `sec` entry point remains available for compatibility.
 EOF
 }
 
@@ -61,7 +63,7 @@ case "$cmd" in
   ps) exec "${COMPOSE[@]}" --profile operator ps ;;
   scan) exec bash "$ROOT/bin/labscan" "$@" ;;
   dashboard|gui)
-    printf '%s\n' 'Mission Control starting at http://127.0.0.1:8765'
+    printf '%s\n' 'DPSR Operations Console starting at http://127.0.0.1:8765'
     printf '%s\n' 'In Codespaces, open forwarded port 8765 and keep its visibility Private.'
     cd "$ROOT"
     exec python3 -m security_lab.dashboard "$@"

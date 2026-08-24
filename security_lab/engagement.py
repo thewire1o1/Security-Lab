@@ -33,7 +33,7 @@ def create_engagement(raw_name: str) -> Path:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(prog="sec new", description="Create an engagement workspace.")
+    parser = argparse.ArgumentParser(prog="dpsr new", description="Create an engagement workspace.")
     parser.add_argument("name")
     args = parser.parse_args()
     try:
