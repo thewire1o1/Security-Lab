@@ -23,12 +23,12 @@ echo '[+] Training target images'
 docker compose -f "$ROOT/lab/docker-compose.yml" pull juice-shop dvwa webgoat || true
 
 if [ "$FULL" = "--full" ]; then
-  echo '[+] Kali operator image'
+  echo '[+] APOTHEON ONE security operator image'
   bash "$ROOT/bin/sec" kali-build
 fi
 
 npm cache clean --force >/dev/null 2>&1 || true
 bash "$ROOT/bin/disk-guard" --auto || true
 
-echo '[+] Health check'
+echo '[+] APOTHEON ONE health check'
 bash "$ROOT/bin/doctor"
