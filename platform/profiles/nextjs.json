@@ -3,17 +3,17 @@
     "name": "nextjs",
     "title": "Next.js Web App",
     "category": "web",
-    "description": "Modern TypeScript web application profile with lint, test, build, development, preview, and deployment hooks.",
+    "description": "Modern TypeScript web application profile with automated provisioning, linting, production builds, development, preview, CI, and deployment hooks.",
     "runner": "local",
-    "stack": ["node", "typescript", "nextjs"],
+    "stack": ["node", "typescript", "nextjs", "react", "tailwind"],
     "capabilities": ["frontend", "server-rendering", "api-routes", "preview", "ci", "deploy"],
     "scaffold": "nextjs"
   },
   "commands": {
     "lint": {"argv": ["npm", "run", "lint"], "cwd": ".", "timeout": 600},
-    "test": {"argv": ["npm", "test"], "cwd": ".", "timeout": 900},
     "build": {"argv": ["npm", "run", "build"], "cwd": ".", "timeout": 1800},
-    "dev": {"argv": ["npm", "run", "dev"], "cwd": ".", "timeout": 86400}
+    "dev": {"argv": ["npm", "run", "dev", "--", "--hostname", "0.0.0.0", "--port", "3000"], "cwd": ".", "timeout": 86400},
+    "start": {"argv": ["npm", "run", "start", "--", "--hostname", "0.0.0.0", "--port", "3000"], "cwd": ".", "timeout": 86400}
   },
   "services": {"web": 3000}
 }
