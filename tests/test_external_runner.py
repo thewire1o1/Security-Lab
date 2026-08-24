@@ -113,7 +113,7 @@ timeout = 3600
             push_mock.assert_called_once()
             self.assertEqual(gh_mock.call_args.args[:3], ("repo", "create", "octocat/demo-ios"))
 
-    def test_dispatch_records_remote_run_identity(self) -> None:
+    def test_dispatch_records_remote_run_identity_through_rest_api(self) -> None:
         project = Project(
             name="demo",
             path=Path("/tmp/demo"),
@@ -129,28 +129,33 @@ timeout = 3600
                 }
             },
         )
-        run_list = json.dumps([
-            {
-                "databaseId": 12345,
-                "createdAt": "2026-08-24T08:00:00Z",
-                "status": "queued",
-                "conclusion": "",
-                "url": "https://github.com/octocat/demo/actions/runs/12345",
-            }
-        ])
+        workflow_runs = json.dumps({
+            "workflow_runs": [
+                {
+                    "id": 12345,
+                    "created_at": "2026-08-24T08:00:00Z",
+                    "status": "queued",
+                    "conclusion": None,
+                    "html_url": "https://github.com/octocat/demo/actions/runs/12345",
+                }
+            ]
+        })
         responses = [
             {"returncode": 0, "stdout": "", "stderr": ""},
-            {"returncode": 0, "stdout": run_list, "stderr": ""},
+            {"returncode": 0, "stdout": workflow_runs, "stderr": ""},
         ]
         with (
             mock.patch.object(github_actions, "require_auth", return_value={"safe": True}),
-            mock.patch.object(github_actions, "_gh", side_effect=responses),
+            mock.patch.object(github_actions, "_utc", return_value="2026-08-24T08:00:00Z"),
+            mock.patch.object(github_actions, "_gh", side_effect=responses) as gh_mock,
         ):
             external = github_actions.dispatch(project, "build")
         self.assertEqual(external["provider"], "github-actions")
         self.assertEqual(external["run_id"], 12345)
         self.assertEqual(external["workflow"], "android.yml")
         self.assertEqual(external["status"], "queued")
+        self.assertEqual(gh_mock.call_args_list[1].args[0], "api")
+        self.assertIn("event=workflow_dispatch", gh_mock.call_args_list[1].args[1])
 
     def test_external_job_dispatch_and_refresh_roundtrip(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
