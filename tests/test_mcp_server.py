@@ -35,7 +35,7 @@ class MCPServerTests(unittest.IsolatedAsyncioTestCase):
             platform = await client.call_tool("platform_status", {"job_limit": 5})
             self.assertFalse(platform.is_error)
             self.assertIsInstance(platform.structured_content, dict)
-            self.assertEqual(platform.structured_content.get("platform"), "FORGE")
+            self.assertEqual(platform.structured_content.get("platform"), "APOTHEON ONE")
 
 
 if __name__ == "__main__":
