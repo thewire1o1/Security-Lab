@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+usage() {
+  printf '%s\n' 'Usage: recon <authorized-host-or-domain> [--deep]' >&2
+}
+
+if [ "$#" -lt 1 ]; then
+  usage
+  exit 1
+fi
+
+RAW="$1"
+MODE="${2:-}"
+if [ -n "$MODE" ] && [ "$MODE" != "--deep" ]; then
+  usage
+  exit 2
+fi
+
+TARGET="${RAW#http://}"
+TARGET="${TARGET#https://}"
+TARGET="${TARGET%%/*}"
+TARGET="${TARGET%%:*}"
+if [[ ! "$TARGET" =~ ^[[:alnum:]][[:alnum:]._-]*$ ]]; then
+  printf '%s\n' 'Invalid target.' >&2
+  exit 2
+fi
+
+SAFE="$(printf '%s' "$TARGET" | tr -cs '[:alnum:]._-' '_')"
+STAMP="$(date -u +%Y%m%d-%H%M%S)"
+OUT="$ROOT/reports/recon-${SAFE}-${STAMP}"
+mkdir -p "$OUT"
+
+printf '[+] Target: %s\n' "$TARGET"
+printf '[+] Output: %s\n' "$OUT"
+
+{
+  printf 'TARGET=%s\n' "$TARGET"
+  printf 'UTC=%s\n' "$(date -u +%FT%TZ)"
+} >"$OUT/meta.txt"
+
+whois "$TARGET" >"$OUT/whois.txt" 2>&1 || true
+{
+  dig A "$TARGET" +short
+  dig AAAA "$TARGET" +short
+  dig MX "$TARGET" +short
+  dig TXT "$TARGET" +short
+} >"$OUT/dns.txt" 2>&1 || true
+
+if command -v subfinder >/dev/null 2>&1 && [[ "$TARGET" =~ [A-Za-z] ]]; then
+  subfinder -silent -d "$TARGET" -o "$OUT/subdomains.txt" 2>/dev/null || true
+else
+  : >"$OUT/subdomains.txt"
+fi
+
+printf '%s\n' "$TARGET" >"$OUT/hosts.txt"
+cat "$OUT/subdomains.txt" >>"$OUT/hosts.txt" 2>/dev/null || true
+sort -u "$OUT/hosts.txt" -o "$OUT/hosts.txt"
+
+printf '%s\n' '[+] Service discovery...'
+nmap -Pn -T3 --top-ports 1000 -sV --version-light -oA "$OUT/nmap" "$TARGET" || true
+
+if command -v httpx >/dev/null 2>&1; then
+  printf '%s\n' '[+] HTTP discovery...'
+  httpx -silent -l "$OUT/hosts.txt" -title -status-code -tech-detect -follow-redirects \
+    -o "$OUT/httpx.txt" || true
+fi
+
+if [ "$MODE" = "--deep" ] && command -v nuclei >/dev/null 2>&1; then
+  printf '%s\n' '[+] Template checks...'
+  if [ -s "$OUT/httpx.txt" ]; then
+    awk '{print $1}' "$OUT/httpx.txt" \
+      | nuclei -silent -severity info,low,medium,high,critical -o "$OUT/nuclei.txt" || true
+  else
+    nuclei -silent -u "$RAW" -severity info,low,medium,high,critical -o "$OUT/nuclei.txt" || true
+  fi
+fi
+
+printf '[+] Done: %s\n' "$OUT"

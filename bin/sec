@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+COMPOSE=(docker compose -f "$ROOT/lab/docker-compose.yml")
+
+usage() {
+  cat <<'EOF'
+Digital Paragon Security Research
+
+  dpsr doctor                 validate local dependencies and runtime state
+  dpsr up                     start intentionally vulnerable training targets
+  dpsr down                   stop the training range
+  dpsr ps                     show container state
+  dpsr scan                   scan the local training range
+  dpsr dashboard              launch the operations console on 127.0.0.1:8765
+  dpsr gui                    alias for dpsr dashboard
+  dpsr mcp ACTION             manage the MCP sidecar (start|stop|restart|status|test|install)
+  dpsr report                 generate HTML/JSON evidence from the latest scan
+  dpsr defend                 execute the complete defensive pipeline
+  dpsr review                 run repository security analysis
+  dpsr validate               compare current findings with the previous baseline
+  dpsr fuzz                   run bounded local fuzzing and custom harnesses
+  dpsr triage FILE            perform static artifact triage
+  dpsr research ...           manage persistent research cases
+  dpsr engine [FILE]          invoke the configured external review hook
+  dpsr kali-build             refresh the Kali operator image
+  dpsr kali                   enter the Kali operator shell
+  dpsr clean                  reclaim disposable caches and Docker build data
+  dpsr disk                   show disk and Docker storage usage
+  dpsr update                 update tools and templates
+  dpsr update --full          update tools and refresh the Kali image
+  dpsr new NAME               create an engagement workspace
+
+The legacy `sec` entry point remains available for compatibility.
+EOF
+}
+
+kali_up() {
+  "${COMPOSE[@]}" --profile operator up -d kali >/dev/null
+}
+
+kali_refresh() {
+  printf '%s\n' '[+] Pulling Kali operator image...'
+  if "${COMPOSE[@]}" --profile operator pull kali; then
+    docker builder prune -af --filter 'until=24h' >/dev/null 2>&1 || true
+    return 0
+  fi
+  printf '%s\n' '[!] Prebuilt image unavailable; building locally.'
+  "${COMPOSE[@]}" --profile operator build --pull kali
+  docker builder prune -af >/dev/null 2>&1 || true
+}
+
+cmd="${1:-help}"
+if [ "$#" -gt 0 ]; then
+  shift
+fi
+
+case "$cmd" in
+  help|-h|--help) usage ;;
+  doctor) exec bash "$ROOT/bin/doctor" "$@" ;;
+  up) exec "${COMPOSE[@]}" up -d juice-shop dvwa webgoat ;;
+  down) exec "${COMPOSE[@]}" --profile operator down ;;
+  ps) exec "${COMPOSE[@]}" --profile operator ps ;;
+  scan) exec bash "$ROOT/bin/labscan" "$@" ;;
+  dashboard|gui)
+    printf '%s\n' 'DPSR Operations Console starting at http://127.0.0.1:8765'
+    printf '%s\n' 'In Codespaces, open forwarded port 8765 and keep its visibility Private.'
+    cd "$ROOT"
+    exec python3 -m security_lab.dashboard "$@"
+    ;;
+  mcp) exec bash "$ROOT/bin/mcp-control" "$@" ;;
+  report) exec python3 "$ROOT/bin/sec-report" "$@" ;;
+  defend) exec bash "$ROOT/bin/defense-run" "$@" ;;
+  review) exec bash "$ROOT/bin/code-review" "$@" ;;
+  validate) exec bash "$ROOT/bin/validate-findings" "$@" ;;
+  fuzz) exec bash "$ROOT/bin/fuzz-run" "$@" ;;
+  triage) exec bash "$ROOT/bin/triage" "$@" ;;
+  research) exec bash "$ROOT/bin/research" "$@" ;;
+  engine) exec bash "$ROOT/bin/review-engine" "$@" ;;
+  kali-build) kali_refresh ;;
+  kali)
+    kali_up
+    exec "${COMPOSE[@]}" --profile operator exec kali bash
+    ;;
+  clean) exec bash "$ROOT/bin/disk-guard" --force ;;
+  disk)
+    df -h /
+    if command -v docker >/dev/null 2>&1; then
+      printf '\n'
+      docker system df || true
+    fi
+    ;;
+  update) exec bash "$ROOT/bin/update-all" "$@" ;;
+  new) exec bash "$ROOT/bin/new-engagement" "$@" ;;
+  *)
+    printf 'Unknown command: %s\n' "$cmd" >&2
+    usage >&2
+    exit 2
+    ;;
+esac

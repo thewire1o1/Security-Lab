@@ -1,0 +1,83 @@
+services:
+  juice-shop:
+    image: bkimminich/juice-shop:v20.2.0
+    container_name: dpsr-juice-shop
+    restart: unless-stopped
+    init: true
+    pids_limit: 256
+    mem_limit: 768m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks: [dpsr-range]
+
+  dvwa:
+    image: vulnerables/web-dvwa@sha256:dae203fe11646a86937bf04db0079adef295f426da68a92b40e3b181f337daa7
+    container_name: dpsr-dvwa
+    restart: unless-stopped
+    init: true
+    pids_limit: 256
+    mem_limit: 768m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:8080:80"
+    networks: [dpsr-range]
+
+  webgoat:
+    image: webgoat/webgoat:v2025.3
+    container_name: dpsr-webgoat
+    restart: unless-stopped
+    init: true
+    pids_limit: 384
+    mem_limit: 1536m
+    cpus: 1.5
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      WEBGOAT_PORT: "8080"
+    ports:
+      - "127.0.0.1:8081:8080"
+      - "127.0.0.1:9090:9090"
+    healthcheck:
+      # The upstream v2025.3 image healthcheck depends on curl. Use Bash's
+      # built-in TCP client so readiness does not depend on an extra package.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 60s
+    networks: [dpsr-range]
+
+  kali:
+    profiles: ["operator"]
+    image: ghcr.io/thewire1o1/dpsr-kali:latest
+    build:
+      context: ./kali
+    container_name: dpsr-kali
+    stdin_open: true
+    tty: true
+    working_dir: /workspace
+    command: ["sleep", "infinity"]
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - ../:/workspace
+      - kali-home:/root
+    networks:
+      - dpsr-range
+      - operator-egress
+
+networks:
+  dpsr-range:
+    driver: bridge
+    internal: true
+  operator-egress:
+    driver: bridge
+
+volumes:
+  kali-home:

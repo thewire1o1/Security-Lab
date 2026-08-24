@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+FULL="${1:-}"
+export PATH="/usr/local/go/bin:$HOME/go/bin:$HOME/.local/bin:$PATH"
+
+echo '[+] ProjectDiscovery tools'
+if command -v pdtm >/dev/null 2>&1; then
+  pdtm -ua -nc || true
+elif [ -x "$HOME/go/bin/pdtm" ]; then
+  "$HOME/go/bin/pdtm" -ua -nc || true
+fi
+
+if command -v nuclei >/dev/null 2>&1; then
+  nuclei -update-templates >/dev/null 2>&1 || true
+fi
+
+echo '[+] Python tools'
+pipx upgrade-all >/dev/null 2>&1 || true
+
+echo '[+] Training target images'
+docker compose -f "$ROOT/lab/docker-compose.yml" pull juice-shop dvwa webgoat || true
+
+if [ "$FULL" = "--full" ]; then
+  echo '[+] Kali operator image'
+  bash "$ROOT/bin/sec" kali-build
+fi
+
+npm cache clean --force >/dev/null 2>&1 || true
+bash "$ROOT/bin/disk-guard" --auto || true
+
+echo '[+] Health check'
+bash "$ROOT/bin/doctor"

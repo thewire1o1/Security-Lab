@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PIDFILE="$ROOT/.dashboard.pid"
+DISABLED="$ROOT/.dashboard.disabled"
+LOGFILE="$ROOT/reports/dashboard.log"
+PORT=8765
+
+read_pid() {
+  if [ -f "$PIDFILE" ]; then
+    cat "$PIDFILE" 2>/dev/null || true
+  fi
+}
+
+is_running() {
+  local pid
+  pid="$(read_pid)"
+  [ -n "$pid" ] || return 1
+  kill -0 "$pid" 2>/dev/null || return 1
+  tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -q 'security_lab.dashboard'
+}
+
+health_check() {
+  python3 - <<'PY'
+import json
+import urllib.request
+
+try:
+    with urllib.request.urlopen("http://127.0.0.1:8765/health", timeout=1.0) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+except Exception:
+    raise SystemExit(1)
+raise SystemExit(0 if payload.get("ok") is True else 1)
+PY
+}
+
+healthy() {
+  is_running && health_check
+}
+
+console_url() {
+  if [ -n "${CODESPACE_NAME:-}" ]; then
+    printf 'https://%s-%s.app.github.dev\n' "$CODESPACE_NAME" "$PORT"
+  else
+    printf 'http://127.0.0.1:%s\n' "$PORT"
+  fi
+}
+
+stop_process() {
+  if ! is_running; then
+    rm -f "$PIDFILE"
+    return 0
+  fi
+  local pid
+  pid="$(read_pid)"
+  kill "$pid" 2>/dev/null || true
+  for _ in $(seq 1 30); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      rm -f "$PIDFILE"
+      return 0
+    fi
+    sleep 0.1
+  done
+  kill -9 "$pid" 2>/dev/null || true
+  rm -f "$PIDFILE"
+}
+
+start_console() {
+  mkdir -p "$ROOT/reports"
+  rm -f "$DISABLED"
+  if healthy; then
+    printf 'FORGE console already running: pid=%s\n' "$(read_pid)"
+    printf 'URL: %s\n' "$(console_url)"
+    return 0
+  fi
+  if is_running; then
+    stop_process
+  fi
+
+  rm -f "$PIDFILE"
+  cd "$ROOT"
+  nohup python3 -m security_lab.dashboard >>"$LOGFILE" 2>&1 </dev/null &
+  local pid=$!
+  printf '%s\n' "$pid" > "$PIDFILE"
+
+  for _ in $(seq 1 30); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      rm -f "$PIDFILE"
+      printf 'FORGE console failed to start.\n' >&2
+      tail -n 40 "$LOGFILE" >&2 || true
+      return 1
+    fi
+    if health_check; then
+      printf 'FORGE console running: pid=%s\n' "$pid"
+      printf 'URL: %s\n' "$(console_url)"
+      return 0
+    fi
+    sleep 0.5
+  done
+
+  printf 'FORGE console process is running but health endpoint is not ready.\n' >&2
+  return 1
+}
+
+stop_console() {
+  touch "$DISABLED"
+  stop_process
+  printf 'FORGE console stopped.\n'
+}
+
+status_console() {
+  if healthy; then
+    printf 'FORGE console running: pid=%s\n' "$(read_pid)"
+    printf 'URL: %s\n' "$(console_url)"
+    return 0
+  fi
+  if is_running; then
+    printf 'FORGE console unhealthy: pid=%s health check failed.\n' "$(read_pid)" >&2
+    return 1
+  fi
+  rm -f "$PIDFILE"
+  printf 'FORGE console stopped.\n'
+  return 1
+}
+
+case "${1:-status}" in
+  start) start_console ;;
+  stop) stop_console ;;
+  restart) stop_process; start_console ;;
+  status) status_console ;;
+  *)
+    printf 'Usage: %s {start|stop|restart|status}\n' "$0" >&2
+    exit 2
+    ;;
+esac

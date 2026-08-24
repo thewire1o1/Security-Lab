@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="APOTHEON ONE by Digital Paragon is a unified development, automation, CI, mobile, and security research platform.">
+  <title>APOTHEON ONE — Unified. Elevated.</title>
+  <style>
+    :root{
+      --bg:#05070a;--bg2:#080c12;--panel:#0b1119;--panel2:#0f1722;--line:#1a2837;--line2:#2b4055;
+      --text:#f5f7fa;--muted:#96a4b5;--soft:#68788a;--cyan:#70ddff;--green:#7be8b2;--amber:#e7c672;
+      --shadow:0 30px 100px rgba(0,0,0,.45);--radius:18px;--max:1240px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth;background:var(--bg)}
+    body{margin:0;background:
+      radial-gradient(circle at 78% 2%,rgba(112,221,255,.09),transparent 30%),
+      radial-gradient(circle at 5% 30%,rgba(123,232,178,.05),transparent 26%),
+      linear-gradient(180deg,#07090d 0%,#05070a 100%);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+    a{color:inherit;text-decoration:none}.wrap{width:min(var(--max),calc(100% - 36px));margin:0 auto}
+    .nav{position:sticky;top:0;z-index:30;border-bottom:1px solid rgba(26,40,55,.76);background:rgba(5,7,10,.84);backdrop-filter:blur(18px)}
+    .nav-inner{height:68px;display:flex;align-items:center;justify-content:space-between;gap:28px}.mark{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:.105em;font-size:14px}.mark i{width:10px;height:10px;border-radius:2px;transform:rotate(45deg);background:linear-gradient(135deg,var(--cyan),var(--green));box-shadow:0 0 24px rgba(112,221,255,.48)}
+    .nav-links{display:flex;gap:22px;color:var(--muted);font-size:12px}.nav-links a:hover{color:var(--text)}
+    .hero{padding:116px 0 76px}.eyebrow{display:inline-flex;align-items:center;gap:9px;color:var(--cyan);font:700 10px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.17em;text-transform:uppercase}.eyebrow:before{content:"";width:32px;height:1px;background:var(--cyan)}
+    .product{margin:22px 0 8px;font-size:clamp(52px,9vw,112px);font-weight:790;line-height:.88;letter-spacing:-.064em}.product span{display:block;color:#9aa8b8;font-size:.58em;letter-spacing:-.04em;margin-top:18px}
+    .lead{max-width:900px;margin:26px 0 0;color:#acb8c6;font-size:clamp(17px,2vw,21px);line-height:1.72}.lead strong{color:#e8edf2;font-weight:650}
+    .maker{display:flex;flex-wrap:wrap;gap:10px 20px;margin-top:20px;color:var(--soft);font-size:11px}.maker b{color:#b7c3cf}.hero-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:34px}.btn{padding:11px 14px;border:1px solid var(--line2);border-radius:10px;background:#09111a;color:#c8d4df;font-size:12px;font-weight:650}.btn.primary{border-color:#315c72;background:#0e202b;color:var(--cyan)}
+    .signal{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:58px}.signal div{padding:18px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,rgba(15,23,34,.9),rgba(9,14,20,.93))}.signal b{display:block;font-size:14px}.signal span{display:block;margin-top:6px;color:var(--muted);font-size:10px;line-height:1.5}
+    section{padding:72px 0;border-top:1px solid rgba(26,40,55,.68)}.section-head{display:grid;grid-template-columns:.72fr 1.28fr;gap:42px;margin-bottom:34px}.kicker{color:var(--cyan);font:700 10px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.16em;text-transform:uppercase}.section-head h2{margin:9px 0 0;font-size:clamp(32px,5vw,58px);line-height:1;letter-spacing:-.047em}.section-head p{margin:3px 0 0;color:var(--muted);font-size:15px;line-height:1.78}
+    .grid{display:grid;gap:12px}.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.card{border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(180deg,rgba(15,23,34,.94),rgba(9,14,20,.96));box-shadow:0 1px 0 rgba(255,255,255,.015) inset}.card-pad{padding:23px}.card h3{margin:0;font-size:14px;letter-spacing:-.01em}.card p{margin:10px 0 0;color:var(--muted);font-size:12px;line-height:1.72}
+    .meaning{overflow:hidden;position:relative}.meaning:after{content:"ONE";position:absolute;right:-12px;bottom:-48px;color:rgba(112,221,255,.035);font-size:180px;font-weight:900;letter-spacing:-.08em;pointer-events:none}.meaning-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}.meaning-block{padding:34px}.meaning-block+ .meaning-block{border-left:1px solid var(--line)}.meaning-word{color:var(--cyan);font:700 10px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.15em}.meaning-block h3{margin:12px 0 0;font-size:30px;letter-spacing:-.035em}.meaning-block p{max-width:520px;font-size:13px}.manifesto{padding:24px 30px;border-top:1px solid var(--line);font-size:16px;line-height:1.65;color:#cad4de}.manifesto b{color:var(--green)}
+    .architecture{overflow:hidden}.arch-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:center}.arch-head b{font-size:11px}.arch-head span{color:var(--green);font:9px/1 ui-monospace,SFMono-Regular,Menlo,monospace}.arch{padding:25px;display:grid;grid-template-columns:1fr 50px 1.35fr 50px 1fr;align-items:center;gap:8px}.node{min-height:118px;padding:18px;border:1px solid var(--line2);border-radius:12px;background:#071019;display:grid;align-content:center}.node strong{font-size:12px}.node small{display:block;margin-top:7px;color:var(--muted);font-size:9px;line-height:1.6}.arrow{text-align:center;color:var(--cyan);font-size:22px}.node.security{border-color:#315544;background:linear-gradient(180deg,#0a1715,#07100e)}
+    .profile{position:relative;overflow:hidden}.profile:before{content:"";position:absolute;inset:0 auto 0 0;width:2px;background:linear-gradient(var(--cyan),transparent)}.profile.security:before{background:linear-gradient(var(--green),transparent)}.tagrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:15px}.tag{padding:6px 8px;border:1px solid var(--line);border-radius:999px;background:#080e14;color:#9fb0c2;font:9px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .specs{overflow:hidden}.spec{display:grid;grid-template-columns:190px 1fr;border-top:1px solid var(--line)}.spec:first-child{border-top:0}.spec b,.spec span{padding:13px 15px;font-size:10px}.spec b{color:#bcc9d5;border-right:1px solid var(--line);background:#091017}.spec span{color:var(--muted)}
+    .security-intro{display:grid;grid-template-columns:1.15fr .85fr;gap:12px}.security-hero{padding:29px;min-height:330px;display:flex;flex-direction:column;justify-content:space-between;background:radial-gradient(circle at 82% 16%,rgba(123,232,178,.1),transparent 32%),linear-gradient(180deg,#0c1718,#08100f)}.security-hero h3{font-size:31px;line-height:1.04;letter-spacing:-.04em}.security-hero p{max-width:680px;font-size:13px}.security-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.security-metrics div{padding:13px;border:1px solid #203a2f;border-radius:10px;background:#08130f}.security-metrics b{display:block;color:var(--green);font-size:12px}.security-metrics span{display:block;margin-top:4px;color:#82968a;font-size:8px}.toolbox{padding:22px}.toolbox h3{margin-bottom:16px}.toolgroup{padding:13px 0;border-top:1px solid var(--line)}.toolgroup:first-of-type{border-top:0}.toolgroup b{display:block;color:#c4d0db;font-size:9px;text-transform:uppercase;letter-spacing:.08em}.toolgroup p{margin-top:7px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9px;line-height:1.62}
+    .pipeline{counter-reset:stage}.stage{display:grid;grid-template-columns:42px 1fr;gap:12px;align-items:start;padding:14px 0;border-top:1px solid var(--line)}.stage:first-child{border-top:0}.stage:before{counter-increment:stage;content:counter(stage,decimal-leading-zero);display:grid;place-items:center;width:34px;height:34px;border:1px solid #294132;border-radius:8px;color:var(--green);font:9px/1 ui-monospace,SFMono-Regular,Menlo,monospace;background:#08120e}.stage b{display:block;font-size:11px}.stage span{display:block;margin-top:4px;color:var(--muted);font-size:9px;line-height:1.55}.command{padding:19px;border:1px solid var(--line);border-radius:13px;background:#04070a;color:#9eafc1;font:10px/1.9 ui-monospace,SFMono-Regular,Menlo,monospace;overflow:auto}.command i{font-style:normal;color:var(--green)}
+    .footer{padding:44px 0 58px;border-top:1px solid var(--line);color:var(--soft);font-size:10px;line-height:1.7}.footer strong{color:#a5b1bd}.footer .brandfoot{font-size:13px;color:#d7dfe7;margin-bottom:7px}.footer .brandfoot b{color:var(--cyan)}
+    @media(max-width:900px){.nav-links{display:none}.signal,.g3{grid-template-columns:repeat(2,1fr)}.section-head,.security-intro{grid-template-columns:1fr}.arch{grid-template-columns:1fr}.arrow{transform:rotate(90deg)}.g2{grid-template-columns:1fr}.meaning-grid{grid-template-columns:1fr}.meaning-block+ .meaning-block{border-left:0;border-top:1px solid var(--line)}}
+    @media(max-width:580px){.wrap{width:min(100% - 24px,var(--max))}.hero{padding-top:82px}.signal,.g3,.security-metrics{grid-template-columns:1fr}.section-head{gap:18px}.spec{grid-template-columns:125px 1fr}.nav-inner{height:58px}.maker{display:grid}.meaning:after{font-size:110px}}
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="wrap nav-inner">
+      <a class="mark" href="#top"><i></i>APOTHEON ONE</a>
+      <div class="nav-links"><a href="#meaning">Identity</a><a href="#platform">Platform</a><a href="#development">Development</a><a href="#security">Security</a><a href="#automation">Automation</a><a href="https://github.com/thewire1o1/Security-Lab">Source</a></div>
+    </div>
+  </nav>
+
+  <main id="top">
+    <header class="hero wrap">
+      <div class="eyebrow">Development &amp; Security Platform · by Digital Paragon</div>
+      <h1 class="product">APOTHEON ONE<span>Unified. Elevated.</span></h1>
+      <p class="lead"><strong>One coherent engineering environment.</strong> Framework-native development, mobile and hosted CI, persistent execution, structured automation, isolated security research, and independent recovery brought together under a single control plane.</p>
+      <div class="maker"><span>Digital Paragon · <b>Information Technology Excellence</b></span><span>Created by <b>TheWire1o1</b> · James Porath</span></div>
+      <div class="hero-actions"><a class="btn primary" href="https://github.com/thewire1o1/Security-Lab">View repository</a><a class="btn" href="SECURITY-RESEARCH.md">Security subsystem</a><a class="btn" href="PLATFORM.md">Platform architecture</a></div>
+      <div class="signal">
+        <div><b>8 project profiles</b><span>Full-stack, web, API, mobile, native platforms, and isolated security.</span></div>
+        <div><b>4 runner classes</b><span>Local, Docker, GitHub Actions, and platform-specific hosted execution.</span></div>
+        <div><b>3 control surfaces</b><span>Private console, CLI, and structured MCP over the same persistent state.</span></div>
+        <div><b>Independent recovery</b><span>Wake and issue-based recovery remain outside the runtime they manage.</span></div>
+      </div>
+    </header>
+
+    <section id="meaning">
+      <div class="wrap">
+        <div class="section-head"><div><div class="kicker">00 / Identity</div><h2>One name.<br>One philosophy.</h2></div><p>The name is an architectural statement, not decoration. APOTHEON ONE describes what the platform is intended to do as it grows: converge capability, then continuously elevate what that capability can become.</p></div>
+        <div class="card meaning">
+          <div class="meaning-grid">
+            <div class="meaning-block"><div class="meaning-word">APOTHEON</div><h3>Elevation toward the highest attainable form.</h3><p>Not a fixed feature list. A platform designed to absorb stronger tooling, deeper automation, broader execution, and more capable engineering without losing the discipline of its underlying architecture.</p></div>
+            <div class="meaning-block"><div class="meaning-word">ONE</div><h3>Convergence into a singular coherent whole.</h3><p>One environment. One control plane. One operational view across development, security, infrastructure, jobs, CI, recovery, and whatever capabilities are added next.</p></div>
+          </div>
+          <div class="manifesto"><b>Unified.</b> Bring the capabilities together. &nbsp; <b>Elevated.</b> Refuse to stop at their current form.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="platform">
+      <div class="wrap">
+        <div class="section-head"><div><div class="kicker">01 / Unified</div><h2>One control plane.<br>Real subsystems.</h2></div><p>APOTHEON ONE is built around persistent state and explicit execution boundaries. Projects are provisioned through real framework toolchains, registered with manifests, verified through bounded jobs, and routed to local, containerized, or hosted runners. The security environment shares orchestration and evidence infrastructure while preserving its own operator and target boundaries.</p></div>
+        <div class="card architecture">
+          <div class="arch-head"><b>CONTROL AND EXECUTION TOPOLOGY</b><span>BOUNDED / PERSISTENT</span></div>
+          <div class="arch">
+            <div class="node"><strong>CONTROL SURFACES</strong><small>Private console<br>CLI<br>MCP<br>Out-of-band recovery</small></div><div class="arrow">→</div>
+            <div class="node"><strong>APOTHEON ONE CONTROL PLANE</strong><small>Project registry · persistent jobs · profiles · repository binding · runner selection · service state · evidence</small></div><div class="arrow">→</div>
+            <div class="node security"><strong>EXECUTION DOMAINS</strong><small>Web / API<br>Mobile / hosted CI<br>Docker runners<br>Isolated security profile</small></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="development">
+      <div class="wrap">
+        <div class="section-head"><div><div class="kicker">02 / Development</div><h2>Provisioning that actually builds.</h2></div><p>The profile system is not a collection of empty templates. Framework-native generators, isolated dependencies, platform-aware CI, project manifests, and persisted job state are wired into a common lifecycle.</p></div>
+        <div class="grid g3">
+          <article class="card card-pad profile"><h3>Full-stack Web</h3><p>Integrated Next.js + FastAPI with PostgreSQL, Compose, Dockerfiles, ignored local credentials, backend health routing, shared and infrastructure areas, and bounded validation.</p><div class="tagrow"><span class="tag">Next.js</span><span class="tag">FastAPI</span><span class="tag">PostgreSQL</span><span class="tag">Docker</span></div></article>
+          <article class="card card-pad profile"><h3>Next.js</h3><p>Official create-next-app provisioning with TypeScript, ESLint, Tailwind, App Router, src layout, Turbopack, npm, and nested Git disabled.</p><div class="tagrow"><span class="tag">TypeScript</span><span class="tag">App Router</span><span class="tag">Turbopack</span></div></article>
+          <article class="card card-pad profile"><h3>FastAPI</h3><p>Project-local virtual environment, dependency install, health endpoint, pytest health verification, and bounded lint and test jobs.</p><div class="tagrow"><span class="tag">Python</span><span class="tag">pytest</span><span class="tag">venv</span></div></article>
+          <article class="card card-pad profile"><h3>Flutter</h3><p>Stable Flutter SDK, Android/iOS/web sources, local analyze/test/web build, and generated CI support.</p><div class="tagrow"><span class="tag">Flutter</span><span class="tag">Dart</span><span class="tag">CI</span></div></article>
+          <article class="card card-pad profile"><h3>React Native</h3><p>Community CLI provisioning with native Android/iOS projects, npm dependencies, lint/test validation, and generated hosted workflows.</p><div class="tagrow"><span class="tag">React Native</span><span class="tag">Android</span><span class="tag">iOS</span></div></article>
+          <article class="card card-pad profile"><h3>Native Mobile</h3><p>Kotlin/API 37 Android compilation on hosted Linux and SwiftUI/XcodeGen iOS simulator validation on hosted macOS, without pretending Xcode exists in Linux.</p><div class="tagrow"><span class="tag">Kotlin</span><span class="tag">SwiftUI</span><span class="tag">XcodeGen</span></div></article>
+        </div>
+        <div class="card specs" style="margin-top:12px">
+          <div class="spec"><b>Project state</b><span>Persistent registry, manifests, repository bindings, profiles, commands, runners, and service ports.</span></div>
+          <div class="spec"><b>Job state</b><span>Queued, running, succeeded, failed, timestamps, return codes, bounded output, and external workflow identity.</span></div>
+          <div class="spec"><b>Execution</b><span>Pre-tokenized argv, validated working directories, explicit timeouts, local/Docker/hosted runner boundaries.</span></div>
+          <div class="spec"><b>Lifecycle</b><span>Managed recursive deletion only after proving the target is inside the managed project root.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="security">
+      <div class="wrap">
+        <div class="section-head"><div><div class="kicker">03 / Security</div><h2>A complete subsystem.<br>Not a checkbox.</h2></div><p>The original security environment remains a first-class domain with its own operator plane, isolated training range, evidence state, research cases, engagement workspaces, defensive pipeline, static triage, and bounded automation.</p></div>
+        <div class="security-intro">
+          <article class="card security-hero"><div><h3>Explicit boundaries around intentionally vulnerable systems.</h3><p>Juice Shop, DVWA, and WebGoat bind to loopback and live on an internal Docker network. The disposable Kali operator remains separate and carries the capabilities required for research without granting them to target services.</p></div><div class="security-metrics"><div><b>127.0.0.1</b><span>HOST BINDINGS</span></div><div><b>INTERNAL</b><span>TARGET NETWORK</span></div><div><b>SEPARATE</b><span>OPERATOR PLANE</span></div></div></article>
+          <article class="card toolbox"><h3>Kali operator capabilities</h3><div class="toolgroup"><b>Web / Discovery</b><p>kali-tools-top10 · feroxbuster · gobuster · WhatWeb · WAFW00F · WPScan · testssl · theHarvester · Recon-ng</p></div><div class="toolgroup"><b>Identity / Windows</b><p>BloodHound · Impacket · enum4linux-ng · Evil-WinRM · Kerberoast · krbrelayx · mitm6</p></div><div class="toolgroup"><b>Network / Pivoting</b><p>Ligolo-ng · proxychains · sshuttle · socat · netcat · tshark · SNMP tooling</p></div><div class="toolgroup"><b>RE / Fuzzing / Validation</b><p>YARA · radare2 · Binwalk · GDB · AFL++ · Clang · LLVM · Trivy · Gitleaks</p></div></article>
+        </div>
+        <div class="grid g2" style="margin-top:12px">
+          <article class="card card-pad"><h3>Defensive pipeline</h3><div class="pipeline"><div class="stage"><div><b>Inventory</b><span>Repository and runtime state captured into a timestamped evidence run.</span></div></div><div class="stage"><div><b>Repository analysis</b><span>Semgrep, Gitleaks, Trivy, Bandit, and pip-audit where applicable.</span></div></div><div class="stage"><div><b>Validation</b><span>Normalized findings, severity counts, baseline comparison, and regression state.</span></div></div><div class="stage"><div><b>Fuzzing</b><span>Bounded fuzz work and custom executable harness results.</span></div></div><div class="stage"><div><b>Evidence</b><span>Machine-readable pipeline state plus human-reviewable reports.</span></div></div></div></article>
+          <article class="card card-pad"><h3>Static artifact triage</h3><p>Supplied files are inspected without execution through file identification, stat metadata, bounded strings, ExifTool, YARA, readelf, objdump, Binwalk, and normalized summary output.</p><div class="command"><i>$</i> dpsr triage path/to/sample<br><i>$</i> dpsr research new parser-review<br><i>$</i> dpsr new authorized-engagement</div><p>Research cases preserve notes, tasks, evidence, and output. Engagement workspaces remain separate from general reports and cases.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="automation">
+      <div class="wrap">
+        <div class="section-head"><div><div class="kicker">04 / Automation</div><h2>Control survives the terminal.</h2></div><p>The operating model extends beyond one shell session. Persistent jobs, structured MCP, GitHub-hosted execution, an independent issue bridge, and a wake controller outside the Codespace keep the environment observable and recoverable.</p></div>
+        <div class="grid g3">
+          <article class="card card-pad profile"><h3>Structured MCP</h3><p>Approved platform, project, repository, job, service, security, and lifecycle operations without turning the browser into an arbitrary shell.</p><div class="tagrow"><span class="tag">structured operations</span><span class="tag">path controls</span></div></article>
+          <article class="card card-pad profile"><h3>Out-of-band bridge</h3><p>Fixed recovery and maintenance tasks remain available independently from MCP so the service that provides automation can itself be repaired.</p><div class="tagrow"><span class="tag">allowlisted tasks</span><span class="tag">timeouts</span></div></article>
+          <article class="card card-pad profile"><h3>External wake controller</h3><p>Codespace start and restart logic runs in GitHub Actions outside the environment it manages, preserving a recovery path when nothing inside the runtime can answer.</p><div class="tagrow"><span class="tag">GitHub Actions</span><span class="tag">Codespaces</span></div></article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap"><div class="brandfoot"><b>APOTHEON ONE</b> · Unified. Elevated.</div>Development &amp; Security Platform by <strong>Digital Paragon</strong> · <em>Information Technology Excellence</em><br>Created by <strong>TheWire1o1</strong> · James Porath<br><br>Compatibility identifiers such as <code>dpsr</code>, <code>DPSR_*</code>, and existing bridge trigger names remain where established automation depends on them. They are implementation contracts, not the public product identity.</div>
+  </footer>
+</body>
+</html>
