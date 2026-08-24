@@ -54,7 +54,7 @@ services:
 
   kali:
     profiles: ["operator"]
-    image: ghcr.io/thewire1o1/dpsr-kali:latest
+    image: ghcr.io/thewire1o1/apotheon-one-kali:latest
     build:
       context: ./kali
     container_name: dpsr-kali
