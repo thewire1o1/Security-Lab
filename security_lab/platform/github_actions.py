@@ -4,11 +4,11 @@ import json
 import os
 import re
 import subprocess  # nosec B404
-import tempfile
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
+from urllib.parse import quote
 
 from .models import Project
 from .paths import PERSISTENT_ROOT, PROJECTS_ROOT
@@ -30,10 +30,27 @@ WORKFLOW_BY_PROFILE = {
     "ios": "ios.yml",
 }
 ACTIVE_RUN_STATES = frozenset({"queued", "in_progress", "pending", "requested", "waiting"})
+RUN_DISCOVERY_SKEW_SECONDS = 5
+RUN_DISCOVERY_WINDOW_MINUTES = 15
 
 
 def _utc() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _parse_utc(value: str) -> datetime:
+    text = value.strip()
+    if not text:
+        raise ValueError("Missing GitHub Actions dispatch timestamp.")
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError as exc:
+        raise ValueError("Invalid GitHub Actions timestamp.") from exc
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _runner_env() -> dict[str, str]:
@@ -210,17 +227,17 @@ def _repo_exists(full_name: str) -> bool:
 
 def _setup_git_credential_helper() -> None:
     RUNNER_GIT_CONFIG.parent.mkdir(parents=True, exist_ok=True)
-    result = _require_ok(
+    _require_ok(
         "GitHub git credential setup",
         _gh("auth", "setup-git", "--hostname", "github.com", timeout=30),
     )
-    _ = result
     if RUNNER_GIT_CONFIG.exists():
         os.chmod(RUNNER_GIT_CONFIG, 0o600)
 
 
 def _ensure_git_repository(project: Project, full_name: str, branch: str) -> None:
-    if not (project.path / ".git").is_dir():
+    new_repository = not (project.path / ".git").is_dir()
+    if new_repository:
         _require_ok("git init", _git(project, "init", "-b", branch, timeout=30))
 
     remote = _git(project, "remote", "get-url", "origin", timeout=10)
@@ -248,7 +265,7 @@ def _ensure_git_repository(project: Project, full_name: str, branch: str) -> Non
             "user.email=dpsr@localhost",
             "commit",
             "-m",
-            "Initialize DPSR project",
+            "Initialize DPSR project" if new_repository else "Update DPSR project",
             timeout=120,
         )
         _require_ok("git commit", commit)
@@ -298,6 +315,58 @@ def publish_project(
     }
 
 
+def discover_dispatched_run(
+    repository: str,
+    workflow: str,
+    branch: str,
+    dispatched_at: str,
+    exclude_run_ids: Iterable[int] = (),
+) -> dict[str, Any] | None:
+    full_name = _validate_repository(repository)
+    dispatched = _parse_utc(dispatched_at)
+    lower = dispatched - timedelta(seconds=RUN_DISCOVERY_SKEW_SECONDS)
+    upper = dispatched + timedelta(minutes=RUN_DISCOVERY_WINDOW_MINUTES)
+    excluded = {int(value) for value in exclude_run_ids if int(value) > 0}
+    endpoint = (
+        f"repos/{full_name}/actions/workflows/{quote(workflow, safe='')}/runs"
+        f"?event=workflow_dispatch&branch={quote(branch, safe='')}&per_page=20"
+    )
+    result = _gh("api", endpoint, timeout=30)
+    if result["returncode"] != 0:
+        raise ValueError(f"GitHub Actions run discovery failed: {_detail(result)}")
+    try:
+        payload = json.loads(result["stdout"] or "{}")
+    except json.JSONDecodeError as exc:
+        raise ValueError("GitHub Actions returned invalid run-list metadata.") from exc
+    rows = payload.get("workflow_runs", []) if isinstance(payload, dict) else []
+    candidates: list[tuple[datetime, dict[str, Any]]] = []
+    for row in rows if isinstance(rows, list) else []:
+        if not isinstance(row, dict):
+            continue
+        try:
+            run_id = int(row.get("id") or 0)
+        except (TypeError, ValueError):
+            continue
+        if run_id <= 0 or run_id in excluded:
+            continue
+        try:
+            created = _parse_utc(str(row.get("created_at") or ""))
+        except ValueError:
+            continue
+        if lower <= created <= upper:
+            candidates.append((created, row))
+    if not candidates:
+        return None
+    _created, row = min(candidates, key=lambda item: item[0])
+    return {
+        "run_id": int(row.get("id") or 0),
+        "status": str(row.get("status") or "submitted"),
+        "conclusion": str(row.get("conclusion") or ""),
+        "url": str(row.get("html_url") or ""),
+        "created_at": str(row.get("created_at") or ""),
+    }
+
+
 def dispatch(project: Project, command_name: str) -> dict[str, Any]:
     require_auth()
     binding = repository_binding(project)
@@ -312,38 +381,11 @@ def dispatch(project: Project, command_name: str) -> dict[str, Any]:
         _gh("workflow", "run", workflow, "--repo", full_name, "--ref", branch, timeout=60),
     )
 
-    run_id: int | None = None
-    run_url = ""
-    run_status = "submitted"
+    discovered: dict[str, Any] | None = None
     for _attempt in range(8):
-        result = _gh(
-            "run",
-            "list",
-            "--repo",
-            full_name,
-            "--workflow",
-            workflow,
-            "--event",
-            "workflow_dispatch",
-            "--branch",
-            branch,
-            "--limit",
-            "5",
-            "--json",
-            "databaseId,createdAt,status,conclusion,url",
-            timeout=30,
-        )
-        if result["returncode"] == 0:
-            try:
-                rows = json.loads(result["stdout"] or "[]")
-            except json.JSONDecodeError:
-                rows = []
-            if rows:
-                row = rows[0]
-                run_id = int(row.get("databaseId") or 0) or None
-                run_url = str(row.get("url") or "")
-                run_status = str(row.get("status") or "submitted")
-                break
+        discovered = discover_dispatched_run(full_name, workflow, branch, started)
+        if discovered is not None:
+            break
         time.sleep(2)
 
     return {
@@ -353,9 +395,10 @@ def dispatch(project: Project, command_name: str) -> dict[str, Any]:
         "ref": branch,
         "command": command_name,
         "dispatched_at": started,
-        "run_id": run_id,
-        "url": run_url,
-        "status": run_status,
+        "run_id": discovered["run_id"] if discovered else None,
+        "url": discovered["url"] if discovered else "",
+        "status": discovered["status"] if discovered else "submitted",
+        "conclusion": discovered["conclusion"] if discovered else "",
     }
 
 
