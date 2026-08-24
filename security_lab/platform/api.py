@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from .jobs import get_job, list_jobs, run_job
+from .mobile import MOBILE_PROFILES, init_mobile_project
 from .models import Profile, Project
 from .profiles import get_profile, load_profiles
 from .registry import delete_managed_project, get_project, list_projects
@@ -81,6 +82,8 @@ def project(name: str) -> dict[str, Any]:
 
 
 def create_project(name: str, profile_name: str) -> dict[str, Any]:
+    if profile_name in MOBILE_PROFILES:
+        return project_row(init_mobile_project(name, profile_name))
     return project_row(init_project(name, profile_name))
 
 

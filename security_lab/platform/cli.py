@@ -7,6 +7,7 @@ from pathlib import Path
 from security_lab.common import ROOT
 
 from .jobs import get_job, list_jobs, run_job
+from .mobile import MOBILE_PROFILES, init_mobile_project
 from .profiles import get_profile, load_profiles
 from .registry import delete_managed_project, get_project, list_projects, register_project, unregister_project
 from .runners import RUNNERS
@@ -90,11 +91,18 @@ def cmd_project(args: argparse.Namespace) -> int:
         return 0
     if action == "init":
         target = Path(args.path).expanduser() if args.path else None
-        project = init_project(args.name, args.profile, target)
+        if args.profile in MOBILE_PROFILES:
+            project = init_mobile_project(args.name, args.profile, target)
+        else:
+            project = init_project(args.name, args.profile, target)
         print(json.dumps(_project_row(project), indent=2, sort_keys=True))
         return 0
     if action == "verify":
         project = get_project(args.name)
+        if project.runner not in RUNNERS:
+            raise ValueError(
+                f"Project '{args.name}' uses external runner '{project.runner}'; run its generated CI workflow to verify builds."
+            )
         selected = [name for name in ("lint", "test", "build") if name in project.commands]
         if not selected:
             raise ValueError(f"Project '{args.name}' defines none of lint, test, or build.")
