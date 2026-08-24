@@ -6,12 +6,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .github_actions import dispatch as dispatch_github_actions
+from .github_actions import external_state, refresh as refresh_github_actions
 from .paths import STATE_ROOT
 from .registry import get_project
 from .runners import get_runner
 
 JOBS_ROOT = STATE_ROOT / "jobs"
-VALID_STATES = {"queued", "running", "succeeded", "failed"}
+VALID_STATES = {"queued", "running", "submitted", "succeeded", "failed"}
+ACTIVE_STATES = {"queued", "running", "submitted"}
 
 
 def _utc() -> str:
@@ -32,11 +35,12 @@ def _write(job: dict[str, Any]) -> None:
     temp.replace(path)
 
 
-def create_job(project: str, command: str) -> dict[str, Any]:
+def create_job(project: str, command: str, runner: str = "local") -> dict[str, Any]:
     job = {
         "id": f"job-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}-{secrets.token_hex(3)}",
         "project": project,
         "command": command,
+        "runner": runner,
         "state": "queued",
         "created_at": _utc(),
         "started_at": None,
@@ -44,6 +48,7 @@ def create_job(project: str, command: str) -> dict[str, Any]:
         "returncode": None,
         "stdout": "",
         "stderr": "",
+        "external": None,
     }
     _write(job)
     return job
@@ -68,6 +73,17 @@ def list_jobs(limit: int = 50) -> list[dict[str, Any]]:
     return rows
 
 
+def _finish_external(job: dict[str, Any], external: dict[str, Any]) -> dict[str, Any]:
+    state, returncode = external_state(external)
+    job["external"] = external
+    job["state"] = state
+    job["returncode"] = returncode
+    if state in {"succeeded", "failed"}:
+        job["finished_at"] = _utc()
+    _write(job)
+    return job
+
+
 def run_job(project_name: str, command_name: str) -> dict[str, Any]:
     project = get_project(project_name)
     try:
@@ -76,10 +92,24 @@ def run_job(project_name: str, command_name: str) -> dict[str, Any]:
         available = ", ".join(sorted(project.commands)) or "none"
         raise ValueError(f"Project '{project_name}' has no command '{command_name}'. Available: {available}") from exc
 
-    job = create_job(project_name, command_name)
+    job = create_job(project_name, command_name, project.runner)
     job["state"] = "running"
     job["started_at"] = _utc()
     _write(job)
+
+    if project.runner == "github-actions":
+        try:
+            external = dispatch_github_actions(project, command_name)
+            job["state"] = "submitted"
+            _write(job)
+            return _finish_external(job, external)
+        except Exception as exc:
+            job["returncode"] = 1
+            job["stderr"] = str(exc)
+            job["state"] = "failed"
+            job["finished_at"] = _utc()
+            _write(job)
+            return job
 
     try:
         result = get_runner(project.runner).run(project, command)
@@ -94,3 +124,27 @@ def run_job(project_name: str, command_name: str) -> dict[str, Any]:
     job["finished_at"] = _utc()
     _write(job)
     return job
+
+
+def refresh_job(job_id: str) -> dict[str, Any]:
+    job = get_job(job_id)
+    external = job.get("external")
+    if job.get("runner") != "github-actions" or not isinstance(external, dict):
+        return job
+    if job.get("state") not in ACTIVE_STATES:
+        return job
+    try:
+        refreshed = refresh_github_actions(external)
+        return _finish_external(job, refreshed)
+    except Exception as exc:
+        job["stderr"] = str(exc)
+        _write(job)
+        return job
+
+
+def refresh_pending_jobs(limit: int = 20) -> list[dict[str, Any]]:
+    refreshed: list[dict[str, Any]] = []
+    for job in list_jobs(max(1, min(limit, 100))):
+        if job.get("runner") == "github-actions" and job.get("state") in ACTIVE_STATES:
+            refreshed.append(refresh_job(str(job["id"])))
+    return refreshed
