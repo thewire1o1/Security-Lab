@@ -1,82 +1,580 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Security Lab Mission Control</title>
-<style>
-:root{--bg:#07090d;--panel:#0d1118;--line:#223044;--text:#edf5ff;--muted:#8da0b7;--cyan:#52e6ff;--green:#65f59a;--amber:#ffd166;--red:#ff5f6d;--shadow:0 18px 50px rgba(0,0,0,.38)}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 0,#10233b 0,transparent 32%),radial-gradient(circle at 85% 10%,#25143b 0,transparent 26%),var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;min-height:100vh}.shell{display:grid;grid-template-columns:250px 1fr;min-height:100vh}.sidebar{padding:22px 18px;border-right:1px solid #172231;background:rgba(8,12,18,.88);position:sticky;top:0;height:100vh}.brand{display:flex;gap:12px;align-items:center;margin-bottom:26px}.brandmark{width:44px;height:44px;border:1px solid var(--cyan);border-radius:12px;display:grid;place-items:center;font-weight:900;color:var(--cyan)}.brand h1{font-size:14px;letter-spacing:.14em;margin:0}.brand span{display:block;color:var(--muted);font-size:11px;margin-top:4px}.nav{display:grid;gap:8px}.nav button{all:unset;padding:11px 12px;border-radius:9px;color:var(--muted);cursor:pointer;border:1px solid transparent}.nav button.active,.nav button:hover{color:var(--text);background:#111a26;border-color:#1d3045}.sidefoot{position:absolute;bottom:20px;left:18px;right:18px}.secure{font-size:11px;color:var(--muted);padding:11px;border:1px solid #1c2a3b;border-radius:10px;background:#0b1119}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;background:var(--green)}.main{padding:28px;max-width:1700px;width:100%;margin:0 auto}.topbar{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:22px}.eyebrow{color:var(--cyan);font-size:11px;font-weight:800;letter-spacing:.18em}.topbar h2{font-size:28px;margin:5px 0 0}.statuspill{padding:10px 14px;border:1px solid #21445a;background:#0c1820;border-radius:999px;font-size:12px;font-weight:800;letter-spacing:.08em}.statuspill.online{color:var(--green)}.statuspill.partial{color:var(--amber)}.statuspill.offline{color:var(--red)}.grid{display:grid;gap:16px}.metrics{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:16px}.card{background:linear-gradient(180deg,rgba(17,24,36,.96),rgba(11,16,24,.96));border:1px solid #1b2a3d;border-radius:16px;box-shadow:var(--shadow);overflow:hidden}.metric{padding:17px}.metric .label{font-size:11px;color:var(--muted);letter-spacing:.08em}.metric strong{display:block;font-size:27px;margin-top:8px}.metric small{color:var(--muted)}.layout{grid-template-columns:1.4fr .9fr}.panelhead{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid #192738}.panelhead h3{font-size:13px;margin:0;letter-spacing:.08em}.panelbody{padding:18px}.services{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.service{border:1px solid #1e3044;background:#0b121b;border-radius:13px;padding:14px}.servicehead{display:flex;justify-content:space-between;align-items:center}.service h4{margin:0;font-size:14px}.badge{font-size:10px;padding:5px 7px;border-radius:999px;border:1px solid #26394d;color:var(--muted)}.badge.up{color:var(--green);border-color:#245638}.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}.stat{font-size:11px;color:var(--muted)}.stat b{display:block;color:var(--text);font-size:12px;margin-top:3px}.actions{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.action{border:1px solid #27415a;background:#0b151f;color:var(--text);border-radius:11px;padding:13px;cursor:pointer;font-weight:700;text-align:left}.action:hover{border-color:var(--cyan)}.action small{display:block;color:var(--muted);font-weight:500;margin-top:5px}.action.danger:hover{border-color:var(--red)}.terminal{background:#05080c;border:1px solid #182536;border-radius:12px;padding:13px;height:280px;overflow:auto;font:11px/1.55 ui-monospace,monospace;color:#9fb4c9}.severity,.pipeline{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.sev,.stage{padding:12px;border:1px solid #203044;border-radius:10px;background:#0a1119;text-align:center}.sev b{display:block;font-size:22px}.sev span,.stage span{font-size:10px;color:var(--muted);text-transform:uppercase}.stage b{display:block;font-size:12px;margin-top:5px}.stage.ok b{color:var(--green)}.stage.warn b{color:var(--amber)}.history{display:grid;gap:8px}.historyrow{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #152231;font-size:12px}.historyrow span{color:var(--muted)}.toolgrid{display:flex;flex-wrap:wrap;gap:7px}.tool{font:11px ui-monospace,monospace;padding:7px 9px;border-radius:8px;background:#0a1118;border:1px solid #1d2c3d;color:var(--muted)}.tool.ok{color:var(--green);border-color:#214b34}.section{display:none}.section.active{display:block}.toast{position:fixed;right:24px;bottom:24px;background:#101a25;border:1px solid #2e465e;border-radius:12px;padding:12px 15px;opacity:0;transform:translateY(12px);transition:.2s;pointer-events:none;font-size:12px}.toast.show{opacity:1;transform:none}@media(max-width:1100px){.shell{grid-template-columns:1fr}.sidebar{height:auto;position:static;border-right:0;border-bottom:1px solid #172231}.nav{display:flex;flex-wrap:wrap}.sidefoot{display:none}.metrics{grid-template-columns:repeat(2,1fr)}.layout{grid-template-columns:1fr}}@media(max-width:650px){.main{padding:16px}.metrics,.services,.actions{grid-template-columns:1fr}.severity,.pipeline{grid-template-columns:repeat(2,1fr)}.topbar{align-items:flex-start;flex-direction:column}}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DPSR Operations Console</title>
+  <style>
+    :root {
+      --bg: #080b10;
+      --panel: #0d131c;
+      --panel-strong: #111a25;
+      --line: #223044;
+      --line-soft: #182331;
+      --text: #edf4fb;
+      --muted: #8ea0b5;
+      --accent: #69d7ff;
+      --ok: #64e39b;
+      --warn: #f0c86b;
+      --bad: #ff6d7a;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button { font: inherit; }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 245px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 24px 18px;
+      border-right: 1px solid var(--line-soft);
+      background: #0a0f16;
+    }
+
+    .identity {
+      padding: 4px 4px 24px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .identity-mark {
+      display: inline-grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      margin-bottom: 14px;
+      border: 1px solid var(--accent);
+      border-radius: 9px;
+      color: var(--accent);
+      font: 800 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .08em;
+    }
+
+    .identity h1 {
+      margin: 0;
+      font-size: 13px;
+      letter-spacing: .08em;
+    }
+
+    .identity p {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .nav {
+      display: grid;
+      gap: 6px;
+      margin-top: 22px;
+    }
+
+    .nav button {
+      padding: 10px 11px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .nav button:hover,
+    .nav button.active {
+      border-color: var(--line);
+      background: var(--panel-strong);
+      color: var(--text);
+    }
+
+    .boundary {
+      position: absolute;
+      right: 18px;
+      bottom: 20px;
+      left: 18px;
+      padding: 11px;
+      border: 1px solid var(--line-soft);
+      border-radius: 9px;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .boundary strong { color: var(--ok); }
+
+    main {
+      width: 100%;
+      max-width: 1650px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow {
+      color: var(--accent);
+      font: 800 10px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .14em;
+    }
+
+    .topbar h2 {
+      margin: 7px 0 0;
+      font-size: 28px;
+      font-weight: 650;
+      letter-spacing: -.02em;
+    }
+
+    .status {
+      padding: 9px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--panel);
+      font: 700 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .08em;
+    }
+
+    .status.online { color: var(--ok); }
+    .status.partial { color: var(--warn); }
+    .status.offline { color: var(--bad); }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    .grid { display: grid; gap: 14px; }
+    .metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .split { grid-template-columns: minmax(0, 1.35fr) minmax(320px, .85fr); }
+
+    .card {
+      overflow: hidden;
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      background: var(--panel);
+    }
+
+    .metric { padding: 16px; }
+    .metric span { color: var(--muted); font-size: 10px; letter-spacing: .08em; }
+    .metric strong { display: block; margin-top: 8px; font-size: 25px; font-weight: 650; }
+    .metric small { color: var(--muted); font-size: 10px; }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .panel-head h3 {
+      margin: 0;
+      font-size: 11px;
+      letter-spacing: .08em;
+    }
+
+    .badge {
+      padding: 4px 6px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font: 700 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .05em;
+    }
+
+    .panel-body { padding: 16px; }
+
+    .service-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .service {
+      padding: 13px;
+      border: 1px solid var(--line-soft);
+      border-radius: 9px;
+      background: #0a1017;
+    }
+
+    .service-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .service h4 { margin: 0; font-size: 13px; }
+    .service-state { color: var(--muted); font-size: 9px; }
+    .service-state.up { color: var(--ok); }
+
+    .service-stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+      margin-top: 13px;
+    }
+
+    .service-stat { color: var(--muted); font-size: 9px; }
+    .service-stat b { display: block; margin-top: 3px; color: var(--text); font-size: 10px; }
+
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .action {
+      min-height: 72px;
+      padding: 11px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #0a121b;
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .action:hover { border-color: var(--accent); }
+    .action:disabled { opacity: .45; cursor: wait; }
+    .action strong { display: block; font-size: 11px; }
+    .action small { display: block; margin-top: 5px; color: var(--muted); font-size: 9px; line-height: 1.4; }
+
+    .pipeline,
+    .severity {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .stage,
+    .severity-item {
+      padding: 11px 8px;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: #0a1017;
+      text-align: center;
+    }
+
+    .stage span,
+    .severity-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    .stage b { display: block; margin-top: 5px; font-size: 10px; }
+    .stage.ok b { color: var(--ok); }
+    .stage.warn b { color: var(--warn); }
+    .severity-item b { display: block; margin-bottom: 4px; font-size: 21px; }
+
+    .terminal {
+      height: 290px;
+      overflow: auto;
+      padding: 13px;
+      border: 1px solid var(--line-soft);
+      border-radius: 9px;
+      background: #05080c;
+      color: #a8b8c9;
+      font: 10px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: pre-wrap;
+    }
+
+    .history { display: grid; gap: 8px; }
+    .history-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line-soft); font-size: 10px; }
+    .history-row span { color: var(--muted); }
+
+    .tools { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tool { padding: 6px 8px; border: 1px solid var(--line-soft); border-radius: 7px; color: var(--muted); font: 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .tool.ok { color: var(--ok); border-color: #244934; }
+
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      max-width: 360px;
+      padding: 11px 13px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: var(--panel-strong);
+      color: var(--text);
+      font-size: 10px;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: .16s ease;
+      pointer-events: none;
+    }
+
+    .toast.show { opacity: 1; transform: none; }
+
+    @media (max-width: 1100px) {
+      .shell { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line-soft); }
+      .boundary { display: none; }
+      .nav { grid-template-columns: repeat(4, 1fr); }
+      .split { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 700px) {
+      main { padding: 16px; }
+      .metrics, .service-grid, .actions { grid-template-columns: 1fr; }
+      .pipeline, .severity { grid-template-columns: repeat(2, 1fr); }
+      .nav { grid-template-columns: repeat(2, 1fr); }
+      .topbar { flex-direction: column; }
+    }
+  </style>
 </head>
 <body>
-<div class="shell">
-<aside class="sidebar">
-<div class="brand"><div class="brandmark">SL</div><div><h1>MISSION CONTROL</h1><span>Security Research Lab</span></div></div>
-<div class="nav">
-<button class="active" data-tab="overview">Overview</button>
-<button data-tab="operations">Operations</button>
-<button data-tab="findings">Findings</button>
-<button data-tab="activity">Activity</button>
-</div>
-<div class="sidefoot"><div class="secure"><span class="dot"></span>Local control plane<br><span style="padding-left:15px">Private forwarded port</span></div></div>
-</aside>
-<main class="main">
-<div class="topbar"><div><div class="eyebrow">THEWIRE1O1 / SECURITY-LAB</div><h2>Mission Control</h2></div><div id="labPill" class="statuspill offline">LAB OFFLINE</div></div>
-<section id="overview" class="section active">
-<div class="grid metrics">
-<div class="card metric"><div class="label">TARGETS ONLINE</div><strong id="targetCount">0 / 3</strong><small>isolated training range</small></div>
-<div class="card metric"><div class="label">FINDINGS</div><strong id="findingMetric">0</strong><small>latest defensive review</small></div>
-<div class="card metric"><div class="label">RESEARCH CASES</div><strong id="caseMetric">0</strong><small>persistent investigation state</small></div>
-<div class="card metric"><div class="label">PIPELINE</div><strong id="pipelineMetric">IDLE</strong><small>inventory through retest</small></div>
-</div>
-<div class="grid layout">
-<div class="card"><div class="panelhead"><h3>SERVICE MATRIX</h3><span class="badge">LIVE</span></div><div class="panelbody"><div id="services" class="services"></div></div></div>
-<div class="card"><div class="panelhead"><h3>QUICK CONTROL</h3><span class="badge">ALLOWLISTED</span></div><div class="panelbody"><div class="actions">
-<button class="action" data-action="up">Start Lab<small>Juice Shop, DVWA, WebGoat</small></button>
-<button class="action danger" data-action="down">Stop Lab<small>shut down training stack</small></button>
-<button class="action" data-action="kali-start">Start Operator<small>boot disposable Kali layer</small></button>
-<button class="action" data-action="defend">Run Defense Pipeline<small>inventory, review, validate, fuzz</small></button>
-<button class="action" data-action="review">Repository Review<small>code, secrets, dependencies, config</small></button>
-<button class="action" data-action="validate">Validate Findings<small>compare current run with baseline</small></button>
-<button class="action" data-action="fuzz">Fuzz Training Range<small>bounded local fuzzing and harnesses</small></button>
-<button class="action" data-action="report">Build Report<small>generate HTML evidence report</small></button>
-</div></div></div>
-<div class="card"><div class="panelhead"><h3>DEFENSIVE PIPELINE</h3><span id="pipelineRun" class="badge">NO RUN</span></div><div class="panelbody"><div id="pipeline" class="pipeline"></div></div></div>
-<div class="card"><div class="panelhead"><h3>RECENT ACTIVITY</h3><span class="badge">TAIL</span></div><div class="panelbody"><div id="terminal" class="terminal"></div></div></div>
-</div>
-</section>
-<section id="operations" class="section">
-<div class="grid layout">
-<div class="card"><div class="panelhead"><h3>OPERATIONS</h3><span class="badge">LOCAL LAB</span></div><div class="panelbody"><div class="actions">
-<button class="action" data-action="scan">Run Local Scan<small>Nmap and Nuclei against local targets</small></button>
-<button class="action" data-action="review">Run Repository Review<small>Semgrep, Bandit, Gitleaks, Trivy</small></button>
-<button class="action" data-action="validate">Run Validation<small>detect high-severity regressions</small></button>
-<button class="action" data-action="fuzz">Run Fuzzing<small>local web targets and custom harnesses</small></button>
-<button class="action" data-action="defend">Run Full Pipeline<small>one-pass defensive workflow</small></button>
-<button class="action" data-action="report">Generate Evidence Report<small>summarize stored artifacts</small></button>
-</div></div></div>
-<div class="card"><div class="panelhead"><h3>TOOL INVENTORY</h3><span class="badge">HOST</span></div><div class="panelbody"><div id="tools" class="toolgrid"></div></div></div>
-</div>
-</section>
-<section id="findings" class="section">
-<div class="card" style="margin-bottom:16px"><div class="panelhead"><h3>FINDINGS BY SEVERITY</h3><span class="badge">LATEST REVIEW</span></div><div class="panelbody"><div id="severity" class="severity"></div></div></div>
-<div class="card"><div class="panelhead"><h3>RUN HISTORY</h3><span class="badge">reports/</span></div><div class="panelbody"><div id="history" class="history"></div></div></div>
-</section>
-<section id="activity" class="section"><div class="card"><div class="panelhead"><h3>MISSION LOG</h3><span class="badge">LIVE REFRESH</span></div><div class="panelbody"><div id="terminalFull" class="terminal" style="height:65vh"></div></div></div></section>
-</main>
-</div>
-<div id="toast" class="toast"></div>
-<script>
-const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2200)};
-$$('.nav button').forEach(b=>b.onclick=()=>{$$('.nav button').forEach(x=>x.classList.toggle('active',x===b));$$('.section').forEach(s=>s.classList.toggle('active',s.id===b.dataset.tab))});
-$$('[data-action]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=await fetch('/api/action',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:b.dataset.action})});const j=await r.json();toast(j.ok?`${b.dataset.action} queued`:j.error||'failed')}catch(e){toast('request failed')}finally{setTimeout(()=>b.disabled=false,900)}});
-function serviceCard(k,v){const s=v.stats||{};return `<div class="service"><div class="servicehead"><h4>${esc(v.label)}</h4><span class="badge ${v.running?'up':''}">${v.running?'ONLINE':'OFFLINE'}</span></div><div class="stats"><div class="stat">CPU<b>${esc(s.cpu||'0%')}</b></div><div class="stat">MEMORY<b>${esc(s.memory||'0B / 0B')}</b></div><div class="stat">HEALTH<b>${esc(v.health||'n/a')}</b></div><div class="stat">PORT<b>${v.port||'internal'}</b></div></div></div>`}
-function renderPipeline(p){const stages=p.stages||{},names=['inventory','review','validation','fuzz','external_review'];$('#pipelineRun').textContent=p._run||p.run||'NO RUN';$('#pipeline').innerHTML=names.map(n=>{const v=stages[n]||'pending',ok=v==='complete',warn=v==='no-baseline'||v==='not-configured';return `<div class="stage ${ok?'ok':warn?'warn':''}"><span>${esc(n.replace('_',' '))}</span><b>${esc(v)}</b></div>`}).join('');$('#pipelineMetric').textContent=p.run?'READY':'IDLE'}
-async function refresh(){try{const r=await fetch('/api/status',{cache:'no-store'});const d=await r.json();const pill=$('#labPill');pill.textContent=`LAB ${d.lab.toUpperCase()}`;pill.className=`statuspill ${d.lab}`;const targetKeys=['juice-shop','dvwa','webgoat'];$('#targetCount').textContent=`${targetKeys.filter(k=>d.services[k]?.running).length} / 3`;const f=d.findings||{};$('#findingMetric').textContent=Object.values(f).reduce((a,b)=>a+Number(b||0),0);$('#caseMetric').textContent=d.cases||0;$('#services').innerHTML=Object.entries(d.services||{}).map(([k,v])=>serviceCard(k,v)).join('');const levels=['critical','high','medium','low','info'];$('#severity').innerHTML=levels.map(x=>`<div class="sev"><b>${Number(f[x]||0)}</b><span>${x}</span></div>`).join('');$('#tools').innerHTML=Object.entries(d.tools||{}).map(([k,v])=>`<span class="tool ${v?'ok':''}">${esc(k)} ${v?'✓':'×'}</span>`).join('');$('#history').innerHTML=(d.history||[]).map(x=>`<div class="historyrow"><b>${esc(x.name)}</b><span>${new Date(x.modified*1000).toLocaleString()} · ${x.files} files</span></div>`).join('')||'<span>No runs yet.</span>';const lines=(d.activity||[]).map(x=>`<div class="line">${esc(x)}</div>`).join('');$('#terminal').innerHTML=lines;$('#terminalFull').innerHTML=lines;$('#terminal').scrollTop=$('#terminal').scrollHeight;$('#terminalFull').scrollTop=$('#terminalFull').scrollHeight;renderPipeline(d.pipeline||{})}catch(e){}}
-refresh();setInterval(refresh,3500);
-</script>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="identity">
+        <div class="identity-mark">DPSR</div>
+        <h1>Digital Paragon Security Research</h1>
+        <p>TheWire1o1 / Operations Console</p>
+      </div>
+
+      <nav class="nav" aria-label="Console sections">
+        <button class="active" data-tab="overview">Overview</button>
+        <button data-tab="operations">Operations</button>
+        <button data-tab="findings">Findings</button>
+        <button data-tab="activity">Activity</button>
+      </nav>
+
+      <div class="boundary"><strong>LOCAL CONTROL PLANE</strong><br>Loopback service / private forwarded port</div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div>
+          <div class="eyebrow">DPSR // THEWIRE1O1</div>
+          <h2>Operations Console</h2>
+        </div>
+        <div id="range-status" class="status offline">RANGE OFFLINE</div>
+      </header>
+
+      <section id="overview" class="section active">
+        <div class="grid metrics">
+          <div class="card metric"><span>TARGETS ONLINE</span><strong id="target-count">0 / 3</strong><small>isolated training range</small></div>
+          <div class="card metric"><span>FINDINGS</span><strong id="finding-count">0</strong><small>latest normalized review</small></div>
+          <div class="card metric"><span>RESEARCH CASES</span><strong id="case-count">0</strong><small>persistent investigation state</small></div>
+          <div class="card metric"><span>PIPELINE</span><strong id="pipeline-state">IDLE</strong><small>inventory through validation</small></div>
+        </div>
+
+        <div class="grid split" style="margin-top:14px">
+          <div class="card">
+            <div class="panel-head"><h3>SERVICE STATE</h3><span class="badge">LIVE</span></div>
+            <div class="panel-body"><div id="services" class="service-grid"></div></div>
+          </div>
+
+          <div class="card">
+            <div class="panel-head"><h3>CONTROL SURFACE</h3><span class="badge">ALLOWLISTED</span></div>
+            <div class="panel-body"><div class="actions" id="quick-actions"></div></div>
+          </div>
+
+          <div class="card">
+            <div class="panel-head"><h3>DEFENSIVE PIPELINE</h3><span id="pipeline-run" class="badge">NO RUN</span></div>
+            <div class="panel-body"><div id="pipeline" class="pipeline"></div></div>
+          </div>
+
+          <div class="card">
+            <div class="panel-head"><h3>RECENT ACTIVITY</h3><span class="badge">TAIL</span></div>
+            <div class="panel-body"><div id="activity-tail" class="terminal"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="operations" class="section">
+        <div class="grid split">
+          <div class="card">
+            <div class="panel-head"><h3>OPERATIONS</h3><span class="badge">LOCAL / AUTHORIZED</span></div>
+            <div class="panel-body"><div class="actions" id="operations-actions"></div></div>
+          </div>
+          <div class="card">
+            <div class="panel-head"><h3>TOOL INVENTORY</h3><span class="badge">HOST</span></div>
+            <div class="panel-body"><div id="tools" class="tools"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="findings" class="section">
+        <div class="card" style="margin-bottom:14px">
+          <div class="panel-head"><h3>FINDINGS BY SEVERITY</h3><span class="badge">LATEST REVIEW</span></div>
+          <div class="panel-body"><div id="severity" class="severity"></div></div>
+        </div>
+        <div class="card">
+          <div class="panel-head"><h3>RUN HISTORY</h3><span class="badge">reports/</span></div>
+          <div class="panel-body"><div id="history" class="history"></div></div>
+        </div>
+      </section>
+
+      <section id="activity" class="section">
+        <div class="card">
+          <div class="panel-head"><h3>ACTIVITY LOG</h3><span class="badge">LIVE REFRESH</span></div>
+          <div class="panel-body"><div id="activity-full" class="terminal" style="height:65vh"></div></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const actionDefinitions = [
+      ["up", "Start range", "Juice Shop, DVWA, and WebGoat"],
+      ["down", "Stop range", "Stop the training and operator stack"],
+      ["kali-start", "Start operator", "Start the disposable Kali plane"],
+      ["defend", "Run defensive pipeline", "Inventory, review, validation, and fuzzing"],
+      ["review", "Repository review", "Semgrep, Bandit, Gitleaks, and Trivy"],
+      ["validate", "Validate findings", "Compare the current run with the baseline"],
+      ["fuzz", "Fuzz training range", "Bounded web fuzzing and custom harnesses"],
+      ["report", "Generate evidence", "Build the latest HTML and JSON report"],
+    ];
+
+    const operationDefinitions = [
+      ["scan", "Run local scan", "Nmap and Nuclei against loopback targets"],
+      ...actionDefinitions.slice(3),
+    ];
+
+    const byId = (id) => document.getElementById(id);
+    const all = (selector) => [...document.querySelectorAll(selector)];
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[character]);
+    }
+
+    function showToast(message) {
+      const toast = byId("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      window.setTimeout(() => toast.classList.remove("show"), 2200);
+    }
+
+    async function submitAction(action, button) {
+      button.disabled = true;
+      try {
+        const response = await fetch("/api/action", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action }),
+        });
+        const payload = await response.json();
+        showToast(payload.ok ? `${action} queued` : payload.error || "request rejected");
+      } catch {
+        showToast("request failed");
+      } finally {
+        window.setTimeout(() => { button.disabled = false; }, 900);
+      }
+    }
+
+    function renderActions(targetId, definitions) {
+      const target = byId(targetId);
+      target.replaceChildren(...definitions.map(([action, title, detail]) => {
+        const button = document.createElement("button");
+        button.className = "action";
+        button.dataset.action = action;
+        button.innerHTML = `<strong>${escapeHtml(title)}</strong><small>${escapeHtml(detail)}</small>`;
+        button.addEventListener("click", () => submitAction(action, button));
+        return button;
+      }));
+    }
+
+    function renderService(service) {
+      const stats = service.stats || {};
+      return `
+        <div class="service">
+          <div class="service-head">
+            <h4>${escapeHtml(service.label)}</h4>
+            <span class="service-state ${service.running ? "up" : ""}">${service.running ? "ONLINE" : "OFFLINE"}</span>
+          </div>
+          <div class="service-stats">
+            <div class="service-stat">CPU<b>${escapeHtml(stats.cpu || "0%")}</b></div>
+            <div class="service-stat">MEMORY<b>${escapeHtml(stats.memory || "0B / 0B")}</b></div>
+            <div class="service-stat">HEALTH<b>${escapeHtml(service.health || "n/a")}</b></div>
+            <div class="service-stat">PORT<b>${escapeHtml(service.port || "internal")}</b></div>
+          </div>
+        </div>`;
+    }
+
+    function renderPipeline(pipeline) {
+      const stages = pipeline.stages || {};
+      const names = ["inventory", "review", "validation", "fuzz", "external_review"];
+      byId("pipeline-run").textContent = pipeline._run || pipeline.run || "NO RUN";
+      byId("pipeline-state").textContent = pipeline.run ? "READY" : "IDLE";
+      byId("pipeline").innerHTML = names.map((name) => {
+        const state = stages[name] || "pending";
+        const className = state === "complete" ? "ok" : ["no-baseline", "not-configured", "partial"].includes(state) ? "warn" : "";
+        return `<div class="stage ${className}"><span>${escapeHtml(name.replace("_", " "))}</span><b>${escapeHtml(state)}</b></div>`;
+      }).join("");
+    }
+
+    async function refresh() {
+      try {
+        const response = await fetch("/api/status", { cache: "no-store" });
+        const data = await response.json();
+        const rangeStatus = byId("range-status");
+        rangeStatus.textContent = `RANGE ${String(data.lab || "offline").toUpperCase()}`;
+        rangeStatus.className = `status ${data.lab || "offline"}`;
+
+        const targetKeys = ["juice-shop", "dvwa", "webgoat"];
+        byId("target-count").textContent = `${targetKeys.filter((key) => data.services?.[key]?.running).length} / 3`;
+
+        const findings = data.findings || {};
+        byId("finding-count").textContent = Object.values(findings).reduce((total, value) => total + Number(value || 0), 0);
+        byId("case-count").textContent = data.cases || 0;
+        byId("services").innerHTML = Object.values(data.services || {}).map(renderService).join("");
+
+        const levels = ["critical", "high", "medium", "low", "info"];
+        byId("severity").innerHTML = levels.map((level) => `<div class="severity-item"><b>${Number(findings[level] || 0)}</b><span>${level}</span></div>`).join("");
+
+        byId("tools").innerHTML = Object.entries(data.tools || {}).map(([tool, present]) => `<span class="tool ${present ? "ok" : ""}">${escapeHtml(tool)}</span>`).join("");
+        byId("history").innerHTML = (data.history || []).map((entry) => `<div class="history-row"><b>${escapeHtml(entry.name)}</b><span>${Number(entry.files || 0)} files</span></div>`).join("") || "<span class='badge'>NO RUNS</span>";
+
+        const activity = (data.activity || []).join("\n");
+        byId("activity-tail").textContent = activity || "No activity recorded.";
+        byId("activity-full").textContent = activity || "No activity recorded.";
+        renderPipeline(data.pipeline || {});
+      } catch {
+        showToast("status refresh failed");
+      }
+    }
+
+    all("[data-tab]").forEach((button) => {
+      button.addEventListener("click", () => {
+        all("[data-tab]").forEach((candidate) => candidate.classList.toggle("active", candidate === button));
+        all(".section").forEach((section) => section.classList.toggle("active", section.id === button.dataset.tab));
+      });
+    });
+
+    renderActions("quick-actions", actionDefinitions);
+    renderActions("operations-actions", operationDefinitions);
+    refresh();
+    window.setInterval(refresh, 5000);
+  </script>
 </body>
 </html>
