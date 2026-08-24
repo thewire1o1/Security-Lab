@@ -9,7 +9,8 @@ fi
 
 usage() {
   cat <<'EOF'
-DPSR Platform
+APOTHEON ONE
+Unified. Elevated.
 
 Development platform:
   dpsr platform              show platform status
@@ -26,12 +27,12 @@ Development platform:
   dpsr job run PROJECT CMD   execute one manifest command as a tracked job
   dpsr runner list           show local and external runner types
 
-Security/research compatibility commands remain available unchanged:
+Security and research commands:
   dpsr doctor | up | down | ps | scan | dashboard | gui | mcp | report
   dpsr defend | review | validate | fuzz | triage | research | engine
   dpsr kali-build | kali | clean | disk | update | new
 
-The legacy `sec` entry point remains available for security workflows.
+The lower-level `sec` entry point remains available for compatibility.
 EOF
 }
 
