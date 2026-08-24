@@ -19,7 +19,6 @@ TOOLCHAINS_ROOT = PERSISTENT_ROOT / ".dpsr" / "toolchains"
 FLUTTER_ROOT = TOOLCHAINS_ROOT / "flutter"
 ANDROID_AGP = "9.3.0"
 ANDROID_GRADLE = "9.5.0"
-ANDROID_KOTLIN = "2.2.0"
 ANDROID_COMPILE_SDK = 37
 
 
@@ -276,7 +275,6 @@ def _write_android_project(destination: Path, name: str) -> None:
     (app / "build.gradle.kts").write_text(
         "plugins {\n"
         f'    id("com.android.application") version "{ANDROID_AGP}" apply false\n'
-        f'    id("org.jetbrains.kotlin.android") version "{ANDROID_KOTLIN}" apply false\n'
         "}\n",
         encoding="utf-8",
     )
@@ -285,7 +283,6 @@ def _write_android_project(destination: Path, name: str) -> None:
     (module / "build.gradle.kts").write_text(
         "plugins {\n"
         '    id("com.android.application")\n'
-        '    id("org.jetbrains.kotlin.android")\n'
         "}\n\n"
         "android {\n"
         f'    namespace = "{package}"\n'
@@ -313,7 +310,9 @@ def _write_android_project(destination: Path, name: str) -> None:
         '</manifest>\n',
         encoding="utf-8",
     )
-    (values / "strings.xml").write_text(f'<resources><string name="app_name">{_pascal_name(name)}</string></resources>\n', encoding="utf-8")
+    (values / "strings.xml").write_text(
+        f'<resources><string name="app_name">{_pascal_name(name)}</string></resources>\n', encoding="utf-8"
+    )
     (values / "styles.xml").write_text(
         '<resources><style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar" /></resources>\n',
         encoding="utf-8",
