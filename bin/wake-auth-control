@@ -4,7 +4,6 @@ set -Eeuo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PIDFILE="$ROOT/.wake-auth.pid"
 LOGFILE="$ROOT/reports/wake-auth.log"
-RUNNER_LOG="$ROOT/reports/wake-auth-runner.log"
 
 read_pid() {
   if [ -f "$PIDFILE" ]; then
@@ -29,7 +28,7 @@ from pathlib import Path
 text = Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
 text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
 lines = [line.rstrip() for line in text.splitlines() if line.strip()]
-print("\n".join(lines[-60:]))
+print("\n".join(lines[-40:]))
 PY
   fi
 }
@@ -44,12 +43,16 @@ start_auth() {
 
   rm -f "$PIDFILE"
   : > "$LOGFILE"
-  : > "$RUNNER_LOG"
 
-  nohup bash -c '
-    set -o pipefail
-    yes "" | script -qefc "env -u GH_TOKEN -u GITHUB_TOKEN BROWSER=true gh auth login --hostname github.com --git-protocol https --web --scopes codespace" "$1"
-  ' _ "$LOGFILE" >>"$RUNNER_LOG" 2>&1 </dev/null &
+  nohup env -u GH_TOKEN -u GITHUB_TOKEN \
+    GH_PROMPT_DISABLED=1 \
+    BROWSER=true \
+    gh auth login \
+      --hostname github.com \
+      --git-protocol https \
+      --web \
+      --scopes codespace \
+      >>"$LOGFILE" 2>&1 </dev/null &
   local pid=$!
   printf '%s\n' "$pid" > "$PIDFILE"
   sleep 3
