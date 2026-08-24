@@ -15,6 +15,12 @@ class TaskRunner(base.TaskRunner):
                 "gui": base.TaskSpec(("bash", f"{root}/bin/dashboard-control", "start"), 30),
                 "gui-stop": base.TaskSpec(("bash", f"{root}/bin/dashboard-control", "stop"), 30),
                 "gui-status": base.TaskSpec(("bash", f"{root}/bin/dashboard-control", "status"), 30),
+                "mcp-install": base.TaskSpec(("bash", f"{root}/bin/mcp-control", "install"), 600),
+                "mcp-start": base.TaskSpec(("bash", f"{root}/bin/mcp-control", "start"), 600),
+                "mcp-stop": base.TaskSpec(("bash", f"{root}/bin/mcp-control", "stop"), 30),
+                "mcp-status": base.TaskSpec(("bash", f"{root}/bin/mcp-control", "status"), 30),
+                "mcp-test": base.TaskSpec(("bash", f"{root}/bin/mcp-control", "test"), 90),
+                "bridge-reload": base.TaskSpec(("bash", f"{root}/bin/bridge-reload"), 30),
             }
         )
 
