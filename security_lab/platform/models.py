@@ -67,6 +67,7 @@ def load_project_manifest(path: Path) -> Project:
 
     project = data.get("project") or {}
     runner = data.get("runner") or {}
+    repository = data.get("repository") or {}
     raw_commands = data.get("commands") or {}
     services = data.get("services") or {}
 
@@ -75,6 +76,8 @@ def load_project_manifest(path: Path) -> Project:
     runner_type = str(runner.get("type", "local")).strip() or "local"
     if not name:
         raise ValueError(f"Project manifest at {manifest_path} has no project.name.")
+    if not isinstance(repository, dict):
+        raise ValueError("Project repository metadata must be a TOML table.")
 
     commands = {key: CommandSpec.from_value(value) for key, value in raw_commands.items()}
     normalized_services: dict[str, int] = {}
@@ -91,5 +94,5 @@ def load_project_manifest(path: Path) -> Project:
         runner=runner_type,
         commands=commands,
         services=normalized_services,
-        metadata={"project": project, "runner": runner},
+        metadata={"project": project, "runner": runner, "repository": repository},
     )
