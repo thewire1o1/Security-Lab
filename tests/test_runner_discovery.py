@@ -23,21 +23,24 @@ class RunnerDiscoveryTests(unittest.TestCase):
             "url": "",
         }
         rows = [
-            {"databaseId": 1, "createdAt": "2026-08-24T08:40:30Z", "status": "completed", "conclusion": "success", "url": "old"},
-            {"databaseId": 2, "createdAt": "2026-08-24T08:40:55Z", "status": "queued", "conclusion": "", "url": "claimed"},
-            {"databaseId": 3, "createdAt": "2026-08-24T08:41:00Z", "status": "in_progress", "conclusion": "", "url": "selected"},
+            {"id": 1, "created_at": "2026-08-24T08:40:30Z", "status": "completed", "conclusion": "success", "html_url": "old"},
+            {"id": 2, "created_at": "2026-08-24T08:40:55Z", "status": "queued", "conclusion": "", "html_url": "claimed"},
+            {"id": 3, "created_at": "2026-08-24T08:41:00Z", "status": "in_progress", "conclusion": "", "html_url": "selected"},
         ]
         job = {"id": "job-current"}
-        result = {"returncode": 0, "stdout": json.dumps(rows), "stderr": ""}
+        result = {"returncode": 0, "stdout": json.dumps({"workflow_runs": rows}), "stderr": ""}
         with (
             mock.patch.object(jobs.github_actions, "require_auth", return_value={"safe": True}),
-            mock.patch.object(jobs.github_actions, "_gh", return_value=result),
+            mock.patch.object(jobs.github_actions, "_gh", return_value=result) as gh_mock,
             mock.patch.object(jobs, "_claimed_external_run_ids", return_value={2}),
         ):
             discovered = jobs._discover_github_actions_run(job, external)
         self.assertEqual(discovered["run_id"], 3)
         self.assertEqual(discovered["url"], "selected")
         self.assertEqual(discovered["status"], "in_progress")
+        self.assertEqual(gh_mock.call_args.args[0], "api")
+        self.assertIn("event=workflow_dispatch", gh_mock.call_args.args[1])
+        self.assertIn("branch=main", gh_mock.call_args.args[1])
 
     def test_refresh_recovers_missing_run_id_before_status_lookup(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
