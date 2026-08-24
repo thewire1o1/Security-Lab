@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from .jobs import get_job, list_jobs, run_job
+from .github_actions import auth_status as github_actions_auth_status
+from .github_actions import publish_project as publish_github_project
+from .github_actions import repository_binding
+from .jobs import list_jobs, refresh_job, refresh_pending_jobs, run_job
 from .mobile import MOBILE_PROFILES, init_mobile_project
 from .models import Profile, Project
 from .profiles import get_profile, load_profiles
@@ -30,6 +33,7 @@ def profile_row(profile: Profile) -> dict[str, Any]:
 
 
 def project_row(project: Project) -> dict[str, Any]:
+    binding = repository_binding(project)
     return {
         "name": project.name,
         "path": str(project.path),
@@ -37,6 +41,9 @@ def project_row(project: Project) -> dict[str, Any]:
         "runner": project.runner,
         "commands": sorted(project.commands),
         "services": project.services,
+        "repository": binding["full_name"] or None,
+        "branch": binding["branch"] if binding["full_name"] else None,
+        "workflow": binding["workflow"] or None,
     }
 
 
@@ -52,7 +59,16 @@ def jobs(limit: int = 50) -> list[dict[str, Any]]:
     return list_jobs(max(1, min(limit, 500)))
 
 
+def runner_status() -> dict[str, Any]:
+    return {
+        "local": sorted(RUNNERS),
+        "external": list(EXTERNAL_RUNNERS),
+        "github_actions": github_actions_auth_status(),
+    }
+
+
 def snapshot(job_limit: int = 20) -> dict[str, Any]:
+    refresh_pending_jobs(min(max(job_limit, 1), 20))
     profile_rows = profiles()
     project_rows = projects()
     job_rows = jobs(job_limit)
@@ -66,10 +82,7 @@ def snapshot(job_limit: int = 20) -> dict[str, Any]:
             "projects": len(project_rows),
             "jobs": len(list_jobs(500)),
         },
-        "runners": {
-            "local": sorted(RUNNERS),
-            "external": list(EXTERNAL_RUNNERS),
-        },
+        "runners": runner_status(),
     }
 
 
@@ -85,6 +98,14 @@ def create_project(name: str, profile_name: str) -> dict[str, Any]:
     if profile_name in MOBILE_PROFILES:
         return project_row(init_mobile_project(name, profile_name))
     return project_row(init_project(name, profile_name))
+
+
+def publish_project(
+    name: str,
+    repository: str = "",
+    visibility: str = "private",
+) -> dict[str, Any]:
+    return publish_github_project(get_project(name), repository, visibility)
 
 
 def delete_project(name: str) -> dict[str, Any]:
@@ -106,7 +127,7 @@ def execute_job(project_name: str, command_name: str) -> dict[str, Any]:
         raise ValueError(
             f"Project '{project_name}' has no command '{command_name}'. Available: {available}"
         ) from exc
-    if command.timeout > MAX_STRUCTURED_JOB_TIMEOUT:
+    if project_model.runner != "github-actions" and command.timeout > MAX_STRUCTURED_JOB_TIMEOUT:
         raise ValueError(
             f"Command '{command_name}' is long-running ({command.timeout}s) and is not eligible for synchronous MCP execution."
         )
@@ -114,4 +135,4 @@ def execute_job(project_name: str, command_name: str) -> dict[str, Any]:
 
 
 def job(job_id: str) -> dict[str, Any]:
-    return get_job(job_id)
+    return refresh_job(job_id)
