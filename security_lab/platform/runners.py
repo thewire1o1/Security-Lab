@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-import subprocess
+import subprocess  # nosec B404
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
@@ -44,7 +44,7 @@ class LocalRunner(Runner):
     def run(self, project: Project, command: CommandSpec) -> RunResult:
         if not command.argv:
             raise ValueError("Command argv is empty.")
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             list(command.argv),
             cwd=self._cwd(project, command.cwd),
             env=os.environ.copy(),
@@ -80,7 +80,7 @@ class DockerRunner(Runner):
             image,
             *command.argv,
         ]
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             argv,
             cwd=project.path,
             env=os.environ.copy(),
