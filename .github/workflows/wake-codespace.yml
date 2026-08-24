@@ -12,16 +12,18 @@ jobs:
   wake:
     if: >-
       github.event.issue.user.login == github.repository_owner &&
-      github.event.issue.title == '[DPSR-WAKE] start Codespace'
+      (github.event.issue.title == '[DPSR-WAKE] start Codespace' ||
+       github.event.issue.title == '[DPSR-WAKE] restart Codespace')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:
       WAKE_TOKEN: ${{ secrets.DPSR_CODESPACES_TOKEN }}
       REPOSITORY: ${{ github.repository }}
       ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_TITLE: ${{ github.event.issue.title }}
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Start latest repository Codespace
+      - name: Apply Codespace lifecycle request
         id: wake
         shell: bash
         run: |
@@ -31,12 +33,18 @@ jobs:
             exit 2
           fi
 
-          payload="$(curl --fail-with-body --silent --show-error \
-            -H 'Accept: application/vnd.github+json' \
-            -H "Authorization: Bearer ${WAKE_TOKEN}" \
-            -H 'X-GitHub-Api-Version: 2026-03-10' \
-            'https://api.github.com/user/codespaces?per_page=100')"
+          api() {
+            local method="$1"
+            local path="$2"
+            curl --fail-with-body --silent --show-error \
+              -X "$method" \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer ${WAKE_TOKEN}" \
+              -H 'X-GitHub-Api-Version: 2026-03-10' \
+              "https://api.github.com${path}"
+          }
 
+          payload="$(api GET '/user/codespaces?per_page=100')"
           selection="$(printf '%s' "$payload" | jq -c --arg repo "$REPOSITORY" '
             [.codespaces[] | select(.repository.full_name == $repo)]
             | sort_by(.last_used_at // .updated_at // .created_at)
@@ -51,26 +59,59 @@ jobs:
 
           name="$(printf '%s' "$selection" | jq -r '.name')"
           state="$(printf '%s' "$selection" | jq -r '.state // "Unknown"')"
+          action='start'
+          if [ "$ISSUE_TITLE" = '[DPSR-WAKE] restart Codespace' ]; then
+            action='restart'
+          fi
+
           printf 'codespace=%s\n' "$name" >> "$GITHUB_OUTPUT"
           printf 'previous_state=%s\n' "$state" >> "$GITHUB_OUTPUT"
+          printf 'action=%s\n' "$action" >> "$GITHUB_OUTPUT"
 
-          if [ "$state" != 'Available' ]; then
-            curl --fail-with-body --silent --show-error \
-              -X POST \
-              -H 'Accept: application/vnd.github+json' \
-              -H "Authorization: Bearer ${WAKE_TOKEN}" \
-              -H 'X-GitHub-Api-Version: 2026-03-10' \
-              "https://api.github.com/user/codespaces/${name}/start" >/dev/null
+          if [ "$action" = 'restart' ] && [ "$state" = 'Available' ]; then
+            api POST "/user/codespaces/${name}/stop" >/dev/null
+            stopped='false'
+            for _ in $(seq 1 60); do
+              state="$(api GET "/user/codespaces/${name}" | jq -r '.state // "Unknown"')"
+              if [ "$state" = 'Shutdown' ]; then
+                stopped='true'
+                break
+              fi
+              sleep 2
+            done
+            if [ "$stopped" != 'true' ]; then
+              printf 'Codespace did not reach Shutdown state before restart timeout.\n' >&2
+              exit 4
+            fi
+          fi
+
+          if [ "$action" = 'restart' ] || [ "$state" != 'Available' ]; then
+            api POST "/user/codespaces/${name}/start" >/dev/null
+          fi
+
+          ready='false'
+          for _ in $(seq 1 90); do
+            state="$(api GET "/user/codespaces/${name}" | jq -r '.state // "Unknown"')"
+            if [ "$state" = 'Available' ]; then
+              ready='true'
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" != 'true' ]; then
+            printf 'Codespace did not reach Available state before timeout.\n' >&2
+            exit 5
           fi
 
           printf 'web_url=https://%s.github.dev\n' "$name" >> "$GITHUB_OUTPUT"
           printf 'console_url=https://%s-8765.app.github.dev\n' "$name" >> "$GITHUB_OUTPUT"
           printf 'mcp_url=https://%s-8766.app.github.dev/mcp\n' "$name" >> "$GITHUB_OUTPUT"
 
-      - name: Report wake request
+      - name: Report lifecycle request
         if: success()
         shell: bash
         env:
+          ACTION: ${{ steps.wake.outputs.action }}
           CODESPACE: ${{ steps.wake.outputs.codespace }}
           PREVIOUS_STATE: ${{ steps.wake.outputs.previous_state }}
           WEB_URL: ${{ steps.wake.outputs.web_url }}
@@ -78,7 +119,7 @@ jobs:
           MCP_URL: ${{ steps.wake.outputs.mcp_url }}
         run: |
           body=$(cat <<EOF
-          Wake request accepted.
+          Codespace ${ACTION} request completed.
 
           Codespace: \`${CODESPACE}\`
           Previous state: \`${PREVIOUS_STATE}\`
@@ -90,10 +131,10 @@ jobs:
           gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$body"
           gh issue close "$ISSUE_NUMBER" --repo "$REPOSITORY" --reason completed
 
-      - name: Report wake failure
+      - name: Report lifecycle failure
         if: failure()
         shell: bash
         run: |
           gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" \
-            --body 'Wake request failed. Check the DPSR Wake Controller workflow run and the `DPSR_CODESPACES_TOKEN` repository secret.' || true
+            --body 'Codespace lifecycle request failed. Check the DPSR Wake Controller workflow run and the `DPSR_CODESPACES_TOKEN` repository secret.' || true
           gh issue close "$ISSUE_NUMBER" --repo "$REPOSITORY" --reason not_planned || true
