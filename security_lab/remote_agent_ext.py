@@ -91,11 +91,7 @@ class TaskRunner(base.TaskRunner):
                     "supervisor-start": base.TaskSpec(("bash", f"{root}/admin/control-plane-supervisor", "start"), 30),
                     "supervisor-status": base.TaskSpec(("bash", f"{root}/admin/control-plane-supervisor", "status"), 30),
                     "supervisor-restart": base.TaskSpec(("bash", f"{root}/admin/control-plane-supervisor", "restart"), 30),
-                    "supervisor-selftest": base.TaskSpec(("bash", f"{root}/admin/supervisor-selftest"), 90),
                     "bridge-credential-status": base.TaskSpec(("bash", f"{root}/admin/bridge-credential-status"), 30),
-                    "bridge-auth-start": base.TaskSpec(("bash", f"{root}/admin/bridge-auth-control", "start"), 15),
-                    "bridge-auth-status": base.TaskSpec(("bash", f"{root}/admin/bridge-auth-control", "status"), 15),
-                    "bridge-auth-stop": base.TaskSpec(("bash", f"{root}/admin/bridge-auth-control", "stop"), 15),
                     "bridge-reload": base.TaskSpec(("bash", f"{root}/admin/bridge-reload"), 30),
                 }
             )
