@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess  # nosec B404
+import subprocess  # nosec B404 - required for fixed argv execution; shell invocation is not used.
 import tempfile
 import time
 from collections.abc import Sequence
@@ -30,6 +30,7 @@ def read_json(path: Path, default: Any) -> Any:
 
 
 def write_json_atomic(path: Path, payload: Any) -> None:
+    """Commit JSON state with an atomic rename after flushing file contents."""
     path.parent.mkdir(parents=True, exist_ok=True)
     encoded = json.dumps(payload, indent=2, sort_keys=True) + "\n"
     fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent, text=True)
@@ -52,9 +53,10 @@ def run_command(
     stdout_limit: int = 12_000,
     stderr_limit: int = 6_000,
 ) -> dict[str, Any]:
+    """Run an argv vector without a shell and bound retained process output."""
     command = [str(part) for part in argv]
     try:
-        completed = subprocess.run(  # nosec B603
+        completed = subprocess.run(  # nosec B603 - argv is explicit and shell=False is invariant.
             command,
             cwd=cwd,
             text=True,
