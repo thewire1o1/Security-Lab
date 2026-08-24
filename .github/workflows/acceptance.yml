@@ -1,0 +1,29 @@
+name: DPSR Acceptance
+
+on:
+  push:
+    branches: [dpsr-acceptance]
+  workflow_dispatch:
+  schedule:
+    - cron: '17 9 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    name: Full workstation acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Provision workstation
+        run: bash .devcontainer/bootstrap.sh
+
+      - name: Exercise DPSR end to end
+        env:
+          DPSR_ACCEPTANCE_KALI: '1'
+          DPSR_ACCEPTANCE_MAINTENANCE: '1'
+        run: bash bin/acceptance
