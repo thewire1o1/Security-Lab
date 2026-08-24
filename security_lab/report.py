@@ -11,8 +11,8 @@ from typing import Final
 
 from security_lab.common import REPORTS, SEVERITIES, newest_directories, utc_timestamp, write_json_atomic
 
-DEFAULT_HTML: Final = REPORTS / "mission-control-report.html"
-DEFAULT_JSON: Final = REPORTS / "mission-control-report.json"
+DEFAULT_HTML: Final = REPORTS / "dpsr-evidence-report.html"
+DEFAULT_JSON: Final = REPORTS / "dpsr-evidence-report.json"
 SCOPE: Final = ("127.0.0.1:3000", "127.0.0.1:8080", "127.0.0.1:8081")
 
 
@@ -70,6 +70,7 @@ def build_payload(scan: Path | None, findings: list[Finding]) -> dict[str, objec
 
 
 def render_html(payload: dict[str, object], nmap_text: str) -> str:
+    """Render evidence while treating every scanner-derived string as untrusted input."""
     findings = payload.get("findings")
     counts = payload.get("counts")
     if not isinstance(findings, list) or not isinstance(counts, dict):
@@ -98,17 +99,17 @@ def render_html(payload: dict[str, object], nmap_text: str) -> str:
 <head>
 <meta charset='utf-8'>
 <meta name='viewport' content='width=device-width,initial-scale=1'>
-<title>Security Lab Report</title>
+<title>DPSR Evidence Report</title>
 <style>
 body{{margin:0;background:#070a0f;color:#eaf3ff;font-family:Inter,system-ui,sans-serif}}main{{max-width:1100px;margin:auto;padding:42px 24px}}h1{{font-size:34px;margin-bottom:4px}}.sub{{color:#91a3b8}}.metrics{{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:28px 0}}.metric{{border:1px solid #213148;background:#0d141e;border-radius:12px;padding:16px;text-align:center}}.metric b{{display:block;font-size:28px}}.metric span{{color:#91a3b8;font-size:10px}}section{{border:1px solid #1b2a3d;background:#0c121b;border-radius:14px;margin:16px 0;overflow:hidden}}h2{{font-size:13px;letter-spacing:.09em;padding:15px 18px;margin:0;border-bottom:1px solid #1b2a3d}}.body{{padding:18px}}table{{width:100%;border-collapse:collapse}}td,th{{padding:10px;border-bottom:1px solid #172435;text-align:left;vertical-align:top;font-size:12px}}code,pre{{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}}pre{{white-space:pre-wrap;background:#05080c;padding:14px;border-radius:10px;overflow:auto;color:#b9c9d9}}.sev{{font-size:9px;font-weight:800;padding:5px 7px;border-radius:999px;border:1px solid #33485e}}.critical{{color:#ff4d67}}.high{{color:#ff8b5c}}.medium{{color:#ffd166}}.low{{color:#65f59a}}.info{{color:#52e6ff}}@media(max-width:700px){{.metrics{{grid-template-columns:repeat(2,1fr)}}}}
 </style>
 </head>
 <body><main>
-<div class='sub'>THEWIRE1O1 / SECURITY-LAB</div>
-<h1>Security Lab Report</h1>
+<div class='sub'>DIGITAL PARAGON SECURITY RESEARCH / THEWIRE1O1</div>
+<h1>DPSR Evidence Report</h1>
 <div class='sub'>Generated {generated} · source scan {scan_name}</div>
 <div class='metrics'>{metric_cards}</div>
-<section><h2>EXECUTIVE SUMMARY</h2><div class='body'>This report summarizes the latest stored scan of the intentionally vulnerable local training range. Scope is limited to Juice Shop, DVWA, and WebGoat bound to localhost.</div></section>
+<section><h2>EXECUTIVE SUMMARY</h2><div class='body'>This report summarizes the latest stored scan of the intentionally vulnerable local training range. Scope is limited to Juice Shop, DVWA, and WebGoat bound to loopback.</div></section>
 <section><h2>FINDINGS</h2><div class='body'><table><thead><tr><th>Severity</th><th>Evidence</th></tr></thead><tbody>{rows}</tbody></table></div></section>
 <section><h2>NMAP EVIDENCE</h2><div class='body'><pre>{escaped_nmap}</pre></div></section>
 <section><h2>SCOPE</h2><div class='body'><code>{scope}</code></div></section>
@@ -130,7 +131,7 @@ def generate_report(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate the Security Lab evidence report.")
+    parser = argparse.ArgumentParser(description="Generate a DPSR evidence report from the latest local scan.")
     parser.add_argument("--html", type=Path, default=DEFAULT_HTML)
     parser.add_argument("--json", type=Path, default=DEFAULT_JSON)
     args = parser.parse_args()
