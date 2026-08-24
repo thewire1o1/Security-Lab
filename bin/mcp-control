@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VENV="$ROOT/.venv-mcp"
+PYTHON="$VENV/bin/python"
+PIDFILE="$ROOT/.mcp.pid"
+LOGFILE="$ROOT/reports/mcp-server.log"
+PORT="${DPSR_MCP_PORT:-8766}"
+
+read_pid() {
+  if [ -f "$PIDFILE" ]; then
+    cat "$PIDFILE" 2>/dev/null || true
+  fi
+}
+
+is_running() {
+  local pid
+  pid="$(read_pid)"
+  [ -n "$pid" ] || return 1
+  kill -0 "$pid" 2>/dev/null || return 1
+  tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -q 'security_lab.mcp_server'
+}
+
+install_sdk() {
+  if [ ! -x "$PYTHON" ]; then
+    python3 -m venv "$VENV"
+  fi
+  "$PYTHON" -m pip install --disable-pip-version-check -q -r "$ROOT/requirements-mcp.txt"
+  "$PYTHON" -c 'import mcp; print("MCP SDK ready")'
+}
+
+start_server() {
+  mkdir -p "$ROOT/reports"
+  if is_running; then
+    status_server
+    return 0
+  fi
+  install_sdk
+  rm -f "$PIDFILE"
+  cd "$ROOT"
+  nohup "$PYTHON" -m security_lab.mcp_server >>"$LOGFILE" 2>&1 </dev/null &
+  local pid=$!
+  printf '%s\n' "$pid" > "$PIDFILE"
+
+  for _ in $(seq 1 40); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      rm -f "$PIDFILE"
+      printf 'DPSR MCP server failed to start.\n' >&2
+      tail -n 60 "$LOGFILE" >&2 || true
+      return 1
+    fi
+    if python3 - "$PORT" <<'PY'
+import socket
+import sys
+
+port = int(sys.argv[1])
+try:
+    with socket.create_connection(("127.0.0.1", port), timeout=0.25):
+        pass
+except OSError:
+    raise SystemExit(1)
+PY
+    then
+      printf 'DPSR MCP server running: pid=%s\n' "$pid"
+      printf 'Local endpoint: http://127.0.0.1:%s/mcp\n' "$PORT"
+      if [ -n "${CODESPACE_NAME:-}" ]; then
+        printf 'Codespaces endpoint: https://%s-%s.app.github.dev/mcp\n' "$CODESPACE_NAME" "$PORT"
+      fi
+      return 0
+    fi
+    sleep 0.5
+  done
+
+  printf 'DPSR MCP process is running but port %s is not ready.\n' "$PORT" >&2
+  return 1
+}
+
+stop_server() {
+  if ! is_running; then
+    rm -f "$PIDFILE"
+    printf 'DPSR MCP server is not running.\n'
+    return 0
+  fi
+  local pid
+  pid="$(read_pid)"
+  kill "$pid" 2>/dev/null || true
+  for _ in $(seq 1 30); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      rm -f "$PIDFILE"
+      printf 'DPSR MCP server stopped.\n'
+      return 0
+    fi
+    sleep 0.1
+  done
+  kill -9 "$pid" 2>/dev/null || true
+  rm -f "$PIDFILE"
+  printf 'DPSR MCP server stopped.\n'
+}
+
+status_server() {
+  if is_running; then
+    printf 'DPSR MCP server running: pid=%s\n' "$(read_pid)"
+    printf 'Local endpoint: http://127.0.0.1:%s/mcp\n' "$PORT"
+    if [ -n "${CODESPACE_NAME:-}" ]; then
+      printf 'Codespaces endpoint: https://%s-%s.app.github.dev/mcp\n' "$CODESPACE_NAME" "$PORT"
+    fi
+    return 0
+  fi
+  rm -f "$PIDFILE"
+  printf 'DPSR MCP server stopped.\n'
+  return 1
+}
+
+test_server() {
+  if ! is_running; then
+    printf 'DPSR MCP server is not running.\n' >&2
+    return 1
+  fi
+  "$PYTHON" -m security_lab.mcp_probe
+}
+
+case "${1:-status}" in
+  install) install_sdk ;;
+  start) start_server ;;
+  stop) stop_server ;;
+  restart) stop_server; start_server ;;
+  status) status_server ;;
+  test) test_server ;;
+  *)
+    printf 'Usage: %s {install|start|stop|restart|status|test}\n' "$0" >&2
+    exit 2
+    ;;
+esac
