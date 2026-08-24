@@ -3,578 +3,103 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DPSR Operations Console</title>
+  <title>DPSR Platform Console</title>
   <style>
-    :root {
-      --bg: #080b10;
-      --panel: #0d131c;
-      --panel-strong: #111a25;
-      --line: #223044;
-      --line-soft: #182331;
-      --text: #edf4fb;
-      --muted: #8ea0b5;
-      --accent: #69d7ff;
-      --ok: #64e39b;
-      --warn: #f0c86b;
-      --bad: #ff6d7a;
-      --radius: 12px;
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background: var(--bg);
-      color: var(--text);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-
-    button { font: inherit; }
-
-    .shell {
-      display: grid;
-      grid-template-columns: 245px minmax(0, 1fr);
-      min-height: 100vh;
-    }
-
-    .sidebar {
-      position: sticky;
-      top: 0;
-      height: 100vh;
-      padding: 24px 18px;
-      border-right: 1px solid var(--line-soft);
-      background: #0a0f16;
-    }
-
-    .identity {
-      padding: 4px 4px 24px;
-      border-bottom: 1px solid var(--line-soft);
-    }
-
-    .identity-mark {
-      display: inline-grid;
-      place-items: center;
-      width: 42px;
-      height: 42px;
-      margin-bottom: 14px;
-      border: 1px solid var(--accent);
-      border-radius: 9px;
-      color: var(--accent);
-      font: 800 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-      letter-spacing: .08em;
-    }
-
-    .identity h1 {
-      margin: 0;
-      font-size: 13px;
-      letter-spacing: .08em;
-    }
-
-    .identity p {
-      margin: 7px 0 0;
-      color: var(--muted);
-      font-size: 11px;
-      line-height: 1.45;
-    }
-
-    .nav {
-      display: grid;
-      gap: 6px;
-      margin-top: 22px;
-    }
-
-    .nav button {
-      padding: 10px 11px;
-      border: 1px solid transparent;
-      border-radius: 8px;
-      background: transparent;
-      color: var(--muted);
-      text-align: left;
-      cursor: pointer;
-    }
-
-    .nav button:hover,
-    .nav button.active {
-      border-color: var(--line);
-      background: var(--panel-strong);
-      color: var(--text);
-    }
-
-    .boundary {
-      position: absolute;
-      right: 18px;
-      bottom: 20px;
-      left: 18px;
-      padding: 11px;
-      border: 1px solid var(--line-soft);
-      border-radius: 9px;
-      color: var(--muted);
-      font-size: 10px;
-      line-height: 1.5;
-    }
-
-    .boundary strong { color: var(--ok); }
-
-    main {
-      width: 100%;
-      max-width: 1650px;
-      margin: 0 auto;
-      padding: 28px;
-    }
-
-    .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 20px;
-      margin-bottom: 22px;
-    }
-
-    .eyebrow {
-      color: var(--accent);
-      font: 800 10px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
-      letter-spacing: .14em;
-    }
-
-    .topbar h2 {
-      margin: 7px 0 0;
-      font-size: 28px;
-      font-weight: 650;
-      letter-spacing: -.02em;
-    }
-
-    .status {
-      padding: 9px 12px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      background: var(--panel);
-      font: 700 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-      letter-spacing: .08em;
-    }
-
-    .status.online { color: var(--ok); }
-    .status.partial { color: var(--warn); }
-    .status.offline { color: var(--bad); }
-
-    .section { display: none; }
-    .section.active { display: block; }
-
-    .grid { display: grid; gap: 14px; }
-    .metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .split { grid-template-columns: minmax(0, 1.35fr) minmax(320px, .85fr); }
-
-    .card {
-      overflow: hidden;
-      border: 1px solid var(--line-soft);
-      border-radius: var(--radius);
-      background: var(--panel);
-    }
-
-    .metric { padding: 16px; }
-    .metric span { color: var(--muted); font-size: 10px; letter-spacing: .08em; }
-    .metric strong { display: block; margin-top: 8px; font-size: 25px; font-weight: 650; }
-    .metric small { color: var(--muted); font-size: 10px; }
-
-    .panel-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--line-soft);
-    }
-
-    .panel-head h3 {
-      margin: 0;
-      font-size: 11px;
-      letter-spacing: .08em;
-    }
-
-    .badge {
-      padding: 4px 6px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      color: var(--muted);
-      font: 700 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-      letter-spacing: .05em;
-    }
-
-    .panel-body { padding: 16px; }
-
-    .service-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .service {
-      padding: 13px;
-      border: 1px solid var(--line-soft);
-      border-radius: 9px;
-      background: #0a1017;
-    }
-
-    .service-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: center;
-    }
-
-    .service h4 { margin: 0; font-size: 13px; }
-    .service-state { color: var(--muted); font-size: 9px; }
-    .service-state.up { color: var(--ok); }
-
-    .service-stats {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 9px;
-      margin-top: 13px;
-    }
-
-    .service-stat { color: var(--muted); font-size: 9px; }
-    .service-stat b { display: block; margin-top: 3px; color: var(--text); font-size: 10px; }
-
-    .actions {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-    }
-
-    .action {
-      min-height: 72px;
-      padding: 11px;
-      border: 1px solid var(--line);
-      border-radius: 9px;
-      background: #0a121b;
-      color: var(--text);
-      text-align: left;
-      cursor: pointer;
-    }
-
-    .action:hover { border-color: var(--accent); }
-    .action:disabled { opacity: .45; cursor: wait; }
-    .action strong { display: block; font-size: 11px; }
-    .action small { display: block; margin-top: 5px; color: var(--muted); font-size: 9px; line-height: 1.4; }
-
-    .pipeline,
-    .severity {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 8px;
-    }
-
-    .stage,
-    .severity-item {
-      padding: 11px 8px;
-      border: 1px solid var(--line-soft);
-      border-radius: 8px;
-      background: #0a1017;
-      text-align: center;
-    }
-
-    .stage span,
-    .severity-item span {
-      display: block;
-      color: var(--muted);
-      font-size: 8px;
-      text-transform: uppercase;
-      letter-spacing: .05em;
-    }
-
-    .stage b { display: block; margin-top: 5px; font-size: 10px; }
-    .stage.ok b { color: var(--ok); }
-    .stage.warn b { color: var(--warn); }
-    .severity-item b { display: block; margin-bottom: 4px; font-size: 21px; }
-
-    .terminal {
-      height: 290px;
-      overflow: auto;
-      padding: 13px;
-      border: 1px solid var(--line-soft);
-      border-radius: 9px;
-      background: #05080c;
-      color: #a8b8c9;
-      font: 10px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
-      white-space: pre-wrap;
-    }
-
-    .history { display: grid; gap: 8px; }
-    .history-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line-soft); font-size: 10px; }
-    .history-row span { color: var(--muted); }
-
-    .tools { display: flex; flex-wrap: wrap; gap: 6px; }
-    .tool { padding: 6px 8px; border: 1px solid var(--line-soft); border-radius: 7px; color: var(--muted); font: 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
-    .tool.ok { color: var(--ok); border-color: #244934; }
-
-    .toast {
-      position: fixed;
-      right: 22px;
-      bottom: 22px;
-      max-width: 360px;
-      padding: 11px 13px;
-      border: 1px solid var(--line);
-      border-radius: 9px;
-      background: var(--panel-strong);
-      color: var(--text);
-      font-size: 10px;
-      opacity: 0;
-      transform: translateY(8px);
-      transition: .16s ease;
-      pointer-events: none;
-    }
-
-    .toast.show { opacity: 1; transform: none; }
-
-    @media (max-width: 1100px) {
-      .shell { grid-template-columns: 1fr; }
-      .sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line-soft); }
-      .boundary { display: none; }
-      .nav { grid-template-columns: repeat(4, 1fr); }
-      .split { grid-template-columns: 1fr; }
-    }
-
-    @media (max-width: 700px) {
-      main { padding: 16px; }
-      .metrics, .service-grid, .actions { grid-template-columns: 1fr; }
-      .pipeline, .severity { grid-template-columns: repeat(2, 1fr); }
-      .nav { grid-template-columns: repeat(2, 1fr); }
-      .topbar { flex-direction: column; }
-    }
+    :root{--bg:#080b10;--panel:#0d131c;--strong:#111a25;--line:#223044;--soft:#182331;--text:#edf4fb;--muted:#8ea0b5;--accent:#69d7ff;--ok:#64e39b;--warn:#f0c86b;--bad:#ff6d7a;--radius:12px}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,select{font:inherit}.shell{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:100vh}.sidebar{position:sticky;top:0;height:100vh;padding:24px 18px;border-right:1px solid var(--soft);background:#0a0f16}.identity{padding:4px 4px 22px;border-bottom:1px solid var(--soft)}.mark{display:grid;place-items:center;width:44px;height:44px;margin-bottom:14px;border:1px solid var(--accent);border-radius:9px;color:var(--accent);font:800 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em}.identity h1{margin:0;font-size:13px;letter-spacing:.06em}.identity p{margin:7px 0 0;color:var(--muted);font-size:11px;line-height:1.45}.nav{display:grid;gap:5px;margin-top:20px}.nav button{padding:10px 11px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--muted);text-align:left;cursor:pointer}.nav button:hover,.nav button.active{border-color:var(--line);background:var(--strong);color:var(--text)}.boundary{position:absolute;right:18px;bottom:20px;left:18px;padding:11px;border:1px solid var(--soft);border-radius:9px;color:var(--muted);font-size:10px;line-height:1.5}.boundary strong{color:var(--ok)}main{width:100%;max-width:1700px;margin:0 auto;padding:28px}.topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:22px}.eyebrow{color:var(--accent);font:800 10px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.14em}.topbar h2{margin:7px 0 0;font-size:28px;font-weight:650;letter-spacing:-.02em}.status,.badge{padding:6px 9px;border:1px solid var(--line);border-radius:999px;background:var(--panel);font:700 9px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.06em}.status{padding:9px 12px;font-size:10px}.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}.section{display:none}.section.active{display:block}.grid{display:grid;gap:14px}.metrics{grid-template-columns:repeat(4,minmax(0,1fr))}.two{grid-template-columns:repeat(2,minmax(0,1fr))}.split{grid-template-columns:minmax(0,1.35fr) minmax(320px,.85fr)}.card{overflow:hidden;border:1px solid var(--soft);border-radius:var(--radius);background:var(--panel)}.metric{padding:16px}.metric span{color:var(--muted);font-size:10px;letter-spacing:.08em}.metric strong{display:block;margin-top:8px;font-size:25px;font-weight:650}.metric small{color:var(--muted);font-size:10px}.panel-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--soft)}.panel-head h3{margin:0;font-size:11px;letter-spacing:.08em}.panel-body{padding:16px}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.item{padding:13px;border:1px solid var(--soft);border-radius:9px;background:#0a1017}.item-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.item h4{margin:0;font-size:13px}.item p{margin:8px 0 0;color:var(--muted);font-size:10px;line-height:1.5}.meta{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}.mini-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}.mini-actions button,.primary,.secondary{padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:#0a121b;color:var(--text);font-size:9px;cursor:pointer}.mini-actions button:hover,.primary:hover,.secondary:hover{border-color:var(--accent)}button:disabled{opacity:.45;cursor:wait}.primary{background:#11212c;border-color:#31546a;color:var(--accent)}.form{display:grid;grid-template-columns:minmax(180px,1fr) minmax(170px,.7fr) auto;gap:8px}.form input,.form select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:#080d13;color:var(--text);outline:none}.form input:focus,.form select:focus{border-color:var(--accent)}.jobs{display:grid;gap:7px}.job{display:grid;grid-template-columns:minmax(160px,1fr) 130px 110px 110px;gap:10px;align-items:center;padding:10px;border:1px solid var(--soft);border-radius:8px;background:#0a1017;font-size:10px}.job small{color:var(--muted)}.job a{color:var(--accent);text-decoration:none}.services{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.service{padding:13px;border:1px solid var(--soft);border-radius:9px;background:#0a1017}.service-head{display:flex;justify-content:space-between;gap:12px}.service-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:11px}.service-stat{color:var(--muted);font-size:9px}.service-stat b{display:block;margin-top:3px;color:var(--text);font-size:10px}.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.action{min-height:68px;padding:11px;border:1px solid var(--line);border-radius:9px;background:#0a121b;color:var(--text);text-align:left;cursor:pointer}.action:hover{border-color:var(--accent)}.action strong{display:block;font-size:11px}.action small{display:block;margin-top:5px;color:var(--muted);font-size:9px;line-height:1.4}.severity{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.severity div{padding:11px;border:1px solid var(--soft);border-radius:8px;background:#0a1017;text-align:center}.severity b{display:block;font-size:21px}.severity span{color:var(--muted);font-size:8px;text-transform:uppercase}.terminal{height:300px;overflow:auto;padding:13px;border:1px solid var(--soft);border-radius:9px;background:#05080c;color:#a8b8c9;font:10px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap}.empty{padding:18px;color:var(--muted);font-size:10px;text-align:center;border:1px dashed var(--line);border-radius:8px}.toast{position:fixed;right:22px;bottom:22px;max-width:380px;padding:11px 13px;border:1px solid var(--line);border-radius:9px;background:var(--strong);font-size:10px;opacity:0;transform:translateY(8px);transition:.16s ease;pointer-events:none}.toast.show{opacity:1;transform:none}
+    @media(max-width:1200px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.split{grid-template-columns:1fr}}
+    @media(max-width:850px){.shell{grid-template-columns:1fr}.sidebar{position:static;height:auto;border-right:0;border-bottom:1px solid var(--soft)}.boundary{display:none}.nav{grid-template-columns:repeat(4,1fr)}.job{grid-template-columns:1fr 1fr}.form{grid-template-columns:1fr}.two,.services{grid-template-columns:1fr}}
+    @media(max-width:600px){main{padding:15px}.cards,.metrics,.actions{grid-template-columns:1fr}.nav{grid-template-columns:repeat(2,1fr)}.severity{grid-template-columns:repeat(2,1fr)}.topbar{flex-direction:column}.job{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
-  <div class="shell">
-    <aside class="sidebar">
-      <div class="identity">
-        <div class="identity-mark">DPSR</div>
-        <h1>Digital Paragon Security Research</h1>
-        <p>TheWire1o1 / Operations Console</p>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="identity"><div class="mark">DPSR</div><h1>Digital Paragon</h1><p>Development + Security Platform</p></div>
+    <nav class="nav" aria-label="Platform sections">
+      <button class="active" data-tab="overview">Overview</button>
+      <button data-tab="projects">Projects</button>
+      <button data-tab="development">Development</button>
+      <button data-tab="mobile">Mobile</button>
+      <button data-tab="security">Security</button>
+      <button data-tab="jobs">Jobs</button>
+      <button data-tab="runners">Runners</button>
+      <button data-tab="activity">Activity</button>
+    </nav>
+    <div class="boundary"><strong>PRIVATE CONTROL PLANE</strong><br>Codespace + MCP + supervised recovery</div>
+  </aside>
+  <main>
+    <header class="topbar"><div><div class="eyebrow">DPSR // PLATFORM V2</div><h2 id="page-title">Platform Overview</h2></div><div id="platform-status" class="status warn">LOADING</div></header>
+
+    <section id="overview" class="section active">
+      <div class="grid metrics">
+        <div class="card metric"><span>PROFILES</span><strong id="metric-profiles">0</strong><small>development + security stacks</small></div>
+        <div class="card metric"><span>PROJECTS</span><strong id="metric-projects">0</strong><small>managed and registered</small></div>
+        <div class="card metric"><span>JOBS</span><strong id="metric-jobs">0</strong><small>persistent execution history</small></div>
+        <div class="card metric"><span>ACTIVE</span><strong id="metric-active">0</strong><small>running / queued jobs</small></div>
       </div>
+      <div class="grid split" style="margin-top:14px">
+        <div class="card"><div class="panel-head"><h3>RECENT JOBS</h3><span class="badge">LIVE</span></div><div class="panel-body"><div id="overview-jobs" class="jobs"></div></div></div>
+        <div class="card"><div class="panel-head"><h3>CONTROL PLANE</h3><span class="badge">SUPERVISED</span></div><div class="panel-body"><div id="control-plane" class="cards" style="grid-template-columns:1fr"></div></div></div>
+        <div class="card"><div class="panel-head"><h3>PROJECTS</h3><span class="badge">REGISTRY</span></div><div class="panel-body"><div id="overview-projects" class="cards"></div></div></div>
+        <div class="card"><div class="panel-head"><h3>RUNNER STATUS</h3><span class="badge">ISOLATED CREDS</span></div><div class="panel-body" id="overview-runners"></div></div>
+      </div>
+    </section>
 
-      <nav class="nav" aria-label="Console sections">
-        <button class="active" data-tab="overview">Overview</button>
-        <button data-tab="operations">Operations</button>
-        <button data-tab="findings">Findings</button>
-        <button data-tab="activity">Activity</button>
-      </nav>
+    <section id="projects" class="section">
+      <div class="card" style="margin-bottom:14px"><div class="panel-head"><h3>CREATE MANAGED PROJECT</h3><span class="badge">AUTOMATED</span></div><div class="panel-body"><div class="form"><input id="project-name" placeholder="project-name" maxlength="63" autocomplete="off"><select id="project-profile"></select><button id="create-project" class="primary">Create project</button></div></div></div>
+      <div class="card"><div class="panel-head"><h3>PROJECT REGISTRY</h3><span id="project-count" class="badge">0 PROJECTS</span></div><div class="panel-body"><div id="project-list" class="cards"></div></div></div>
+    </section>
 
-      <div class="boundary"><strong>LOCAL CONTROL PLANE</strong><br>Loopback service / private forwarded port</div>
-    </aside>
+    <section id="development" class="section"><div class="card"><div class="panel-head"><h3>WEB + API PROFILES</h3><span class="badge">PROVISIONERS</span></div><div class="panel-body"><div id="development-profiles" class="cards"></div></div></div></section>
+    <section id="mobile" class="section"><div class="card"><div class="panel-head"><h3>MOBILE PROFILES</h3><span class="badge">LOCAL + HOSTED BUILDS</span></div><div class="panel-body"><div id="mobile-profiles" class="cards"></div></div></div></section>
 
-    <main>
-      <header class="topbar">
-        <div>
-          <div class="eyebrow">DPSR // THEWIRE1O1</div>
-          <h2>Operations Console</h2>
-        </div>
-        <div id="range-status" class="status offline">RANGE OFFLINE</div>
-      </header>
+    <section id="security" class="section">
+      <div class="grid metrics">
+        <div class="card metric"><span>TARGETS ONLINE</span><strong id="target-count">0 / 3</strong><small>isolated training range</small></div>
+        <div class="card metric"><span>FINDINGS</span><strong id="finding-count">0</strong><small>latest normalized review</small></div>
+        <div class="card metric"><span>RESEARCH CASES</span><strong id="case-count">0</strong><small>investigation state</small></div>
+        <div class="card metric"><span>RANGE</span><strong id="range-state">OFFLINE</strong><small>training services</small></div>
+      </div>
+      <div class="grid split" style="margin-top:14px">
+        <div class="card"><div class="panel-head"><h3>SECURITY SERVICES</h3><span class="badge">LOCAL</span></div><div class="panel-body"><div id="security-services" class="services"></div></div></div>
+        <div class="card"><div class="panel-head"><h3>SECURITY OPERATIONS</h3><span class="badge">ALLOWLISTED</span></div><div class="panel-body"><div id="security-actions" class="actions"></div></div></div>
+        <div class="card"><div class="panel-head"><h3>FINDINGS BY SEVERITY</h3><span class="badge">LATEST</span></div><div class="panel-body"><div id="severity" class="severity"></div></div></div>
+        <div class="card"><div class="panel-head"><h3>SECURITY TOOLING</h3><span class="badge">HOST</span></div><div class="panel-body"><div id="security-tools" class="meta"></div></div></div>
+      </div>
+    </section>
 
-      <section id="overview" class="section active">
-        <div class="grid metrics">
-          <div class="card metric"><span>TARGETS ONLINE</span><strong id="target-count">0 / 3</strong><small>isolated training range</small></div>
-          <div class="card metric"><span>FINDINGS</span><strong id="finding-count">0</strong><small>latest normalized review</small></div>
-          <div class="card metric"><span>RESEARCH CASES</span><strong id="case-count">0</strong><small>persistent investigation state</small></div>
-          <div class="card metric"><span>PIPELINE</span><strong id="pipeline-state">IDLE</strong><small>inventory through validation</small></div>
-        </div>
-
-        <div class="grid split" style="margin-top:14px">
-          <div class="card">
-            <div class="panel-head"><h3>SERVICE STATE</h3><span class="badge">LIVE</span></div>
-            <div class="panel-body"><div id="services" class="service-grid"></div></div>
-          </div>
-
-          <div class="card">
-            <div class="panel-head"><h3>CONTROL SURFACE</h3><span class="badge">ALLOWLISTED</span></div>
-            <div class="panel-body"><div class="actions" id="quick-actions"></div></div>
-          </div>
-
-          <div class="card">
-            <div class="panel-head"><h3>DEFENSIVE PIPELINE</h3><span id="pipeline-run" class="badge">NO RUN</span></div>
-            <div class="panel-body"><div id="pipeline" class="pipeline"></div></div>
-          </div>
-
-          <div class="card">
-            <div class="panel-head"><h3>RECENT ACTIVITY</h3><span class="badge">TAIL</span></div>
-            <div class="panel-body"><div id="activity-tail" class="terminal"></div></div>
-          </div>
-        </div>
-      </section>
-
-      <section id="operations" class="section">
-        <div class="grid split">
-          <div class="card">
-            <div class="panel-head"><h3>OPERATIONS</h3><span class="badge">LOCAL / AUTHORIZED</span></div>
-            <div class="panel-body"><div class="actions" id="operations-actions"></div></div>
-          </div>
-          <div class="card">
-            <div class="panel-head"><h3>TOOL INVENTORY</h3><span class="badge">HOST</span></div>
-            <div class="panel-body"><div id="tools" class="tools"></div></div>
-          </div>
-        </div>
-      </section>
-
-      <section id="findings" class="section">
-        <div class="card" style="margin-bottom:14px">
-          <div class="panel-head"><h3>FINDINGS BY SEVERITY</h3><span class="badge">LATEST REVIEW</span></div>
-          <div class="panel-body"><div id="severity" class="severity"></div></div>
-        </div>
-        <div class="card">
-          <div class="panel-head"><h3>RUN HISTORY</h3><span class="badge">reports/</span></div>
-          <div class="panel-body"><div id="history" class="history"></div></div>
-        </div>
-      </section>
-
-      <section id="activity" class="section">
-        <div class="card">
-          <div class="panel-head"><h3>ACTIVITY LOG</h3><span class="badge">LIVE REFRESH</span></div>
-          <div class="panel-body"><div id="activity-full" class="terminal" style="height:65vh"></div></div>
-        </div>
-      </section>
-    </main>
-  </div>
-
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-  <script>
-    const actionDefinitions = [
-      ["up", "Start range", "Juice Shop, DVWA, and WebGoat"],
-      ["down", "Stop range", "Stop the training and operator stack"],
-      ["kali-start", "Start operator", "Start the disposable Kali plane"],
-      ["defend", "Run defensive pipeline", "Inventory, review, validation, and fuzzing"],
-      ["review", "Repository review", "Semgrep, Bandit, Gitleaks, and Trivy"],
-      ["validate", "Validate findings", "Compare the current run with the baseline"],
-      ["fuzz", "Fuzz training range", "Bounded web fuzzing and custom harnesses"],
-      ["report", "Generate evidence", "Build the latest HTML and JSON report"],
-    ];
-
-    const operationDefinitions = [
-      ["scan", "Run local scan", "Nmap and Nuclei against loopback targets"],
-      ...actionDefinitions.slice(3),
-    ];
-
-    const byId = (id) => document.getElementById(id);
-    const all = (selector) => [...document.querySelectorAll(selector)];
-
-    function escapeHtml(value) {
-      return String(value ?? "").replace(/[&<>"']/g, (character) => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      })[character]);
-    }
-
-    function showToast(message) {
-      const toast = byId("toast");
-      toast.textContent = message;
-      toast.classList.add("show");
-      window.setTimeout(() => toast.classList.remove("show"), 2200);
-    }
-
-    async function submitAction(action, button) {
-      button.disabled = true;
-      try {
-        const response = await fetch("/api/action", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ action }),
-        });
-        const payload = await response.json();
-        showToast(payload.ok ? `${action} queued` : payload.error || "request rejected");
-      } catch {
-        showToast("request failed");
-      } finally {
-        window.setTimeout(() => { button.disabled = false; }, 900);
-      }
-    }
-
-    function renderActions(targetId, definitions) {
-      const target = byId(targetId);
-      target.replaceChildren(...definitions.map(([action, title, detail]) => {
-        const button = document.createElement("button");
-        button.className = "action";
-        button.dataset.action = action;
-        button.innerHTML = `<strong>${escapeHtml(title)}</strong><small>${escapeHtml(detail)}</small>`;
-        button.addEventListener("click", () => submitAction(action, button));
-        return button;
-      }));
-    }
-
-    function renderService(service) {
-      const stats = service.stats || {};
-      return `
-        <div class="service">
-          <div class="service-head">
-            <h4>${escapeHtml(service.label)}</h4>
-            <span class="service-state ${service.running ? "up" : ""}">${service.running ? "ONLINE" : "OFFLINE"}</span>
-          </div>
-          <div class="service-stats">
-            <div class="service-stat">CPU<b>${escapeHtml(stats.cpu || "0%")}</b></div>
-            <div class="service-stat">MEMORY<b>${escapeHtml(stats.memory || "0B / 0B")}</b></div>
-            <div class="service-stat">HEALTH<b>${escapeHtml(service.health || "n/a")}</b></div>
-            <div class="service-stat">PORT<b>${escapeHtml(service.port || "internal")}</b></div>
-          </div>
-        </div>`;
-    }
-
-    function renderPipeline(pipeline) {
-      const stages = pipeline.stages || {};
-      const names = ["inventory", "review", "validation", "fuzz", "external_review"];
-      byId("pipeline-run").textContent = pipeline._run || pipeline.run || "NO RUN";
-      byId("pipeline-state").textContent = pipeline.run ? "READY" : "IDLE";
-      byId("pipeline").innerHTML = names.map((name) => {
-        const state = stages[name] || "pending";
-        const className = state === "complete" ? "ok" : ["no-baseline", "not-configured", "partial"].includes(state) ? "warn" : "";
-        return `<div class="stage ${className}"><span>${escapeHtml(name.replace("_", " "))}</span><b>${escapeHtml(state)}</b></div>`;
-      }).join("");
-    }
-
-    async function refresh() {
-      try {
-        const response = await fetch("/api/status", { cache: "no-store" });
-        const data = await response.json();
-        const rangeStatus = byId("range-status");
-        rangeStatus.textContent = `RANGE ${String(data.lab || "offline").toUpperCase()}`;
-        rangeStatus.className = `status ${data.lab || "offline"}`;
-
-        const targetKeys = ["juice-shop", "dvwa", "webgoat"];
-        byId("target-count").textContent = `${targetKeys.filter((key) => data.services?.[key]?.running).length} / 3`;
-
-        const findings = data.findings || {};
-        byId("finding-count").textContent = Object.values(findings).reduce((total, value) => total + Number(value || 0), 0);
-        byId("case-count").textContent = data.cases || 0;
-        byId("services").innerHTML = Object.values(data.services || {}).map(renderService).join("");
-
-        const levels = ["critical", "high", "medium", "low", "info"];
-        byId("severity").innerHTML = levels.map((level) => `<div class="severity-item"><b>${Number(findings[level] || 0)}</b><span>${level}</span></div>`).join("");
-
-        byId("tools").innerHTML = Object.entries(data.tools || {}).map(([tool, present]) => `<span class="tool ${present ? "ok" : ""}">${escapeHtml(tool)}</span>`).join("");
-        byId("history").innerHTML = (data.history || []).map((entry) => `<div class="history-row"><b>${escapeHtml(entry.name)}</b><span>${Number(entry.files || 0)} files</span></div>`).join("") || "<span class='badge'>NO RUNS</span>";
-
-        const activity = (data.activity || []).join("\n");
-        byId("activity-tail").textContent = activity || "No activity recorded.";
-        byId("activity-full").textContent = activity || "No activity recorded.";
-        renderPipeline(data.pipeline || {});
-      } catch {
-        showToast("status refresh failed");
-      }
-    }
-
-    all("[data-tab]").forEach((button) => {
-      button.addEventListener("click", () => {
-        all("[data-tab]").forEach((candidate) => candidate.classList.toggle("active", candidate === button));
-        all(".section").forEach((section) => section.classList.toggle("active", section.id === button.dataset.tab));
-      });
-    });
-
-    renderActions("quick-actions", actionDefinitions);
-    renderActions("operations-actions", operationDefinitions);
-    refresh();
-    window.setInterval(refresh, 5000);
-  </script>
+    <section id="jobs" class="section"><div class="card"><div class="panel-head"><h3>JOB HISTORY</h3><span class="badge">PERSISTED</span></div><div class="panel-body"><div id="job-list" class="jobs"></div></div></div></section>
+    <section id="runners" class="section"><div class="grid two"><div class="card"><div class="panel-head"><h3>EXECUTION RUNNERS</h3><span class="badge">BOUNDARIES</span></div><div class="panel-body" id="runner-list"></div></div><div class="card"><div class="panel-head"><h3>BUILDS + REPOSITORIES</h3><span class="badge">GITHUB ACTIONS</span></div><div class="panel-body"><div id="repository-list" class="cards" style="grid-template-columns:1fr"></div></div></div></div></section>
+    <section id="activity" class="section"><div class="card"><div class="panel-head"><h3>PLATFORM ACTIVITY</h3><span id="active-action" class="badge">IDLE</span></div><div class="panel-body"><div id="activity-log" class="terminal" style="height:68vh"></div></div></section>
+  </main>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script>
+  const byId=(id)=>document.getElementById(id);const all=(s)=>[...document.querySelectorAll(s)];let latest={};
+  const titles={overview:"Platform Overview",projects:"Projects",development:"Development",mobile:"Mobile Development",security:"Security Research",jobs:"Jobs + Builds",runners:"Runners + Repositories",activity:"Activity + Logs"};
+  const securityActions=[["up","Start range","Juice Shop, DVWA, WebGoat"],["down","Stop range","Stop training/operator stack"],["kali-start","Start Kali","Disposable operator plane"],["scan","Run scan","Nmap + Nuclei against loopback targets"],["defend","Defensive pipeline","Inventory, review, validation, fuzzing"],["review","Repository review","Semgrep, Bandit, Gitleaks, Trivy"],["validate","Validate findings","Compare current run with baseline"],["report","Generate evidence","Latest HTML + JSON report"]];
+  function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c])}
+  function toast(message){const t=byId("toast");t.textContent=message;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2400)}
+  function stateClass(s){s=String(s||"").toLowerCase();return ["succeeded","success","online","running"].includes(s)?"ok":["failed","failure","offline"].includes(s)?"bad":"warn"}
+  async function post(url,payload){const r=await fetch(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});const data=await r.json();if(!r.ok)throw new Error(data.error||"request rejected");return data}
+  async function platformAction(operation,payload={}){try{const data=await post("/api/platform/action",{operation,...payload});toast(`${data.action||operation} queued`);setTimeout(refresh,1200)}catch(e){toast(e.message)}}
+  async function securityAction(action,button){button.disabled=true;try{await post("/api/action",{action});toast(`${action} queued`);setTimeout(refresh,1200)}catch(e){toast(e.message)}finally{setTimeout(()=>button.disabled=false,800)}}
+  function profileCard(p){const stack=(p.stack||[]).map(x=>`<span class="badge">${esc(x)}</span>`).join("");return `<div class="item"><div class="item-head"><h4>${esc(p.title||p.name)}</h4><span class="badge">${esc(p.runner)}</span></div><p>${esc(p.description)}</p><div class="meta">${stack}</div><div class="mini-actions"><button data-create-profile="${esc(p.name)}">Create project</button></div></div>`}
+  function projectCard(p,compact=false){const commands=(p.commands||[]).slice(0,compact?2:8).map(c=>`<button data-run-project="${esc(p.name)}" data-command="${esc(c)}">${esc(c)}</button>`).join("");const repo=p.repository?`<span class="badge ok">${esc(p.repository)}</span>`:`<span class="badge">LOCAL ONLY</span>`;return `<div class="item"><div class="item-head"><h4>${esc(p.name)}</h4><span class="badge">${esc(p.profile)}</span></div><p>${esc(p.path)}</p><div class="meta"><span class="badge">${esc(p.runner)}</span>${repo}</div>${compact?"":`<div class="mini-actions">${commands}${p.repository?"":`<button data-publish-project="${esc(p.name)}">publish private</button>`}</div>`}</div>`}
+  function jobRow(j){const ext=j.external||{};const link=ext.url?`<a href="${esc(ext.url)}" target="_blank" rel="noopener">run ${esc(ext.run_id||"")}</a>`:`<small>${esc(j.runner||"local")}</small>`;return `<div class="job"><div><b>${esc(j.project)}</b><br><small>${esc(j.command)} · ${esc(j.id)}</small></div><span class="${stateClass(j.state)}">${esc(j.state)}</span><span>${link}</span><small>${esc(j.finished_at||j.started_at||"")}</small></div>`}
+  function serviceCard(s){const stats=s.stats||{};return `<div class="service"><div class="service-head"><b>${esc(s.label)}</b><span class="${s.running?"ok":"bad"}">${s.running?"ONLINE":"OFFLINE"}</span></div><div class="service-stats"><div class="service-stat">CPU<b>${esc(stats.cpu||"0%")}</b></div><div class="service-stat">MEMORY<b>${esc(stats.memory||"0B / 0B")}</b></div><div class="service-stat">HEALTH<b>${esc(s.health||"n/a")}</b></div><div class="service-stat">PORT<b>${esc(s.port||"internal")}</b></div></div></div>`}
+  function wireButtons(){all("[data-create-profile]").forEach(b=>b.onclick=()=>{byId("project-profile").value=b.dataset.createProfile;document.querySelector('[data-tab="projects"]').click();byId("project-name").focus()});all("[data-run-project]").forEach(b=>b.onclick=()=>platformAction("run-job",{project:b.dataset.runProject,command:b.dataset.command}));all("[data-publish-project]").forEach(b=>b.onclick=()=>platformAction("publish-project",{project:b.dataset.publishProject}))}
+  function render(data){latest=data;const p=data.platform||{};const profiles=p.profiles||[],projects=p.projects||[],jobs=p.jobs||[];const counts=p.counts||{};const active=jobs.filter(j=>["running","queued","submitted"].includes(String(j.state))).length;byId("metric-profiles").textContent=counts.profiles??profiles.length;byId("metric-projects").textContent=counts.projects??projects.length;byId("metric-jobs").textContent=counts.jobs??jobs.length;byId("metric-active").textContent=active;byId("project-count").textContent=`${projects.length} PROJECTS`;byId("platform-status").textContent=p.error?"PLATFORM DEGRADED":"PLATFORM ONLINE";byId("platform-status").className=`status ${p.error?"warn":"ok"}`;
+    byId("overview-jobs").innerHTML=jobs.slice(0,6).map(jobRow).join("")||'<div class="empty">No jobs recorded.</div>';byId("job-list").innerHTML=jobs.map(jobRow).join("")||'<div class="empty">No jobs recorded.</div>';byId("overview-projects").innerHTML=projects.slice(0,6).map(x=>projectCard(x,true)).join("")||'<div class="empty">No projects registered.</div>';byId("project-list").innerHTML=projects.map(x=>projectCard(x,false)).join("")||'<div class="empty">No projects registered.</div>';
+    const development=profiles.filter(x=>["web","api"].includes(x.category));const mobile=profiles.filter(x=>x.category==="mobile");byId("development-profiles").innerHTML=development.map(profileCard).join("");byId("mobile-profiles").innerHTML=mobile.map(profileCard).join("");const select=byId("project-profile");const selected=select.value;select.innerHTML=profiles.map(x=>`<option value="${esc(x.name)}">${esc(x.title||x.name)}</option>`).join("");if(profiles.some(x=>x.name===selected))select.value=selected;
+    const cp=data.control_plane||{};byId("control-plane").innerHTML=Object.entries(cp).map(([name,row])=>`<div class="item"><div class="item-head"><h4>${esc(name)}</h4><span class="${row.running?"ok":"bad"}">${row.running?"RUNNING":"STOPPED"}</span></div><p>${esc(row.status)}</p></div>`).join("");const runners=p.runners||{};const gha=runners.github_actions||{};byId("overview-runners").innerHTML=`<div class="item"><div class="item-head"><h4>GitHub Actions</h4><span class="${gha.safe?"ok":"bad"}">${gha.safe?"AUTHORIZED":"UNAVAILABLE"}</span></div><p>Scopes: ${esc((gha.scopes||[]).join(", ")||"none")}</p><div class="meta">${(runners.local||[]).map(x=>`<span class="badge">${esc(x)}</span>`).join("")}${(runners.external||[]).map(x=>`<span class="badge">${esc(x)}</span>`).join("")}</div></div>`;byId("runner-list").innerHTML=byId("overview-runners").innerHTML;byId("repository-list").innerHTML=projects.filter(x=>x.repository).map(x=>`<div class="item"><div class="item-head"><h4>${esc(x.name)}</h4><span class="badge ok">BOUND</span></div><p>${esc(x.repository)} · ${esc(x.branch||"main")} · ${esc(x.workflow||"no workflow")}</p></div>`).join("")||'<div class="empty">No published repositories.</div>';
+    const targetKeys=["juice-shop","dvwa","webgoat"];byId("target-count").textContent=`${targetKeys.filter(k=>data.services?.[k]?.running).length} / 3`;const findings=data.findings||{};byId("finding-count").textContent=Object.values(findings).reduce((a,b)=>a+Number(b||0),0);byId("case-count").textContent=data.cases||0;byId("range-state").textContent=String(data.lab||"offline").toUpperCase();byId("range-state").className=stateClass(data.lab);byId("security-services").innerHTML=Object.values(data.services||{}).map(serviceCard).join("");const levels=["critical","high","medium","low","info"];byId("severity").innerHTML=levels.map(l=>`<div><b>${Number(findings[l]||0)}</b><span>${l}</span></div>`).join("");byId("security-tools").innerHTML=Object.entries(data.tools||{}).map(([t,present])=>`<span class="badge ${present?"ok":""}">${esc(t)}</span>`).join("");const activity=(data.activity||[]).join("\n");byId("activity-log").textContent=activity||"No activity recorded.";byId("active-action").textContent=data.active_action||"IDLE";byId("active-action").className=`badge ${data.active_action?"warn":"ok"}`;wireButtons()}
+  async function refresh(){try{const r=await fetch("/api/status",{cache:"no-store"});if(!r.ok)throw new Error("status unavailable");render(await r.json())}catch(e){byId("platform-status").textContent="CONSOLE DEGRADED";byId("platform-status").className="status bad";toast(e.message)}}
+  all("[data-tab]").forEach(b=>b.onclick=()=>{all("[data-tab]").forEach(x=>x.classList.toggle("active",x===b));all(".section").forEach(x=>x.classList.toggle("active",x.id===b.dataset.tab));byId("page-title").textContent=titles[b.dataset.tab]||"DPSR"});
+  byId("create-project").onclick=()=>{const name=byId("project-name").value.trim().toLowerCase(),profile=byId("project-profile").value;if(!name){toast("enter a project name");return}platformAction("create-project",{name,profile});byId("project-name").value=""};
+  const securityTarget=byId("security-actions");securityTarget.replaceChildren(...securityActions.map(([action,title,detail])=>{const b=document.createElement("button");b.className="action";b.innerHTML=`<strong>${esc(title)}</strong><small>${esc(detail)}</small>`;b.onclick=()=>securityAction(action,b);return b}));
+  refresh();setInterval(refresh,7000);
+</script>
 </body>
 </html>

@@ -15,11 +15,15 @@ from typing import Any
 from urllib.parse import urlparse
 
 from security_lab.common import ROOT, newest_directories, read_json
+from security_lab.platform import api as platform_api
 
 WEB = ROOT / "dashboard" / "web"
 ACTIVITY = ROOT / "reports" / "dashboard-activity.log"
 MAX_ACTION_BODY = 4096
 COMPOSE = ("docker", "compose", "-f", str(ROOT / "lab" / "docker-compose.yml"))
+PROJECT_NAME = re.compile(r"^[a-z0-9][a-z0-9._-]{1,62}$")
+DPSR = str(ROOT / "bin" / "dpsr")
+PLATFORM_CACHE_SECONDS = 4.0
 
 
 @dataclass(frozen=True)
@@ -74,7 +78,7 @@ class ActivityLog:
         with self._lock, self.path.open("a", encoding="utf-8") as handle:
             handle.write(f"[{stamp}] {message}\n")
 
-    def tail(self, limit: int = 60) -> list[str]:
+    def tail(self, limit: int = 80) -> list[str]:
         try:
             return self.path.read_text(encoding="utf-8", errors="replace").splitlines()[-limit:]
         except OSError:
@@ -97,14 +101,13 @@ class ActionManager:
             if self._active is not None:
                 return False
             self._active = name
-
         threading.Thread(target=self._worker, args=(name, argv), daemon=True).start()
         return True
 
     def _worker(self, name: str, argv: tuple[str, ...]) -> None:
         self.log.write(f"ACTION {name}: started")
         try:
-            process = subprocess.Popen(  # nosec B603 - action argv comes exclusively from ACTION_COMMANDS.
+            process = subprocess.Popen(  # nosec B603 - argv is server-constructed and never evaluated by a shell.
                 list(argv),
                 cwd=ROOT,
                 text=True,
@@ -129,6 +132,9 @@ class DashboardState:
     def __init__(self, log: ActivityLog, actions: ActionManager) -> None:
         self.log = log
         self.actions = actions
+        self._platform_lock = threading.Lock()
+        self._platform_cached_at = 0.0
+        self._platform_cache: dict[str, Any] = {}
 
     def payload(self) -> dict[str, Any]:
         stats = self._docker_stats()
@@ -161,7 +167,47 @@ class DashboardState:
             "pipeline": pipeline,
             "validation": validation,
             "active_action": self.actions.active,
+            "platform": self._platform_snapshot(),
+            "control_plane": self._control_plane(),
         }
+
+    def _platform_snapshot(self) -> dict[str, Any]:
+        now = time.monotonic()
+        with self._platform_lock:
+            if self._platform_cache and now - self._platform_cached_at < PLATFORM_CACHE_SECONDS:
+                return self._platform_cache
+            try:
+                snapshot = platform_api.snapshot(30)
+                snapshot["error"] = None
+            except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+                snapshot = {
+                    "platform": "dpsr-v2",
+                    "profiles": [],
+                    "projects": [],
+                    "jobs": [],
+                    "counts": {"profiles": 0, "projects": 0, "jobs": 0},
+                    "runners": {},
+                    "error": str(exc),
+                }
+            self._platform_cache = snapshot
+            self._platform_cached_at = now
+            return snapshot
+
+    @staticmethod
+    def _control_plane() -> dict[str, dict[str, Any]]:
+        commands = {
+            "bridge": ["bash", str(ROOT / "bin" / "remote-agent"), "status"],
+            "mcp": ["bash", str(ROOT / "bin" / "mcp-control"), "status"],
+            "dashboard": ["bash", str(ROOT / "bin" / "dashboard-control"), "status"],
+        }
+        output: dict[str, dict[str, Any]] = {}
+        for name, argv in commands.items():
+            result = CommandRunner.run(argv, timeout=4)
+            output[name] = {
+                "running": result.returncode == 0,
+                "status": result.stdout or result.stderr or "unknown",
+            }
+        return output
 
     @staticmethod
     def _container_state(name: str) -> dict[str, Any]:
@@ -194,7 +240,6 @@ class DashboardState:
         )
         if result.returncode:
             return {}
-
         stats: dict[str, dict[str, str]] = {}
         for line in result.stdout.splitlines():
             try:
@@ -233,7 +278,6 @@ class DashboardState:
         levels = ("critical", "high", "medium", "low", "info")
         if isinstance(severity, dict):
             return {level: int(severity.get(level, 0)) for level in levels}
-
         counts = {level: 0 for level in levels}
         scans = newest_directories(ROOT / "reports", "lab-*")
         if not scans:
@@ -333,7 +377,6 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
     def request_origin_allowed(self) -> bool:
-        """Reject explicit cross-site requests and require exact Origin/Host agreement when present."""
         if self.headers.get("Sec-Fetch-Site", "").lower() == "cross-site":
             return False
         origin = self.headers.get("Origin")
@@ -342,6 +385,38 @@ class Handler(SimpleHTTPRequestHandler):
         host = self.headers.get("Host", "")
         parsed = urlparse(origin)
         return parsed.scheme in {"http", "https"} and bool(host) and parsed.netloc == host
+
+    def _read_json_body(self) -> dict[str, Any] | None:
+        if not self.request_origin_allowed():
+            self.send_json({"error": "cross-origin request denied"}, 403)
+            return None
+        if self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/json":
+            self.send_json({"error": "application/json required"}, 415)
+            return None
+        raw_length = self.headers.get("Content-Length")
+        if raw_length is None:
+            self.send_json({"error": "content length required"}, 411)
+            return None
+        try:
+            length = int(raw_length)
+        except ValueError:
+            self.send_json({"error": "invalid content length"}, 400)
+            return None
+        if length < 1:
+            self.send_json({"error": "empty request body"}, 400)
+            return None
+        if length > MAX_ACTION_BODY:
+            self.send_json({"error": "request body too large"}, 413)
+            return None
+        try:
+            payload = json.loads(self.rfile.read(length))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            self.send_json({"error": "invalid json"}, 400)
+            return None
+        if not isinstance(payload, dict):
+            self.send_json({"error": "invalid payload"}, 400)
+            return None
+        return payload
 
     def do_GET(self) -> None:
         path = urlparse(self.path).path
@@ -352,47 +427,15 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_json({"activity": self.state.log.tail()})
             return
         if path == "/health":
-            self.send_json({"ok": True})
+            self.send_json({"ok": True, "platform": "dpsr-v2"})
             return
         super().do_GET()
 
-    def do_POST(self) -> None:
-        if urlparse(self.path).path != "/api/action":
-            self.send_json({"error": "not found"}, 404)
-            return
-        if not self.request_origin_allowed():
-            self.send_json({"error": "cross-origin request denied"}, 403)
-            return
-        if self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/json":
-            self.send_json({"error": "application/json required"}, 415)
-            return
-
-        raw_length = self.headers.get("Content-Length")
-        if raw_length is None:
-            self.send_json({"error": "content length required"}, 411)
-            return
-        try:
-            length = int(raw_length)
-        except ValueError:
-            self.send_json({"error": "invalid content length"}, 400)
-            return
-        if length < 1:
-            self.send_json({"error": "empty request body"}, 400)
-            return
-        if length > MAX_ACTION_BODY:
-            self.send_json({"error": "request body too large"}, 413)
-            return
-
-        try:
-            payload = json.loads(self.rfile.read(length))
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            self.send_json({"error": "invalid json"}, 400)
-            return
-        if not isinstance(payload, dict) or not isinstance(payload.get("action"), str):
+    def _security_action(self, payload: dict[str, Any]) -> None:
+        requested = payload.get("action")
+        if not isinstance(requested, str):
             self.send_json({"error": "invalid payload"}, 400)
             return
-
-        requested = payload["action"]
         action = ACTION_COMMANDS.get(requested)
         if action is None:
             self.send_json({"error": "unsupported action"}, 400)
@@ -402,6 +445,69 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_json({"error": "another action is already running", "active": self.actions.active}, 409)
             return
         self.send_json({"ok": True, "action": requested}, 202)
+
+    def _platform_action(self, payload: dict[str, Any]) -> None:
+        operation = payload.get("operation")
+        if not isinstance(operation, str):
+            self.send_json({"error": "invalid platform operation"}, 400)
+            return
+
+        if operation == "create-project":
+            name = str(payload.get("name") or "").strip().lower()
+            profile = str(payload.get("profile") or "").strip()
+            if not PROJECT_NAME.fullmatch(name):
+                self.send_json({"error": "invalid project name"}, 400)
+                return
+            allowed_profiles = {str(row["name"]) for row in platform_api.profiles()}
+            if profile not in allowed_profiles:
+                self.send_json({"error": "unsupported profile"}, 400)
+                return
+            label = f"project-init:{name}"
+            argv = (DPSR, "project", "init", name, "--profile", profile)
+        elif operation == "publish-project":
+            name = str(payload.get("project") or "").strip().lower()
+            try:
+                project = platform_api.project(name)
+            except ValueError:
+                self.send_json({"error": "unknown project"}, 404)
+                return
+            label = f"project-publish:{name}"
+            argv = (DPSR, "project", "publish", str(project["name"]), "--visibility", "private")
+        elif operation == "run-job":
+            name = str(payload.get("project") or "").strip().lower()
+            command = str(payload.get("command") or "").strip()
+            try:
+                project = platform_api.project(name)
+            except ValueError:
+                self.send_json({"error": "unknown project"}, 404)
+                return
+            commands = {str(item) for item in project.get("commands", [])}
+            if command not in commands:
+                self.send_json({"error": "unsupported project command"}, 400)
+                return
+            label = f"job:{name}:{command}"
+            argv = (DPSR, "job", "run", str(project["name"]), command)
+        else:
+            self.send_json({"error": "unsupported platform operation"}, 400)
+            return
+
+        if not self.actions.submit(label, argv):
+            self.send_json({"error": "another action is already running", "active": self.actions.active}, 409)
+            return
+        self.send_json({"ok": True, "operation": operation, "action": label}, 202)
+
+    def do_POST(self) -> None:
+        path = urlparse(self.path).path
+        if path not in {"/api/action", "/api/platform/action"}:
+            self.send_json({"error": "not found"}, 404)
+            return
+        payload = self._read_json_body()
+        if payload is None:
+            return
+        if path == "/api/action":
+            self._security_action(payload)
+            return
+        self._platform_action(payload)
 
 
 def main() -> int:
@@ -423,15 +529,15 @@ def main() -> int:
 
     try:
         with ThreadingHTTPServer((host, port), Handler) as server:
-            activity.write(f"DPSR Operations Console listening on http://{host}:{port}")
-            print(f"DPSR Operations Console: http://{host}:{port}")
+            activity.write(f"DPSR Platform Console listening on http://{host}:{port}")
+            print(f"DPSR Platform Console: http://{host}:{port}")
             print("Keep the forwarded Codespaces port private. Ctrl-C to stop.")
             try:
                 server.serve_forever()
             except KeyboardInterrupt:
                 return 0
     except OSError as exc:
-        print(f"Unable to start DPSR Operations Console: {exc}", file=sys.stderr)
+        print(f"Unable to start DPSR Platform Console: {exc}", file=sys.stderr)
         return 1
     return 0
 
