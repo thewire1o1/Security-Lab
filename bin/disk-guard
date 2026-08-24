@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -u
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODE="${1:-auto}"
 THRESHOLD="${DISK_GUARD_THRESHOLD:-82}"
 
@@ -13,10 +14,21 @@ show_space() {
   df -h / | awk 'NR==2 {printf "%s used, %s free (%s)\n", $3, $4, $5}'
 }
 
+refresh_agent() {
+  mkdir -p "$ROOT/reports"
+  nohup bash -c '
+    sleep 3
+    bash "$1/bin/remote-agent" stop || true
+    sleep 1
+    bash "$1/bin/remote-agent" start || true
+  ' _ "$ROOT" >>"$ROOT/reports/remote-agent-refresh.log" 2>&1 </dev/null &
+}
+
 before="$(usage_pct 2>/dev/null || echo 0)"
 show_space
 
 if [ "$MODE" != "--force" ] && [ "${before:-0}" -lt "$THRESHOLD" ]; then
+  refresh_agent
   exit 0
 fi
 
@@ -31,3 +43,4 @@ docker builder prune -af --filter 'until=24h' >/dev/null 2>&1 || true
 
 printf '[+] Cleanup complete.\n'
 show_space
+refresh_agent
