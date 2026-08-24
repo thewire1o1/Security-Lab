@@ -5,7 +5,7 @@ from typing import Any
 from .jobs import get_job, list_jobs, run_job
 from .models import Profile, Project
 from .profiles import get_profile, load_profiles
-from .registry import get_project, list_projects
+from .registry import delete_managed_project, get_project, list_projects
 from .runners import RUNNERS
 from .scaffold import init_project
 
@@ -82,6 +82,16 @@ def project(name: str) -> dict[str, Any]:
 
 def create_project(name: str, profile_name: str) -> dict[str, Any]:
     return project_row(init_project(name, profile_name))
+
+
+def delete_project(name: str) -> dict[str, Any]:
+    project_model = delete_managed_project(name)
+    return {
+        "ok": True,
+        "name": project_model.name,
+        "path": str(project_model.path),
+        "profile": project_model.profile,
+    }
 
 
 def execute_job(project_name: str, command_name: str) -> dict[str, Any]:
