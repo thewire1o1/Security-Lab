@@ -6,7 +6,7 @@ from pathlib import Path
 
 from security_lab.common import run_command
 
-from .models import CommandSpec, Profile
+from .models import CommandSpec, Profile, Project
 from .paths import PERSISTENT_ROOT, PROJECTS_ROOT
 from .profiles import get_profile
 from .registry import register_project
@@ -19,7 +19,8 @@ TOOLCHAINS_ROOT = PERSISTENT_ROOT / ".dpsr" / "toolchains"
 FLUTTER_ROOT = TOOLCHAINS_ROOT / "flutter"
 ANDROID_AGP = "9.3.0"
 ANDROID_GRADLE = "9.5.0"
-ANDROID_COMPILE_SDK = 37
+ANDROID_COMPILE_SDK = 36
+ANDROID_BUILD_TOOLS = "36.0.0"
 
 
 def _toml_string(value: str) -> str:
@@ -142,7 +143,7 @@ def _package_suffix(name: str) -> str:
 
 def _managed_destination(destination: Path) -> bool:
     try:
-        destination.relative_to(PROJECTS_ROOT.resolve())
+        destination.resolve().relative_to(PROJECTS_ROOT.resolve())
         return True
     except ValueError:
         return False
@@ -255,16 +256,10 @@ def _provision_react_native(destination: Path, name: str, profile: Profile) -> P
     return profile
 
 
-def _write_android_project(destination: Path, name: str) -> None:
+def _write_android_build_config(destination: Path, name: str) -> None:
     app = destination / "app"
-    source = app / "app" / "src" / "main"
-    package_suffix = _package_suffix(name)
-    package = f"com.digitalparagon.{package_suffix}"
-    package_path = source / "java" / "com" / "digitalparagon" / package_suffix
-    values = source / "res" / "values"
-    package_path.mkdir(parents=True, exist_ok=True)
-    values.mkdir(parents=True, exist_ok=True)
-
+    package = f"com.digitalparagon.{_package_suffix(name)}"
+    app.mkdir(parents=True, exist_ok=True)
     (app / "settings.gradle.kts").write_text(
         'pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }\n'
         'dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }\n'
@@ -297,6 +292,18 @@ def _write_android_project(destination: Path, name: str) -> None:
         "}\n",
         encoding="utf-8",
     )
+    (app / "gradle.properties").write_text("org.gradle.jvmargs=-Xmx2g -Dfile.encoding=UTF-8\n", encoding="utf-8")
+    (app / ".gitignore").write_text(".gradle/\nlocal.properties\nbuild/\napp/build/\n", encoding="utf-8")
+
+
+def _write_android_source(destination: Path, name: str) -> None:
+    source = destination / "app" / "app" / "src" / "main"
+    package_suffix = _package_suffix(name)
+    package = f"com.digitalparagon.{package_suffix}"
+    package_path = source / "java" / "com" / "digitalparagon" / package_suffix
+    values = source / "res" / "values"
+    package_path.mkdir(parents=True, exist_ok=True)
+    values.mkdir(parents=True, exist_ok=True)
     (source / "AndroidManifest.xml").write_text(
         '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n'
         '    <application android:theme="@style/AppTheme" android:label="@string/app_name">\n'
@@ -311,7 +318,8 @@ def _write_android_project(destination: Path, name: str) -> None:
         encoding="utf-8",
     )
     (values / "strings.xml").write_text(
-        f'<resources><string name="app_name">{_pascal_name(name)}</string></resources>\n', encoding="utf-8"
+        f'<resources><string name="app_name">{_pascal_name(name)}</string></resources>\n',
+        encoding="utf-8",
     )
     (values / "styles.xml").write_text(
         '<resources><style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar" /></resources>\n',
@@ -333,8 +341,6 @@ def _write_android_project(destination: Path, name: str) -> None:
         "}\n",
         encoding="utf-8",
     )
-    (app / "gradle.properties").write_text("org.gradle.jvmargs=-Xmx2g -Dfile.encoding=UTF-8\n", encoding="utf-8")
-    (app / ".gitignore").write_text(".gradle/\nlocal.properties\nbuild/\napp/build/\n", encoding="utf-8")
 
 
 def _write_android_workflow(destination: Path) -> None:
@@ -359,7 +365,7 @@ def _write_android_workflow(destination: Path) -> None:
         "      - uses: gradle/actions/setup-gradle@v4\n"
         "        with:\n"
         f"          gradle-version: '{ANDROID_GRADLE}'\n"
-        f"      - run: sdkmanager 'platforms;android-{ANDROID_COMPILE_SDK}' 'build-tools;36.0.0'\n"
+        f"      - run: sdkmanager 'platforms;android-{ANDROID_COMPILE_SDK}' 'build-tools;{ANDROID_BUILD_TOOLS}'\n"
         "      - run: gradle lint test assembleDebug\n"
         "        working-directory: app\n",
         encoding="utf-8",
@@ -368,17 +374,15 @@ def _write_android_workflow(destination: Path) -> None:
 
 def _provision_android(destination: Path, name: str, profile: Profile) -> Profile:
     destination.mkdir(parents=True, exist_ok=True)
-    _write_android_project(destination, name)
+    _write_android_build_config(destination, name)
+    _write_android_source(destination, name)
     _write_android_workflow(destination)
     return profile
 
 
-def _write_ios_project(destination: Path, name: str) -> None:
-    app = destination / "app"
-    sources = app / "Sources"
+def _write_ios_source(destination: Path) -> None:
+    sources = destination / "app" / "Sources"
     sources.mkdir(parents=True, exist_ok=True)
-    app_name = _pascal_name(name)
-    bundle = f"com.digitalparagon.{_package_suffix(name)}"
     (sources / "DpsrApp.swift").write_text(
         "import SwiftUI\n\n"
         "@main\n"
@@ -395,6 +399,13 @@ def _write_ios_project(destination: Path, name: str) -> None:
         "}\n",
         encoding="utf-8",
     )
+
+
+def _write_ios_project_spec(destination: Path, name: str) -> None:
+    app = destination / "app"
+    app.mkdir(parents=True, exist_ok=True)
+    app_name = _pascal_name(name)
+    bundle = f"com.digitalparagon.{_package_suffix(name)}"
     (app / "project.yml").write_text(
         f"name: {app_name}\n"
         "options:\n"
@@ -409,9 +420,16 @@ def _write_ios_project(destination: Path, name: str) -> None:
         "      base:\n"
         f"        PRODUCT_BUNDLE_IDENTIFIER: {bundle}\n"
         "        SWIFT_VERSION: 6.0\n"
-        "        CODE_SIGN_STYLE: Automatic\n",
+        "        CODE_SIGN_STYLE: Automatic\n"
+        "        GENERATE_INFOPLIST_FILE: YES\n"
+        f"        INFOPLIST_KEY_CFBundleDisplayName: {app_name}\n"
+        "        INFOPLIST_KEY_UILaunchScreen_Generation: YES\n",
         encoding="utf-8",
     )
+
+
+def _write_ios_workflow(destination: Path, name: str) -> None:
+    app_name = _pascal_name(name)
     workflow = destination / ".github" / "workflows" / "ios.yml"
     workflow.parent.mkdir(parents=True, exist_ok=True)
     workflow.write_text(
@@ -432,6 +450,12 @@ def _write_ios_project(destination: Path, name: str) -> None:
         "          -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO\n",
         encoding="utf-8",
     )
+
+
+def _write_ios_project(destination: Path, name: str) -> None:
+    _write_ios_source(destination)
+    _write_ios_project_spec(destination, name)
+    _write_ios_workflow(destination, name)
     (destination / ".gitignore").write_text("app/*.xcodeproj/\nDerivedData/\n", encoding="utf-8")
 
 
@@ -505,6 +529,24 @@ def _write_react_native_workflow(destination: Path) -> None:
         "        working-directory: app/android\n",
         encoding="utf-8",
     )
+
+
+def refresh_mobile_build_files(project: Project) -> Project:
+    if project.profile not in MOBILE_PROFILES:
+        raise ValueError(f"Project '{project.name}' is not a mobile profile.")
+    if not _managed_destination(project.path):
+        raise ValueError("Mobile template refresh is limited to managed DPSR projects.")
+    if project.profile == "android":
+        _write_android_build_config(project.path, project.name)
+        _write_android_workflow(project.path)
+    elif project.profile == "ios":
+        _write_ios_project_spec(project.path, project.name)
+        _write_ios_workflow(project.path, project.name)
+    elif project.profile == "flutter":
+        _write_flutter_workflow(project.path)
+    else:
+        _write_react_native_workflow(project.path)
+    return register_project(project.path)
 
 
 def init_mobile_project(name: str, profile_name: str, target: Path | None = None):
