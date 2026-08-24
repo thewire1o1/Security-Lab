@@ -10,7 +10,7 @@
     "scaffold": "ios"
   },
   "commands": {
-    "build": {"argv": ["bash", "tools/ios-build"], "cwd": ".", "timeout": 3600}
+    "build": {"argv": ["xcodegen", "generate", "--spec", "app/project.yml"], "cwd": ".", "timeout": 600}
   },
   "services": {}
 }
