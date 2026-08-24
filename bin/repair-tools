@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WORKSPACE="$ROOT"
+TOOLS_HOME="$HOME/tools"
+GO_BIN="$HOME/go/bin"
+mkdir -p "$TOOLS_HOME" "$GO_BIN" "$HOME/.local/bin" "$WORKSPACE/reports"
+
+LOG="$WORKSPACE/reports/repair-tools-$(date +%Y%m%d-%H%M%S).log"
+exec > >(tee -a "$LOG") 2>&1
+
+printf '\n[+] Repairing DPSR tooling...\n'
+printf '[+] Log: %s\n' "$LOG"
+
+sudo apt-get update -y >/dev/null
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y jq curl ca-certificates perl libnet-ssleay-perl pipx git unzip gnupg >/dev/null
+
+case "$(uname -m)" in
+  x86_64) GOARCH=amd64 ;;
+  aarch64|arm64) GOARCH=arm64 ;;
+  *) echo "Unsupported architecture: $(uname -m)"; exit 1 ;;
+esac
+
+GO_META="$(curl -fsSL 'https://go.dev/dl/?mode=json')"
+GO_VERSION="$(jq -r '.[0].version' <<<"$GO_META")"
+GO_FILE="${GO_VERSION}.linux-${GOARCH}.tar.gz"
+GO_SHA256="$(jq -r --arg file "$GO_FILE" '.[0].files[] | select(.filename == $file) | .sha256' <<<"$GO_META")"
+[ -n "$GO_VERSION" ] && [ -n "$GO_SHA256" ] && [ "$GO_SHA256" != "null" ] || {
+  echo 'Unable to resolve Go release metadata.' >&2
+  exit 1
+}
+CURRENT_GO="$(/usr/local/go/bin/go version 2>/dev/null | awk '{print $3}' || true)"
+if [ "$CURRENT_GO" != "$GO_VERSION" ]; then
+  printf '[+] Installing current Go: %s\n' "$GO_VERSION"
+  GO_ARCHIVE="$(mktemp)"
+  trap 'rm -f "${GO_ARCHIVE:-}"' EXIT
+  curl -fsSL "https://go.dev/dl/$GO_FILE" -o "$GO_ARCHIVE"
+  printf '%s  %s\n' "$GO_SHA256" "$GO_ARCHIVE" | sha256sum -c -
+  sudo rm -rf /usr/local/go
+  sudo tar -C /usr/local -xzf "$GO_ARCHIVE"
+  rm -f "$GO_ARCHIVE"
+  trap - EXIT
+fi
+
+export PATH="/usr/local/go/bin:$GO_BIN:$HOME/.local/bin:$PATH"
+
+GOBIN="$GO_BIN" /usr/local/go/bin/go install github.com/projectdiscovery/pdtm/cmd/pdtm@latest
+"$GO_BIN/pdtm" -bp "$GO_BIN" -i nuclei,httpx,subfinder,naabu,dnsx,katana -nc || true
+
+declare -A PD_MODULES=(
+  [nuclei]='github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest'
+  [httpx]='github.com/projectdiscovery/httpx/cmd/httpx@latest'
+  [subfinder]='github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest'
+  [naabu]='github.com/projectdiscovery/naabu/v2/cmd/naabu@latest'
+  [dnsx]='github.com/projectdiscovery/dnsx/cmd/dnsx@latest'
+  [katana]='github.com/projectdiscovery/katana/cmd/katana@latest'
+)
+
+for cmd in nuclei httpx subfinder naabu dnsx katana; do
+  if [ ! -x "$GO_BIN/$cmd" ]; then
+    GOBIN="$GO_BIN" /usr/local/go/bin/go install "${PD_MODULES[$cmd]}" || true
+  fi
+done
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  printf '[+] Installing Gitleaks\n'
+  GOBIN="$GO_BIN" /usr/local/go/bin/go install github.com/zricethezav/gitleaks/v8@latest
+fi
+
+if ! command -v trivy >/dev/null 2>&1; then
+  printf '[+] Installing Trivy\n'
+  curl -fsSL https://aquasecurity.github.io/trivy-repo/deb/public.key \
+    | gpg --dearmor \
+    | sudo tee /usr/share/keyrings/trivy.gpg >/dev/null
+  printf '%s\n' 'deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main' \
+    | sudo tee /etc/apt/sources.list.d/trivy.list >/dev/null
+  sudo apt-get update -y >/dev/null
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y trivy >/dev/null
+fi
+
+rm -rf "$TOOLS_HOME/nikto.tmp"
+if git -C "$TOOLS_HOME/nikto" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  if ! git -C "$TOOLS_HOME/nikto" pull --ff-only; then
+    rm -rf "$TOOLS_HOME/nikto"
+    git clone --depth 1 https://github.com/sullo/nikto.git "$TOOLS_HOME/nikto"
+  fi
+else
+  rm -rf "$TOOLS_HOME/nikto"
+  git clone --depth 1 https://github.com/sullo/nikto.git "$TOOLS_HOME/nikto"
+fi
+if [ -f "$TOOLS_HOME/nikto/program/nikto.pl" ]; then
+  chmod +x "$TOOLS_HOME/nikto/program/nikto.pl"
+  ln -sf "$TOOLS_HOME/nikto/program/nikto.pl" "$HOME/.local/bin/nikto"
+fi
+
+pipx ensurepath >/dev/null 2>&1 || true
+if pipx list 2>/dev/null | grep -q 'package impacket '; then
+  pipx reinstall impacket >/dev/null || true
+else
+  pipx install impacket >/dev/null || true
+fi
+
+sed -i '/SECURITY-GO/,/SECURITY-GO.*<<</d' "$HOME/.bashrc" 2>/dev/null || true
+sed -i '/DPSR-GO/,/DPSR-GO.*<<</d' "$HOME/.bashrc" 2>/dev/null || true
+cat >> "$HOME/.bashrc" <<'EOF'
+
+# >>> DPSR-GO >>>
+export PATH="/usr/local/go/bin:$HOME/go/bin:$HOME/.local/bin:$PATH"
+# <<< DPSR-GO <<<
+EOF
+
+if [ -x "$GO_BIN/nuclei" ]; then
+  "$GO_BIN/nuclei" -update-templates >/dev/null 2>&1 || true
+fi
+
+printf '\n[+] Repair complete: %s\n' "$LOG"

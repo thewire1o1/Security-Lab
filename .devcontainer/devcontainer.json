@@ -1,0 +1,47 @@
+{
+  "name": "Digital Paragon Security Research",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+  "hostRequirements": {
+    "cpus": 2,
+    "memory": "8gb",
+    "storage": "32gb"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "moby": true,
+      "dockerDashComposeVersion": "v2"
+    },
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "installOhMyZsh": false,
+      "username": "node"
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/bootstrap.sh",
+  "postStartCommand": "bash bin/codespace-ensure || true; bash bin/disk-guard --auto || true; bash admin/control-plane-supervisor start || true",
+  "remoteUser": "node",
+  "forwardPorts": [3000, 8080, 8081, 8765, 8766, 9090],
+  "portsAttributes": {
+    "3000": { "label": "OWASP Juice Shop", "onAutoForward": "silent" },
+    "8080": { "label": "DVWA", "onAutoForward": "silent" },
+    "8081": { "label": "WebGoat", "onAutoForward": "silent" },
+    "8765": { "label": "DPSR Operations Console", "onAutoForward": "notify" },
+    "8766": { "label": "DPSR MCP", "onAutoForward": "silent" },
+    "9090": { "label": "WebWolf", "onAutoForward": "silent" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-azuretools.vscode-docker",
+        "ms-python.python",
+        "redhat.vscode-yaml",
+        "timonwong.shellcheck",
+        "eamodio.gitlens"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  }
+}

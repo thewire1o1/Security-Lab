@@ -1,0 +1,27 @@
+# DPSR project manifest
+[project]
+name = "security-lab"
+profile = "security"
+category = "security"
+
+[runner]
+type = "local"
+
+[services]
+dashboard = 8765
+mcp = 8766
+
+[commands.lint]
+argv = ["python3", "-m", "compileall", "-q", "security_lab"]
+cwd = "."
+timeout = 120
+
+[commands.test]
+argv = ["python3", "-m", "unittest", "discover", "-s", "tests", "-v"]
+cwd = "."
+timeout = 600
+
+[commands.doctor]
+argv = ["bin/dpsr", "doctor"]
+cwd = "."
+timeout = 120

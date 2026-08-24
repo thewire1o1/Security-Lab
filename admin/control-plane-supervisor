@@ -1,0 +1,189 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PIDFILE="$ROOT/.control-plane-supervisor.pid"
+LOCKFILE="$ROOT/.control-plane-supervisor.lock"
+LOGFILE="$ROOT/reports/control-plane-supervisor.log"
+INTERVAL="${DPSR_SUPERVISOR_INTERVAL:-10}"
+
+read_pid() {
+  if [ -f "$PIDFILE" ]; then
+    cat "$PIDFILE" 2>/dev/null || true
+  fi
+}
+
+is_running() {
+  local pid
+  pid="$(read_pid)"
+  [ -n "$pid" ] || return 1
+  kill -0 "$pid" 2>/dev/null || return 1
+  tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -q 'control-plane-supervisor run'
+}
+
+log_line() {
+  printf '[%s] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"
+}
+
+port_open() {
+  local port="$1"
+  python3 - "$port" <<'PY'
+import socket
+import sys
+port = int(sys.argv[1])
+try:
+    with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+        pass
+except OSError:
+    raise SystemExit(1)
+PY
+}
+
+dashboard_healthy() {
+  python3 - <<'PY'
+import json
+import urllib.request
+try:
+    with urllib.request.urlopen("http://127.0.0.1:8765/health", timeout=1.0) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+except Exception:
+    raise SystemExit(1)
+raise SystemExit(0 if payload.get("ok") is True else 1)
+PY
+}
+
+service_disabled() {
+  case "$1" in
+    bridge) [ -f "$ROOT/.remote-agent.disabled" ] ;;
+    mcp) [ -f "$ROOT/.mcp.disabled" ] ;;
+    gui) [ -f "$ROOT/.dashboard.disabled" ] ;;
+    *) return 1 ;;
+  esac
+}
+
+service_healthy() {
+  case "$1" in
+    bridge) bash "$ROOT/bin/remote-agent" status >/dev/null 2>&1 ;;
+    mcp) bash "$ROOT/bin/mcp-control" status >/dev/null 2>&1 && port_open "${DPSR_MCP_PORT:-8766}" ;;
+    gui) bash "$ROOT/bin/dashboard-control" status >/dev/null 2>&1 && dashboard_healthy ;;
+    *) return 2 ;;
+  esac
+}
+
+service_start() {
+  case "$1" in
+    bridge) bash "$ROOT/bin/remote-agent" start ;;
+    mcp) bash "$ROOT/bin/mcp-control" start ;;
+    gui) bash "$ROOT/bin/dashboard-control" start ;;
+    *) return 2 ;;
+  esac
+}
+
+ensure_service() {
+  local name="$1"
+  if service_disabled "$name"; then
+    return 0
+  fi
+  if service_healthy "$name"; then
+    return 0
+  fi
+  log_line "$name unhealthy; restarting"
+  if service_start "$name"; then
+    log_line "$name recovered"
+  else
+    log_line "$name recovery failed"
+  fi
+}
+
+run_loop() {
+  mkdir -p "$ROOT/reports"
+  exec 9>"$LOCKFILE"
+  if ! flock -n 9; then
+    log_line "another supervisor instance already owns the lock"
+    return 0
+  fi
+  trap 'log_line "supervisor stopping"; rm -f "$PIDFILE"; exit 0' INT TERM EXIT
+  printf '%s\n' "$$" > "$PIDFILE"
+  log_line "supervisor started interval=${INTERVAL}s"
+  while true; do
+    ensure_service bridge
+    ensure_service mcp
+    ensure_service gui
+    sleep "$INTERVAL"
+  done
+}
+
+start_supervisor() {
+  mkdir -p "$ROOT/reports"
+  if is_running; then
+    printf 'DPSR control-plane supervisor running: pid=%s\n' "$(read_pid)"
+    return 0
+  fi
+  rm -f "$PIDFILE"
+  nohup bash "$0" run >>"$LOGFILE" 2>&1 </dev/null &
+  local pid=$!
+  printf '%s\n' "$pid" > "$PIDFILE"
+  for _ in $(seq 1 20); do
+    if is_running; then
+      printf 'DPSR control-plane supervisor running: pid=%s\n' "$(read_pid)"
+      return 0
+    fi
+    sleep 0.25
+  done
+  printf 'DPSR control-plane supervisor failed to start.\n' >&2
+  tail -n 40 "$LOGFILE" >&2 || true
+  return 1
+}
+
+stop_supervisor() {
+  if ! is_running; then
+    rm -f "$PIDFILE"
+    printf 'DPSR control-plane supervisor stopped.\n'
+    return 0
+  fi
+  local pid
+  pid="$(read_pid)"
+  kill "$pid" 2>/dev/null || true
+  for _ in $(seq 1 30); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      rm -f "$PIDFILE"
+      printf 'DPSR control-plane supervisor stopped.\n'
+      return 0
+    fi
+    sleep 0.1
+  done
+  kill -9 "$pid" 2>/dev/null || true
+  rm -f "$PIDFILE"
+  printf 'DPSR control-plane supervisor stopped.\n'
+}
+
+status_supervisor() {
+  if is_running; then
+    printf 'DPSR control-plane supervisor running: pid=%s\n' "$(read_pid)"
+    for service in bridge mcp gui; do
+      if service_disabled "$service"; then
+        printf '%s: intentionally disabled\n' "$service"
+      elif service_healthy "$service"; then
+        printf '%s: healthy\n' "$service"
+      else
+        printf '%s: unhealthy\n' "$service"
+      fi
+    done
+    return 0
+  fi
+  rm -f "$PIDFILE"
+  printf 'DPSR control-plane supervisor stopped.\n'
+  return 1
+}
+
+case "${1:-status}" in
+  start) start_supervisor ;;
+  stop) stop_supervisor ;;
+  restart) stop_supervisor; start_supervisor ;;
+  status) status_supervisor ;;
+  run) run_loop ;;
+  *)
+    printf 'Usage: %s {start|stop|restart|status}\n' "$0" >&2
+    exit 2
+    ;;
+esac

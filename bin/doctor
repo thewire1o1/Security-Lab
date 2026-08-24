@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export PATH="/usr/local/go/bin:$HOME/go/bin:$HOME/.local/bin:$ROOT/bin:$PATH"
+
+TOOLS=(
+  dpsr sec docker nmap masscan sqlmap nikto hydra john pdtm nuclei httpx subfinder
+  naabu dnsx katana ffuf waybackurls assetfinder gau semgrep pip-audit bandit
+  gitleaks trivy shellcheck jq gh
+)
+PIPELINE=(code-review validate-findings fuzz-run triage research defense-run review-engine remote-agent)
+
+print_tool() {
+  local command="$1" version
+  if ! command -v "$command" >/dev/null 2>&1; then
+    printf '[--] %-20s missing\n' "$command"
+    return
+  fi
+  version="$($command --version 2>/dev/null | head -n 1 || true)"
+  [ -n "$version" ] || version='installed'
+  printf '[OK] %-20s %s\n' "$command" "$version"
+}
+
+printf 'Digital Paragon Security Research diagnostics\n\n'
+for command in "${TOOLS[@]}"; do
+  print_tool "$command"
+done
+
+printf '\nRepository:\n'
+printf '  head=%s\n' "$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || printf unknown)"
+repo_status="$(git -C "$ROOT" status --short --branch 2>/dev/null || true)"
+if [ -n "$repo_status" ]; then
+  while IFS= read -r line; do
+    printf '  %s\n' "$line"
+  done <<<"$repo_status"
+else
+  printf '  [--] Git status unavailable.\n'
+fi
+
+printf '\nPython package:\n'
+if (cd "$ROOT" && python3 -c 'import security_lab, security_lab.remote_agent, security_lab.dashboard'); then
+  printf '  [OK] security_lab importable\n'
+else
+  printf '  [--] security_lab import failed\n'
+fi
+
+printf '\nDocker:\n'
+if command -v docker >/dev/null 2>&1; then
+  docker info --format '  server={{.ServerVersion}} containers={{.Containers}} images={{.Images}}' 2>/dev/null \
+    || printf '  Docker daemon unavailable.\n'
+else
+  printf '  Docker CLI unavailable.\n'
+fi
+
+printf '\nKali operator image:\n'
+if command -v docker >/dev/null 2>&1 && \
+   (docker image inspect ghcr.io/thewire1o1/dpsr-kali:latest >/dev/null 2>&1 || \
+    docker image inspect dpsr-kali:latest >/dev/null 2>&1); then
+  printf '  [OK] available\n'
+else
+  printf '  [--] not available yet\n'
+fi
+
+printf '\nDefensive pipeline:\n'
+for file in "${PIPELINE[@]}"; do
+  if [ -f "$ROOT/bin/$file" ]; then
+    printf '  [OK] %s\n' "$file"
+  else
+    printf '  [--] %s missing\n' "$file"
+  fi
+done
+
+printf '\nDPSR containers:\n'
+if command -v docker >/dev/null 2>&1; then
+  docker compose -f "$ROOT/lab/docker-compose.yml" --profile operator ps 2>/dev/null || true
+fi

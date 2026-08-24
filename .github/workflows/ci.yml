@@ -1,0 +1,75 @@
+name: APOTHEON ONE CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate environment
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Install MCP SDK
+        run: python3 -m pip install --disable-pip-version-check -q -r requirements-mcp.txt
+      - name: Python syntax
+        run: python3 -m compileall -q security_lab tests dashboard bin/sec-report
+      - name: Unit tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Shell syntax
+        run: |
+          for f in bin/* .devcontainer/*.sh; do
+            [ -f "$f" ] || continue
+            head -n 1 "$f" | grep -q 'bash' || continue
+            bash -n "$f"
+          done
+      - name: ShellCheck
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y shellcheck
+          for f in bin/* .devcontainer/*.sh; do
+            [ -f "$f" ] || continue
+            head -n 1 "$f" | grep -q 'bash' || continue
+            shellcheck -S error -e SC1090,SC1091 "$f"
+          done
+      - name: Compose validation
+        run: docker compose -f lab/docker-compose.yml --profile operator config --quiet
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - name: Gitleaks
+        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:b109bc5f8f76a38196a3e413704fc5b9e3c32360bce4e4b603bd6f45b3721dbb git --redact --verbose /repo
+
+  filesystem:
+    name: Filesystem scan
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Trivy
+        run: docker run --rm -v "$PWD:/repo" aquasec/trivy:0.74.0 fs --ignorefile /repo/.trivyignore --scanners vuln,secret,misconfig --severity HIGH,CRITICAL --exit-code 1 /repo
+
+  code:
+    name: Static analysis
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Install analyzers
+        run: python3 -m pip install --disable-pip-version-check semgrep==1.174.0 bandit==1.9.4
+      - name: Semgrep
+        run: semgrep scan --config auto --error --exclude reports --exclude artifacts --exclude cases .
+      - name: Bandit
+        run: bandit -r dashboard bin security_lab -x reports,artifacts,cases -q

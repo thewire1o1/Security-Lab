@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cmd="${1:-help}"
+if [ "$#" -gt 0 ]; then
+  shift
+fi
+
+usage() {
+  cat <<'EOF'
+DPSR Platform
+
+Development platform:
+  dpsr platform              show platform status
+  dpsr profile list          list available development/security profiles
+  dpsr profile show NAME     inspect one profile
+  dpsr project list          list registered projects
+  dpsr project init NAME --profile PROFILE
+                             create and register a managed project
+  dpsr project register PATH register an existing dpsr.toml project
+  dpsr project show NAME     inspect a registered project
+  dpsr project verify NAME   run its lint/test/build verification pipeline
+  dpsr job list              show persisted jobs
+  dpsr job show ID           show one job
+  dpsr job run PROJECT CMD   execute one manifest command as a tracked job
+  dpsr runner list           show local and external runner types
+
+Security/research compatibility commands remain available unchanged:
+  dpsr doctor | up | down | ps | scan | dashboard | gui | mcp | report
+  dpsr defend | review | validate | fuzz | triage | research | engine
+  dpsr kali-build | kali | clean | disk | update | new
+
+The legacy `sec` entry point remains available for security workflows.
+EOF
+}
+
+case "$cmd" in
+  help|-h|--help)
+    usage
+    ;;
+  platform)
+    exec python3 -m security_lab.platform.cli status "$@"
+    ;;
+  profile|project|job|runner)
+    exec python3 -m security_lab.platform.cli "$cmd" "$@"
+    ;;
+  *)
+    exec "$ROOT/bin/sec" "$cmd" "$@"
+    ;;
+esac
