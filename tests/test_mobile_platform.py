@@ -107,7 +107,7 @@ class MobilePlatformTests(unittest.TestCase):
             root_gradle = (project_root / "app" / "build.gradle.kts").read_text(encoding="utf-8")
             module_gradle = (project_root / "app" / "app" / "build.gradle.kts").read_text(encoding="utf-8")
             workflow = (project_root / ".github" / "workflows" / "android.yml").read_text(encoding="utf-8")
-            self.assertIn('com.android.application\") version \"9.3.0', root_gradle)
+            self.assertIn('id("com.android.application") version "9.3.0"', root_gradle)
             self.assertNotIn("org.jetbrains.kotlin.android", root_gradle)
             self.assertIn("compileSdk = 37", module_gradle)
             self.assertIn("gradle-version: '9.5.0'", workflow)
