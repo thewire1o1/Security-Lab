@@ -3,6 +3,8 @@ name: DPSR Acceptance
 on:
   push:
     branches: [dpsr-acceptance]
+  pull_request:
+    branches: [master]
   workflow_dispatch:
   schedule:
     - cron: '17 9 * * 1'
