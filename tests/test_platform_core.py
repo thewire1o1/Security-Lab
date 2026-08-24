@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from security_lab.platform import jobs, registry
+from security_lab.platform import cli, jobs, registry
 from security_lab.platform.models import CommandSpec, load_project_manifest
 from security_lab.platform.profiles import load_profiles
 from security_lab.platform.runners import get_runner
@@ -80,6 +80,13 @@ timeout = 30
                 self.assertEqual(result["state"], "succeeded")
                 self.assertIn("platform-ok", result["stdout"])
                 self.assertEqual(jobs.get_job(result["id"])["returncode"], 0)
+
+    def test_job_run_parser_preserves_top_level_subcommand(self) -> None:
+        args = cli.build_parser().parse_args(["job", "run", "demo", "lint"])
+        self.assertEqual(args.command, "job")
+        self.assertEqual(args.job_command, "run")
+        self.assertEqual(args.project, "demo")
+        self.assertEqual(args.command_name, "lint")
 
     def test_command_string_is_tokenized_without_shell(self) -> None:
         command = CommandSpec.from_value("python3 -c 'print(123)'")
