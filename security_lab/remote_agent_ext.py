@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 import sys
 
 from security_lab import remote_agent as base
@@ -24,6 +25,28 @@ class RemoteAgent(base.RemoteAgent):
         self.client = base.GitHubClient(config)
         self.runner = TaskRunner(config, self.client)
         self._stop_requested = False
+
+    def start(self) -> int:
+        pid = self._read_pid()
+        if pid is not None and self._pid_is_agent(pid):
+            print(f"remote-agent already running: {pid}")
+            return 0
+        self.config.pidfile.unlink(missing_ok=True)
+        self.client.resolve_token()
+        self.config.reports.mkdir(parents=True, exist_ok=True)
+        with self.config.logfile.open("a", encoding="utf-8") as log:
+            process = subprocess.Popen(
+                [sys.executable, "-m", "security_lab.remote_agent_ext", "run"],
+                cwd=self.config.root,
+                stdin=subprocess.DEVNULL,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+                close_fds=True,
+            )
+        self.config.pidfile.write_text(f"{process.pid}\n", encoding="utf-8")
+        print(f"remote-agent started: {process.pid}")
+        return 0
 
 
 def main() -> int:
