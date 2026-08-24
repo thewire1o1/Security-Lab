@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from security_lab.platform import api, cli, jobs, registry
+from security_lab.platform import api, cli, jobs, registry, scaffold
 from security_lab.platform.models import CommandSpec, Project, load_project_manifest
 from security_lab.platform.profiles import load_profiles
 from security_lab.platform.runners import get_runner
@@ -101,6 +101,78 @@ timeout = 30
         with mock.patch.object(api, "get_project", return_value=project):
             with self.assertRaisesRegex(ValueError, "not eligible for synchronous MCP execution"):
                 api.execute_job("demo", "dev")
+
+    def test_nextjs_provisioning_is_explicit_noninteractive_and_registered(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            project_root = base / "demo-next"
+            state = base / "state"
+            calls: list[tuple[str, ...]] = []
+
+            def fake_run(argv, **_kwargs):
+                command = tuple(str(item) for item in argv)
+                calls.append(command)
+                if command[:2] == ("node", "--version"):
+                    return {"returncode": 0, "stdout": "v22.18.0\n", "stderr": "", "command": list(command)}
+                if command[:3] == ("npx", "--yes", "create-next-app@latest"):
+                    target = Path(command[3])
+                    (target / "src" / "app").mkdir(parents=True)
+                    (target / "package.json").write_text('{"scripts":{"lint":"eslint","build":"next build"}}\n', encoding="utf-8")
+                    (target / "README.md").write_text("# Next app\n", encoding="utf-8")
+                    return {"returncode": 0, "stdout": "created", "stderr": "", "command": list(command)}
+                raise AssertionError(f"unexpected command: {command}")
+
+            with (
+                mock.patch.object(registry, "STATE_ROOT", state),
+                mock.patch.object(registry, "REGISTRY_PATH", state / "projects.json"),
+                mock.patch.object(scaffold, "run_command", side_effect=fake_run),
+            ):
+                project = scaffold.init_project("demo-next", "nextjs", project_root)
+
+            self.assertEqual(project.profile, "nextjs")
+            self.assertTrue((project_root / "dpsr.toml").is_file())
+            create = calls[1]
+            for expected in ("--ts", "--eslint", "--tailwind", "--app", "--src-dir", "--turbopack", "--use-npm", "--disable-git", "--yes"):
+                self.assertIn(expected, create)
+            self.assertNotIn("sh", create)
+
+    def test_nextjs_rejects_unsupported_node_before_scaffolding(self) -> None:
+        result = {"returncode": 0, "stdout": "v18.20.0\n", "stderr": "", "command": ["node", "--version"]}
+        with mock.patch.object(scaffold, "run_command", return_value=result):
+            with self.assertRaisesRegex(ValueError, "Node.js 20.9 or newer"):
+                scaffold._ensure_next_prerequisites()
+
+    def test_fastapi_provisioning_creates_isolated_app(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            project_root = base / "demo-api"
+            state = base / "state"
+            calls: list[tuple[str, ...]] = []
+
+            def fake_run(argv, **_kwargs):
+                command = tuple(str(item) for item in argv)
+                calls.append(command)
+                if command[:3] == ("python3", "-m", "venv"):
+                    (project_root / ".venv" / "bin").mkdir(parents=True)
+                    return {"returncode": 0, "stdout": "", "stderr": "", "command": list(command)}
+                if len(command) >= 4 and command[1:4] == ("-m", "pip", "install"):
+                    return {"returncode": 0, "stdout": "", "stderr": "", "command": list(command)}
+                raise AssertionError(f"unexpected command: {command}")
+
+            with (
+                mock.patch.object(registry, "STATE_ROOT", state),
+                mock.patch.object(registry, "REGISTRY_PATH", state / "projects.json"),
+                mock.patch.object(scaffold, "run_command", side_effect=fake_run),
+            ):
+                project = scaffold.init_project("demo-api", "fastapi", project_root)
+
+            self.assertEqual(project.profile, "fastapi")
+            self.assertTrue((project_root / "src" / "main.py").is_file())
+            self.assertTrue((project_root / "tests" / "test_health.py").is_file())
+            self.assertTrue((project_root / "requirements.txt").is_file())
+            self.assertTrue((project_root / "dpsr.toml").is_file())
+            self.assertEqual(calls[0][:3], ("python3", "-m", "venv"))
+            self.assertIn("requirements.txt", calls[1])
 
     def test_command_string_is_tokenized_without_shell(self) -> None:
         command = CommandSpec.from_value("python3 -c 'print(123)'")
