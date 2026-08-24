@@ -277,12 +277,12 @@ Current controls include:
 - Semgrep static analysis
 - Bandit Python security analysis
 - CodeQL semantic analysis for Python and JavaScript/TypeScript
-- dependency review on pull requests
 - Dependabot updates
 - least-privilege workflow permissions
 - immutable commit pinning for third-party GitHub Actions
 - CI concurrency cancellation and job timeouts
 - identity regression tests preventing historical public branding from reappearing
+- SBOM generation and verifiable provenance attestations for the published security operator image
 
 Security disclosure and scope are documented in [SECURITY.md](SECURITY.md).
 
@@ -344,7 +344,7 @@ lab/                       isolated training range + security operator image
 bin/                       platform/security command entry points
 dashboard/                 private APOTHEON ONE console
 docs/                      platform, recovery, bridge, and public presentation
-.github/workflows/         CI, semantic analysis, dependency review, image, wake, recovery
+.github/workflows/         CI, semantic analysis, image provenance, wake, recovery
 tests/                     regression coverage for platform and control-plane behavior
 ```
 
