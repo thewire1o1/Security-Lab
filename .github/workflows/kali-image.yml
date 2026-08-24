@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build, publish, and attest
+    name: Build, publish, inventory, and attest
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -31,10 +31,10 @@ jobs:
           persist-credentials: false
 
       - name: Set up Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -42,7 +42,7 @@ jobs:
 
       - name: Build and publish security operator image
         id: build
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: ./lab/kali
           push: true
@@ -54,10 +54,36 @@ jobs:
             org.opencontainers.image.description=APOTHEON ONE security research Kali operator image by Digital Paragon
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-          sbom: true
+          sbom: false
           provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Generate compressed CycloneDX SBOM
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/apotheon-one-kali@${{ steps.build.outputs.digest }}
+        run: |
+          set -Eeuo pipefail
+          mkdir -p sbom
+          docker pull "$IMAGE"
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD/sbom:/output" \
+            ghcr.io/aquasecurity/trivy:0.74.0@sha256:ee940acbf1f58ebadb42d01434ce4609530bf1b52536afbd1eee66cd7123c5c9 \
+            image --format cyclonedx --output /output/apotheon-one-kali.cdx.json "$IMAGE"
+          gzip -9 sbom/apotheon-one-kali.cdx.json
+          sha256sum sbom/apotheon-one-kali.cdx.json.gz > sbom/apotheon-one-kali.cdx.json.gz.sha256
+
+      - name: Preserve SBOM artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: apotheon-one-kali-sbom-${{ github.sha }}
+          path: |
+            sbom/apotheon-one-kali.cdx.json.gz
+            sbom/apotheon-one-kali.cdx.json.gz.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 90
 
       - name: Attest published image provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
