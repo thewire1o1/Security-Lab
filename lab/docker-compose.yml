@@ -41,6 +41,15 @@ services:
       WEBGOAT_PORT: "8080"
     ports:
       - "127.0.0.1:8081:8080"
+      - "127.0.0.1:9090:9090"
+    healthcheck:
+      # The upstream v2025.3 image healthcheck depends on curl. Use Bash's
+      # built-in TCP client so readiness does not depend on an extra package.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 60s
     networks: [dpsr-range]
 
   kali:
