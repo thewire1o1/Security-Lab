@@ -107,6 +107,12 @@ def platform_project_init(name: str, profile_name: str) -> dict[str, Any]:
 
 
 @mcp.tool()
+def platform_project_refresh_template(name: str) -> dict[str, Any]:
+    """Refresh DPSR-managed mobile build and CI files without overwriting application source."""
+    return platform_api.refresh_project_template(name)
+
+
+@mcp.tool()
 def platform_project_delete(name: str) -> dict[str, Any]:
     """Delete one registered project only when it resides inside the managed DPSR project workspace."""
     return platform_api.delete_project(name)
