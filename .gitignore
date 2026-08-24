@@ -24,6 +24,13 @@ __pycache__/
 .vscode/settings.local.json
 .venv-mcp/
 .dashboard.pid
+.dashboard.disabled
 .mcp.pid
+.mcp.disabled
 .remote-agent.lock
 .remote-agent.pid
+.remote-agent.disabled
+.control-plane-supervisor.pid
+.control-plane-supervisor.lock
+.bridge-auth.pid
+.wake-auth.pid
