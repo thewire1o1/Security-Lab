@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENV="$ROOT/.venv-mcp"
 PYTHON="$VENV/bin/python"
 PIDFILE="$ROOT/.mcp.pid"
+DISABLED="$ROOT/.mcp.disabled"
 LOGFILE="$ROOT/reports/mcp-server.log"
 PORT="${DPSR_MCP_PORT:-8766}"
 
@@ -22,19 +23,43 @@ is_running() {
   tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -q 'security_lab.mcp_server'
 }
 
+port_open() {
+  python3 - "$PORT" <<'PY'
+import socket
+import sys
+
+port = int(sys.argv[1])
+try:
+    with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+        pass
+except OSError:
+    raise SystemExit(1)
+PY
+}
+
+healthy() {
+  is_running && port_open
+}
+
 install_sdk() {
   if [ ! -x "$PYTHON" ]; then
     python3 -m venv "$VENV"
   fi
-  "$PYTHON" -m pip install --disable-pip-version-check -q -r "$ROOT/requirements-mcp.txt"
+  if ! "$PYTHON" -c 'import mcp' >/dev/null 2>&1; then
+    "$PYTHON" -m pip install --disable-pip-version-check -q -r "$ROOT/requirements-mcp.txt"
+  fi
   "$PYTHON" -c 'import mcp; print("MCP SDK ready")'
 }
 
 start_server() {
   mkdir -p "$ROOT/reports"
-  if is_running; then
+  rm -f "$DISABLED"
+  if healthy; then
     status_server
     return 0
+  fi
+  if is_running; then
+    stop_process
   fi
   install_sdk
   rm -f "$PIDFILE"
@@ -50,18 +75,7 @@ start_server() {
       tail -n 60 "$LOGFILE" >&2 || true
       return 1
     fi
-    if python3 - "$PORT" <<'PY'
-import socket
-import sys
-
-port = int(sys.argv[1])
-try:
-    with socket.create_connection(("127.0.0.1", port), timeout=0.25):
-        pass
-except OSError:
-    raise SystemExit(1)
-PY
-    then
+    if port_open; then
       printf 'DPSR MCP server running: pid=%s\n' "$pid"
       printf 'Local endpoint: http://127.0.0.1:%s/mcp\n' "$PORT"
       if [ -n "${CODESPACE_NAME:-}" ]; then
@@ -76,10 +90,9 @@ PY
   return 1
 }
 
-stop_server() {
+stop_process() {
   if ! is_running; then
     rm -f "$PIDFILE"
-    printf 'DPSR MCP server is not running.\n'
     return 0
   fi
   local pid
@@ -88,18 +101,22 @@ stop_server() {
   for _ in $(seq 1 30); do
     if ! kill -0 "$pid" 2>/dev/null; then
       rm -f "$PIDFILE"
-      printf 'DPSR MCP server stopped.\n'
       return 0
     fi
     sleep 0.1
   done
   kill -9 "$pid" 2>/dev/null || true
   rm -f "$PIDFILE"
+}
+
+stop_server() {
+  touch "$DISABLED"
+  stop_process
   printf 'DPSR MCP server stopped.\n'
 }
 
 status_server() {
-  if is_running; then
+  if healthy; then
     printf 'DPSR MCP server running: pid=%s\n' "$(read_pid)"
     printf 'Local endpoint: http://127.0.0.1:%s/mcp\n' "$PORT"
     if [ -n "${CODESPACE_NAME:-}" ]; then
@@ -107,14 +124,18 @@ status_server() {
     fi
     return 0
   fi
+  if is_running; then
+    printf 'DPSR MCP server unhealthy: pid=%s port=%s unavailable.\n' "$(read_pid)" "$PORT" >&2
+    return 1
+  fi
   rm -f "$PIDFILE"
   printf 'DPSR MCP server stopped.\n'
   return 1
 }
 
 test_server() {
-  if ! is_running; then
-    printf 'DPSR MCP server is not running.\n' >&2
+  if ! healthy; then
+    printf 'DPSR MCP server is not healthy.\n' >&2
     return 1
   fi
   "$PYTHON" -m security_lab.mcp_probe
@@ -124,7 +145,7 @@ case "${1:-status}" in
   install) install_sdk ;;
   start) start_server ;;
   stop) stop_server ;;
-  restart) stop_server; start_server ;;
+  restart) stop_process; start_server ;;
   status) status_server ;;
   test) test_server ;;
   *)
