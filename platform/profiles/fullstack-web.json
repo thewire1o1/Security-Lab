@@ -1,0 +1,18 @@
+{
+  "profile": {
+    "name": "fullstack-web",
+    "title": "Full-Stack Web",
+    "category": "web",
+    "description": "Multi-service web application profile for frontend, API, shared packages, database, containers, CI, previews, and deployment automation.",
+    "runner": "local",
+    "stack": ["nextjs", "fastapi", "postgresql", "docker"],
+    "capabilities": ["frontend", "api", "database", "containers", "preview", "ci", "deploy"],
+    "scaffold": "fullstack-web"
+  },
+  "commands": {
+    "build": {"argv": ["docker", "compose", "build"], "cwd": ".", "timeout": 1800},
+    "dev": {"argv": ["docker", "compose", "up"], "cwd": ".", "timeout": 86400},
+    "down": {"argv": ["docker", "compose", "down"], "cwd": ".", "timeout": 120}
+  },
+  "services": {"web": 3000, "api": 8000, "postgres": 5432}
+}

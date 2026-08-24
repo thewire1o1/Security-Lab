@@ -1,0 +1,18 @@
+{
+  "profile": {
+    "name": "react-native",
+    "title": "React Native Mobile",
+    "category": "mobile",
+    "description": "React Native application profile for Android, iOS, JavaScript/TypeScript testing, and CI automation.",
+    "runner": "local",
+    "stack": ["node", "typescript", "react-native"],
+    "capabilities": ["android", "ios", "testing", "ci", "release"],
+    "scaffold": "react-native"
+  },
+  "commands": {
+    "lint": {"argv": ["npm", "run", "lint"], "cwd": "app", "timeout": 900},
+    "test": {"argv": ["npm", "test"], "cwd": "app", "timeout": 1200},
+    "android": {"argv": ["npm", "run", "android"], "cwd": "app", "timeout": 3600}
+  },
+  "services": {"metro": 8081}
+}

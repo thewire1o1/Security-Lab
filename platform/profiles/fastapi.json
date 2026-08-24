@@ -1,0 +1,18 @@
+{
+  "profile": {
+    "name": "fastapi",
+    "title": "FastAPI Service",
+    "category": "api",
+    "description": "Python API service profile with tests, static validation, development server, containers, and deployment hooks.",
+    "runner": "local",
+    "stack": ["python", "fastapi", "pytest"],
+    "capabilities": ["api", "testing", "containers", "ci", "deploy"],
+    "scaffold": "fastapi"
+  },
+  "commands": {
+    "lint": {"argv": ["python3", "-m", "compileall", "-q", "src"], "cwd": ".", "timeout": 120},
+    "test": {"argv": ["python3", "-m", "pytest", "-q"], "cwd": ".", "timeout": 900},
+    "dev": {"argv": ["python3", "-m", "uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"], "cwd": "src", "timeout": 86400}
+  },
+  "services": {"api": 8000}
+}

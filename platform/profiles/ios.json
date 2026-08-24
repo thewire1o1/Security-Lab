@@ -1,0 +1,17 @@
+{
+  "profile": {
+    "name": "ios",
+    "title": "Native iOS",
+    "category": "mobile",
+    "description": "Native iOS application profile for Xcode builds, tests, simulator workflows, CI, signing, and release automation on macOS runners.",
+    "runner": "github-actions",
+    "stack": ["swift", "ios", "xcode"],
+    "capabilities": ["ios", "testing", "simulator", "ci", "signing", "release"],
+    "scaffold": "ios"
+  },
+  "commands": {
+    "test": {"argv": ["xcodebuild", "test"], "cwd": "app", "timeout": 3600},
+    "build": {"argv": ["xcodebuild", "build"], "cwd": "app", "timeout": 3600}
+  },
+  "services": {}
+}
