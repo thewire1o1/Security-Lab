@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export PATH="/usr/local/go/bin:$HOME/go/bin:$HOME/.local/bin:$ROOT/bin:$PATH"
 
 TOOLS=(
-  sec docker nmap masscan sqlmap nikto hydra john pdtm nuclei httpx subfinder
+  dpsr sec docker nmap masscan sqlmap nikto hydra john pdtm nuclei httpx subfinder
   naabu dnsx katana ffuf waybackurls assetfinder gau semgrep pip-audit bandit
   gitleaks trivy shellcheck jq gh
 )
@@ -22,7 +22,7 @@ print_tool() {
   printf '[OK] %-20s %s\n' "$command" "$version"
 }
 
-printf 'Security Lab doctor\n\n'
+printf 'Digital Paragon Security Research diagnostics\n\n'
 for command in "${TOOLS[@]}"; do
   print_tool "$command"
 done
@@ -44,8 +44,8 @@ fi
 
 printf '\nKali operator image:\n'
 if command -v docker >/dev/null 2>&1 && \
-   (docker image inspect ghcr.io/thewire1o1/security-lab-kali:latest >/dev/null 2>&1 || \
-    docker image inspect security-lab-kali:latest >/dev/null 2>&1); then
+   (docker image inspect ghcr.io/thewire1o1/dpsr-kali:latest >/dev/null 2>&1 || \
+    docker image inspect dpsr-kali:latest >/dev/null 2>&1); then
   printf '  [OK] available\n'
 else
   printf '  [--] not available yet\n'
@@ -60,7 +60,7 @@ for file in "${PIPELINE[@]}"; do
   fi
 done
 
-printf '\nLab containers:\n'
+printf '\nDPSR containers:\n'
 if command -v docker >/dev/null 2>&1; then
   docker compose -f "$ROOT/lab/docker-compose.yml" --profile operator ps 2>/dev/null || true
 fi
