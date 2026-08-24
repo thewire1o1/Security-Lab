@@ -1,0 +1,18 @@
+{
+  "profile": {
+    "name": "security",
+    "title": "Security Research",
+    "category": "security",
+    "description": "DPSR isolated security research, training, defensive validation, fuzzing, triage, and operator tooling.",
+    "runner": "local",
+    "stack": ["python", "docker", "kali", "mcp"],
+    "capabilities": ["pentest-lab", "defensive-analysis", "fuzzing", "triage", "research"],
+    "scaffold": "security"
+  },
+  "commands": {
+    "lint": {"argv": ["python3", "-m", "compileall", "-q", "security_lab"], "cwd": ".", "timeout": 120},
+    "test": {"argv": ["python3", "-m", "unittest", "discover", "-s", "tests", "-v"], "cwd": ".", "timeout": 600},
+    "doctor": {"argv": ["bin/dpsr", "doctor"], "cwd": ".", "timeout": 120}
+  },
+  "services": {"dashboard": 8765, "mcp": 8766}
+}
