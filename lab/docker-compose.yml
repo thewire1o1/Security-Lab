@@ -58,7 +58,7 @@ services:
       - NET_RAW
     volumes:
       - ../:/workspace
-      - dpsr-kali-home:/root
+      - kali-home:/root
     networks:
       - dpsr-range
       - operator-egress
@@ -71,4 +71,4 @@ networks:
     driver: bridge
 
 volumes:
-  dpsr-kali-home:
+  kali-home:
