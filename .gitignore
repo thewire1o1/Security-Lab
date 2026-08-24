@@ -22,5 +22,8 @@ __pycache__/
 *.pyc
 .DS_Store
 .vscode/settings.local.json
+.venv-mcp/
+.dashboard.pid
+.mcp.pid
 .remote-agent.lock
 .remote-agent.pid
