@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-WORKSPACE="${PWD}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WORKSPACE="$ROOT"
 TOOLS_HOME="$HOME/tools"
 GO_BIN="$HOME/go/bin"
 mkdir -p "$TOOLS_HOME" "$GO_BIN" "$WORKSPACE/reports" "$WORKSPACE/notes" "$WORKSPACE/targets" "$WORKSPACE/loot" "$WORKSPACE/engagements" "$WORKSPACE/artifacts" "$WORKSPACE/cases" "$WORKSPACE/fuzz/harnesses"
@@ -28,7 +29,7 @@ if ! sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recomme
   done
 fi
 
-bash "$WORKSPACE/bin/repair-tools" || true
+bash "$WORKSPACE/bin/repair-tools"
 export PATH="/usr/local/go/bin:$GO_BIN:$HOME/.local/bin:$WORKSPACE/bin:$PATH"
 
 install_go() {
@@ -70,8 +71,6 @@ alias recon='bash $WORKSPACE/bin/recon'
 alias headers='bash $WORKSPACE/bin/headers'
 # >>> DPSR >>> END
 EOF
-
-chmod +x "$WORKSPACE"/bin/* 2>/dev/null || true
 
 sudo apt-get clean >/dev/null 2>&1 || true
 npm cache clean --force >/dev/null 2>&1 || true
