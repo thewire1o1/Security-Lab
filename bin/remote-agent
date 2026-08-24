@@ -8,7 +8,10 @@ cd "$ROOT"
 case "${1:-}" in
   start)
     rm -f "$DISABLED"
-    exec python3 -m security_lab.remote_agent_ext start
+    python3 -m security_lab.remote_agent_ext start
+    rc=$?
+    bash "$ROOT/admin/control-plane-supervisor" start || true
+    exit "$rc"
     ;;
   stop)
     touch "$DISABLED"
