@@ -8,6 +8,10 @@ permissions:
   contents: read
   issues: write
 
+concurrency:
+  group: dpsr-codespace-lifecycle-${{ github.repository }}
+  cancel-in-progress: false
+
 jobs:
   wake:
     if: >-
