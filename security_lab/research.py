@@ -76,7 +76,7 @@ def close_case(raw_name: str) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="sec research", description="Manage persistent research cases.")
+    parser = argparse.ArgumentParser(prog="dpsr research", description="Manage persistent research cases.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     new = subparsers.add_parser("new")
