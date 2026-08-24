@@ -24,7 +24,7 @@ async def probe() -> int:
             repo_status = await client.call_tool("repo_status", {})
             command = await client.call_tool(
                 "run_project_command",
-                {"command": "dpsr", "args": ["help"], "timeout_seconds": 30},
+                {"command": "dpsr", "args": ["mcp", "status"], "timeout_seconds": 30},
             )
             write_result = await client.call_tool(
                 "repo_write",
