@@ -1,7 +1,7 @@
 services:
   juice-shop:
     image: bkimminich/juice-shop:v20.2.0
-    container_name: sec-lab-juice-shop
+    container_name: dpsr-juice-shop
     restart: unless-stopped
     init: true
     pids_limit: 256
@@ -11,11 +11,11 @@ services:
       - no-new-privileges:true
     ports:
       - "127.0.0.1:3000:3000"
-    networks: [security-lab]
+    networks: [dpsr-range]
 
   dvwa:
     image: vulnerables/web-dvwa@sha256:dae203fe11646a86937bf04db0079adef295f426da68a92b40e3b181f337daa7
-    container_name: sec-lab-dvwa
+    container_name: dpsr-dvwa
     restart: unless-stopped
     init: true
     pids_limit: 256
@@ -25,11 +25,11 @@ services:
       - no-new-privileges:true
     ports:
       - "127.0.0.1:8080:80"
-    networks: [security-lab]
+    networks: [dpsr-range]
 
   webgoat:
     image: webgoat/webgoat:v2025.3
-    container_name: sec-lab-webgoat
+    container_name: dpsr-webgoat
     restart: unless-stopped
     init: true
     pids_limit: 384
@@ -41,14 +41,14 @@ services:
       WEBGOAT_PORT: "8080"
     ports:
       - "127.0.0.1:8081:8080"
-    networks: [security-lab]
+    networks: [dpsr-range]
 
   kali:
     profiles: ["operator"]
-    image: ghcr.io/thewire1o1/security-lab-kali:latest
+    image: ghcr.io/thewire1o1/dpsr-kali:latest
     build:
       context: ./kali
-    container_name: sec-lab-kali
+    container_name: dpsr-kali
     stdin_open: true
     tty: true
     working_dir: /workspace
@@ -58,17 +58,17 @@ services:
       - NET_RAW
     volumes:
       - ../:/workspace
-      - kali-home:/root
+      - dpsr-kali-home:/root
     networks:
-      - security-lab
+      - dpsr-range
       - operator-egress
 
 networks:
-  security-lab:
+  dpsr-range:
     driver: bridge
     internal: true
   operator-egress:
     driver: bridge
 
 volumes:
-  kali-home:
+  dpsr-kali-home:
