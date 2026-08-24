@@ -105,7 +105,7 @@ def cmd_job(args: argparse.Namespace) -> int:
     if args.job_command == "show":
         print(json.dumps(get_job(args.id), indent=2, sort_keys=True))
         return 0
-    job = run_job(args.project, args.command)
+    job = run_job(args.project, args.command_name)
     print(json.dumps(job, indent=2, sort_keys=True))
     return 0 if job["state"] == "succeeded" else 1
 
@@ -155,7 +155,7 @@ def build_parser() -> argparse.ArgumentParser:
     job_show.add_argument("id")
     job_run = job_sub.add_parser("run")
     job_run.add_argument("project")
-    job_run.add_argument("command")
+    job_run.add_argument("command_name")
 
     runner = sub.add_parser("runner")
     runner_sub = runner.add_subparsers(dest="runner_command", required=True)
