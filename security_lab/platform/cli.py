@@ -6,7 +6,10 @@ from pathlib import Path
 
 from security_lab.common import ROOT
 
-from .jobs import get_job, list_jobs, run_job
+from .github_actions import auth_status as github_actions_auth_status
+from .github_actions import publish_project as publish_github_project
+from .github_actions import repository_binding
+from .jobs import list_jobs, refresh_job, run_job
 from .mobile import MOBILE_PROFILES, init_mobile_project
 from .profiles import get_profile, load_profiles
 from .registry import delete_managed_project, get_project, list_projects, register_project, unregister_project
@@ -15,6 +18,7 @@ from .scaffold import init_project
 
 
 def _project_row(project) -> dict[str, object]:
+    binding = repository_binding(project)
     return {
         "name": project.name,
         "profile": project.profile,
@@ -22,6 +26,9 @@ def _project_row(project) -> dict[str, object]:
         "path": str(project.path),
         "commands": sorted(project.commands),
         "services": project.services,
+        "repository": binding["full_name"] or None,
+        "branch": binding["branch"] if binding["full_name"] else None,
+        "workflow": binding["workflow"] or None,
     }
 
 
@@ -33,7 +40,11 @@ def cmd_status(_args: argparse.Namespace) -> int:
         "root": str(ROOT),
         "profiles": len(profiles),
         "projects": len(projects),
-        "runners": sorted(RUNNERS),
+        "runners": {
+            "local": sorted(RUNNERS),
+            "external": ["github-actions", "codespace"],
+            "github_actions": github_actions_auth_status(),
+        },
         "jobs": len(list_jobs(500)),
     }
     print(json.dumps(payload, indent=2, sort_keys=True))
@@ -97,11 +108,16 @@ def cmd_project(args: argparse.Namespace) -> int:
             project = init_project(args.name, args.profile, target)
         print(json.dumps(_project_row(project), indent=2, sort_keys=True))
         return 0
+    if action == "publish":
+        project = get_project(args.name)
+        result = publish_github_project(project, args.repo or "", args.visibility)
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return 0
     if action == "verify":
         project = get_project(args.name)
         if project.runner not in RUNNERS:
             raise ValueError(
-                f"Project '{args.name}' uses external runner '{project.runner}'; run its generated CI workflow to verify builds."
+                f"Project '{args.name}' uses external runner '{project.runner}'; publish it and use `dpsr job run` to dispatch its remote workflow."
             )
         selected = [name for name in ("lint", "test", "build") if name in project.commands]
         if not selected:
@@ -119,12 +135,12 @@ def cmd_job(args: argparse.Namespace) -> int:
     if args.job_command == "list":
         print(json.dumps(list_jobs(args.limit), indent=2, sort_keys=True))
         return 0
-    if args.job_command == "show":
-        print(json.dumps(get_job(args.id), indent=2, sort_keys=True))
+    if args.job_command in {"show", "refresh"}:
+        print(json.dumps(refresh_job(args.id), indent=2, sort_keys=True))
         return 0
     job = run_job(args.project, args.command_name)
     print(json.dumps(job, indent=2, sort_keys=True))
-    return 0 if job["state"] == "succeeded" else 1
+    return 1 if job["state"] == "failed" else 0
 
 
 def cmd_runner(args: argparse.Namespace) -> int:
@@ -133,6 +149,12 @@ def cmd_runner(args: argparse.Namespace) -> int:
             print(name)
         print("github-actions\texternal")
         print("codespace\texternal")
+        return 0
+    if args.runner_command == "status":
+        print(json.dumps({
+            "local": sorted(RUNNERS),
+            "github_actions": github_actions_auth_status(),
+        }, indent=2, sort_keys=True))
         return 0
     raise ValueError(f"Unsupported runner action: {args.runner_command}")
 
@@ -163,6 +185,10 @@ def build_parser() -> argparse.ArgumentParser:
     project_init.add_argument("name")
     project_init.add_argument("--profile", required=True)
     project_init.add_argument("--path")
+    project_publish = project_sub.add_parser("publish")
+    project_publish.add_argument("name")
+    project_publish.add_argument("--repo")
+    project_publish.add_argument("--visibility", choices=("private", "public"), default="private")
     project_verify = project_sub.add_parser("verify")
     project_verify.add_argument("name")
 
@@ -172,6 +198,8 @@ def build_parser() -> argparse.ArgumentParser:
     job_list.add_argument("--limit", type=int, default=50)
     job_show = job_sub.add_parser("show")
     job_show.add_argument("id")
+    job_refresh = job_sub.add_parser("refresh")
+    job_refresh.add_argument("id")
     job_run = job_sub.add_parser("run")
     job_run.add_argument("project")
     job_run.add_argument("command_name")
@@ -179,6 +207,7 @@ def build_parser() -> argparse.ArgumentParser:
     runner = sub.add_parser("runner")
     runner_sub = runner.add_subparsers(dest="runner_command", required=True)
     runner_sub.add_parser("list")
+    runner_sub.add_parser("status")
     return parser
 
 
