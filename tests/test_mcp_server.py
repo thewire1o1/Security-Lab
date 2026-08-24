@@ -22,6 +22,7 @@ class MCPServerTests(unittest.IsolatedAsyncioTestCase):
                 "platform_profile",
                 "platform_project",
                 "platform_project_init",
+                "platform_project_delete",
                 "platform_job",
                 "platform_job_run",
             }

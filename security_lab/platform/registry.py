@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
 from .models import Project, load_project_manifest
-from .paths import STATE_ROOT
+from .paths import PROJECTS_ROOT, STATE_ROOT
 
 REGISTRY_PATH = STATE_ROOT / "projects.json"
 
@@ -67,3 +68,21 @@ def get_project(name: str) -> Project:
     except KeyError as exc:
         raise ValueError(f"Unknown project: {name}") from exc
     return load_project_manifest(Path(str(entry["path"])))
+
+
+def delete_managed_project(name: str) -> Project:
+    project = get_project(name)
+    root = PROJECTS_ROOT.resolve()
+    target = project.path.resolve()
+    try:
+        relative = target.relative_to(root)
+    except ValueError as exc:
+        raise ValueError("Only projects inside the managed DPSR project root can be deleted.") from exc
+    if not relative.parts:
+        raise ValueError("Refusing to delete the managed DPSR project root.")
+    if not target.is_dir():
+        raise ValueError(f"Managed project directory is missing: {target}")
+    shutil.rmtree(target)
+    if not unregister_project(name):
+        raise ValueError(f"Project registry entry disappeared during deletion: {name}")
+    return project

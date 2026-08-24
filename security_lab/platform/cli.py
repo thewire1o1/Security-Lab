@@ -8,7 +8,7 @@ from security_lab.common import ROOT
 
 from .jobs import get_job, list_jobs, run_job
 from .profiles import get_profile, load_profiles
-from .registry import get_project, list_projects, register_project, unregister_project
+from .registry import delete_managed_project, get_project, list_projects, register_project, unregister_project
 from .runners import RUNNERS
 from .scaffold import init_project
 
@@ -79,6 +79,15 @@ def cmd_project(args: argparse.Namespace) -> int:
             raise ValueError(f"Unknown project: {args.name}")
         print(f"Removed project registry entry: {args.name}")
         return 0
+    if action == "delete":
+        project = delete_managed_project(args.name)
+        print(json.dumps({
+            "deleted": True,
+            "name": project.name,
+            "path": str(project.path),
+            "profile": project.profile,
+        }, indent=2, sort_keys=True))
+        return 0
     if action == "init":
         target = Path(args.path).expanduser() if args.path else None
         project = init_project(args.name, args.profile, target)
@@ -140,6 +149,8 @@ def build_parser() -> argparse.ArgumentParser:
     project_register.add_argument("path")
     project_remove = project_sub.add_parser("remove")
     project_remove.add_argument("name")
+    project_delete = project_sub.add_parser("delete")
+    project_delete.add_argument("name")
     project_init = project_sub.add_parser("init")
     project_init.add_argument("name")
     project_init.add_argument("--profile", required=True)

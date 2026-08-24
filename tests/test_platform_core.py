@@ -174,6 +174,102 @@ timeout = 30
             self.assertEqual(calls[0][:3], ("python3", "-m", "venv"))
             self.assertIn("requirements.txt", calls[1])
 
+    def test_fullstack_provisioning_composes_proven_framework_provisioners(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            project_root = base / "demo-stack"
+            state = base / "state"
+
+            def fake_next(target: Path) -> None:
+                (target / "src" / "app").mkdir(parents=True)
+                (target / "package.json").write_text("{}\n", encoding="utf-8")
+                (target / "README.md").write_text("# Web\n", encoding="utf-8")
+
+            def fake_api(target: Path) -> None:
+                (target / "src").mkdir(parents=True)
+                (target / "tests").mkdir(parents=True)
+                (target / ".venv" / "bin").mkdir(parents=True)
+                (target / "requirements.txt").write_text("fastapi\n", encoding="utf-8")
+
+            with (
+                mock.patch.object(registry, "STATE_ROOT", state),
+                mock.patch.object(registry, "REGISTRY_PATH", state / "projects.json"),
+                mock.patch.object(scaffold, "_provision_nextjs", side_effect=fake_next) as next_mock,
+                mock.patch.object(scaffold, "_provision_fastapi", side_effect=fake_api) as api_mock,
+            ):
+                project = scaffold.init_project("demo-stack", "fullstack-web", project_root)
+
+            self.assertEqual(project.profile, "fullstack-web")
+            next_mock.assert_called_once_with(project_root / "apps" / "web")
+            api_mock.assert_called_once_with(project_root / "apps" / "api")
+            self.assertTrue((project_root / "compose.yaml").is_file())
+            self.assertTrue((project_root / "apps" / "web" / "Dockerfile").is_file())
+            self.assertTrue((project_root / "apps" / "api" / "Dockerfile").is_file())
+            self.assertTrue((project_root / "apps" / "web" / "src" / "app" / "api" / "backend-health" / "route.ts").is_file())
+            self.assertTrue((project_root / "tools" / "stack_check.py").is_file())
+            self.assertTrue((project_root / ".env").is_file())
+            self.assertTrue((project_root / ".env.example").is_file())
+            self.assertTrue((project_root / "dpsr.toml").is_file())
+            self.assertEqual(project.services, {"api": 8000, "web": 3000})
+
+    def test_managed_delete_removes_only_project_root_children(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            managed = base / "managed"
+            state = base / "state"
+            project_root = managed / "delete-me"
+            project_root.mkdir(parents=True)
+            (project_root / "dpsr.toml").write_text(
+                """
+[project]
+name = "delete-me"
+profile = "generic"
+[runner]
+type = "local"
+""".strip() + "\n",
+                encoding="utf-8",
+            )
+            with (
+                mock.patch.object(registry, "PROJECTS_ROOT", managed),
+                mock.patch.object(registry, "STATE_ROOT", state),
+                mock.patch.object(registry, "REGISTRY_PATH", state / "projects.json"),
+            ):
+                registry.register_project(project_root)
+                deleted = registry.delete_managed_project("delete-me")
+                self.assertEqual(deleted.name, "delete-me")
+                self.assertFalse(project_root.exists())
+                with self.assertRaisesRegex(ValueError, "Unknown project"):
+                    registry.get_project("delete-me")
+
+    def test_managed_delete_refuses_registered_external_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            managed = base / "managed"
+            external = base / "external"
+            state = base / "state"
+            managed.mkdir()
+            external.mkdir()
+            (external / "dpsr.toml").write_text(
+                """
+[project]
+name = "external"
+profile = "generic"
+[runner]
+type = "local"
+""".strip() + "\n",
+                encoding="utf-8",
+            )
+            with (
+                mock.patch.object(registry, "PROJECTS_ROOT", managed),
+                mock.patch.object(registry, "STATE_ROOT", state),
+                mock.patch.object(registry, "REGISTRY_PATH", state / "projects.json"),
+            ):
+                registry.register_project(external)
+                with self.assertRaisesRegex(ValueError, "managed DPSR project root"):
+                    registry.delete_managed_project("external")
+                self.assertTrue(external.is_dir())
+                self.assertEqual(registry.get_project("external").path, external.resolve())
+
     def test_command_string_is_tokenized_without_shell(self) -> None:
         command = CommandSpec.from_value("python3 -c 'print(123)'")
         self.assertEqual(command.argv[0], "python3")
