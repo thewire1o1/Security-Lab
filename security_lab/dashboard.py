@@ -181,7 +181,7 @@ class DashboardState:
                 snapshot["error"] = None
             except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
                 snapshot = {
-                    "platform": "dpsr-v2",
+                    "platform": "APOTHEON ONE",
                     "profiles": [],
                     "projects": [],
                     "jobs": [],
@@ -427,7 +427,7 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_json({"activity": self.state.log.tail()})
             return
         if path == "/health":
-            self.send_json({"ok": True, "platform": "dpsr-v2"})
+            self.send_json({"ok": True, "platform": "APOTHEON ONE"})
             return
         super().do_GET()
 
@@ -529,15 +529,15 @@ def main() -> int:
 
     try:
         with ThreadingHTTPServer((host, port), Handler) as server:
-            activity.write(f"DPSR Platform Console listening on http://{host}:{port}")
-            print(f"DPSR Platform Console: http://{host}:{port}")
+            activity.write(f"APOTHEON ONE Operations Console listening on http://{host}:{port}")
+            print(f"APOTHEON ONE Operations Console: http://{host}:{port}")
             print("Keep the forwarded Codespaces port private. Ctrl-C to stop.")
             try:
                 server.serve_forever()
             except KeyboardInterrupt:
                 return 0
     except OSError as exc:
-        print(f"Unable to start DPSR Platform Console: {exc}", file=sys.stderr)
+        print(f"Unable to start APOTHEON ONE Operations Console: {exc}", file=sys.stderr)
         return 1
     return 0
 
