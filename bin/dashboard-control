@@ -70,7 +70,7 @@ start_console() {
   mkdir -p "$ROOT/reports"
   rm -f "$DISABLED"
   if healthy; then
-    printf 'FORGE console already running: pid=%s\n' "$(read_pid)"
+    printf 'APOTHEON ONE console already running: pid=%s\n' "$(read_pid)"
     printf 'URL: %s\n' "$(console_url)"
     return 0
   fi
@@ -87,40 +87,40 @@ start_console() {
   for _ in $(seq 1 30); do
     if ! kill -0 "$pid" 2>/dev/null; then
       rm -f "$PIDFILE"
-      printf 'FORGE console failed to start.\n' >&2
+      printf 'APOTHEON ONE console failed to start.\n' >&2
       tail -n 40 "$LOGFILE" >&2 || true
       return 1
     fi
     if health_check; then
-      printf 'FORGE console running: pid=%s\n' "$pid"
+      printf 'APOTHEON ONE console running: pid=%s\n' "$pid"
       printf 'URL: %s\n' "$(console_url)"
       return 0
     fi
     sleep 0.5
   done
 
-  printf 'FORGE console process is running but health endpoint is not ready.\n' >&2
+  printf 'APOTHEON ONE console process is running but health endpoint is not ready.\n' >&2
   return 1
 }
 
 stop_console() {
   touch "$DISABLED"
   stop_process
-  printf 'FORGE console stopped.\n'
+  printf 'APOTHEON ONE console stopped.\n'
 }
 
 status_console() {
   if healthy; then
-    printf 'FORGE console running: pid=%s\n' "$(read_pid)"
+    printf 'APOTHEON ONE console running: pid=%s\n' "$(read_pid)"
     printf 'URL: %s\n' "$(console_url)"
     return 0
   fi
   if is_running; then
-    printf 'FORGE console unhealthy: pid=%s health check failed.\n' "$(read_pid)" >&2
+    printf 'APOTHEON ONE console unhealthy: pid=%s health check failed.\n' "$(read_pid)" >&2
     return 1
   fi
   rm -f "$PIDFILE"
-  printf 'FORGE console stopped.\n'
+  printf 'APOTHEON ONE console stopped.\n'
   return 1
 }
 
