@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PIDFILE="$ROOT/.wake-auth.pid"
+LOGFILE="$ROOT/reports/wake-auth.log"
+RUNNER_LOG="$ROOT/reports/wake-auth-runner.log"
+
+read_pid() {
+  if [ -f "$PIDFILE" ]; then
+    cat "$PIDFILE" 2>/dev/null || true
+  fi
+}
+
+is_running() {
+  local pid
+  pid="$(read_pid)"
+  [ -n "$pid" ] || return 1
+  kill -0 "$pid" 2>/dev/null
+}
+
+show_log() {
+  if [ -f "$LOGFILE" ]; then
+    python3 - "$LOGFILE" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+text = Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
+text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+lines = [line.rstrip() for line in text.splitlines() if line.strip()]
+print("\n".join(lines[-60:]))
+PY
+  fi
+}
+
+start_auth() {
+  mkdir -p "$ROOT/reports"
+  if is_running; then
+    printf 'Wake authorization already running: pid=%s\n' "$(read_pid)"
+    show_log
+    return 0
+  fi
+
+  rm -f "$PIDFILE"
+  : > "$LOGFILE"
+  : > "$RUNNER_LOG"
+
+  nohup bash -c '
+    set -o pipefail
+    printf "\n" | script -qefc "env -u GH_TOKEN -u GITHUB_TOKEN BROWSER=true gh auth login --hostname github.com --git-protocol https --web --scopes codespace" "$1"
+  ' _ "$LOGFILE" >>"$RUNNER_LOG" 2>&1 </dev/null &
+  local pid=$!
+  printf '%s\n' "$pid" > "$PIDFILE"
+  sleep 3
+
+  printf 'Wake authorization started: pid=%s\n' "$pid"
+  show_log
+}
+
+status_auth() {
+  if is_running; then
+    printf 'Wake authorization waiting: pid=%s\n' "$(read_pid)"
+  else
+    rm -f "$PIDFILE"
+    printf 'Wake authorization process not running.\n'
+  fi
+  show_log
+}
+
+stop_auth() {
+  if is_running; then
+    kill "$(read_pid)" 2>/dev/null || true
+  fi
+  rm -f "$PIDFILE"
+  printf 'Wake authorization stopped.\n'
+}
+
+case "${1:-status}" in
+  start) start_auth ;;
+  status) status_auth ;;
+  stop) stop_auth ;;
+  *)
+    printf 'Usage: %s {start|status|stop}\n' "$0" >&2
+    exit 2
+    ;;
+esac
