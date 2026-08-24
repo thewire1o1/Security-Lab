@@ -7,7 +7,7 @@ TOOLS_HOME="$HOME/tools"
 GO_BIN="$HOME/go/bin"
 mkdir -p "$TOOLS_HOME" "$GO_BIN" "$WORKSPACE/reports" "$WORKSPACE/notes" "$WORKSPACE/targets" "$WORKSPACE/loot" "$WORKSPACE/engagements" "$WORKSPACE/artifacts" "$WORKSPACE/cases" "$WORKSPACE/fuzz/harnesses"
 
-printf '\n[+] Bootstrapping Digital Paragon Security Research...\n'
+printf '\n[+] Bootstrapping APOTHEON ONE...\n'
 sudo apt-get update -y
 
 packages=(
@@ -53,7 +53,7 @@ pipx install bandit >/dev/null 2>&1 || pipx upgrade bandit >/dev/null 2>&1 || tr
 rm -rf "$TOOLS_HOME/SecLists" 2>/dev/null || true
 
 if command -v docker >/dev/null 2>&1; then
-  # These containers are disposable. Removing only the legacy names prevents port collisions during the DPSR rename.
+  # These containers are disposable. Removing only historical names prevents port collisions during upgrades.
   docker rm -f sec-lab-juice-shop sec-lab-dvwa sec-lab-webgoat sec-lab-kali >/dev/null 2>&1 || true
 fi
 
@@ -63,13 +63,14 @@ fi
 
 sed -i '/SECURITY-LAB/,/SECURITY-LAB.*END/d' "$HOME/.bashrc" 2>/dev/null || true
 sed -i '/DPSR/,/DPSR.*END/d' "$HOME/.bashrc" 2>/dev/null || true
+sed -i '/APOTHEON-ONE/,/APOTHEON-ONE.*END/d' "$HOME/.bashrc" 2>/dev/null || true
 cat >> "$HOME/.bashrc" <<EOF
 
-# >>> DPSR >>>
+# >>> APOTHEON-ONE >>>
 export PATH="/usr/local/go/bin:$GO_BIN:$HOME/.local/bin:$WORKSPACE/bin:\$PATH"
 alias recon='bash $WORKSPACE/bin/recon'
 alias headers='bash $WORKSPACE/bin/headers'
-# >>> DPSR >>> END
+# >>> APOTHEON-ONE >>> END
 EOF
 
 sudo apt-get clean >/dev/null 2>&1 || true
@@ -80,7 +81,7 @@ bash "$WORKSPACE/bin/disk-guard" --auto || true
 cat <<'BANNER'
 
 ============================================================
- Digital Paragon Security Research
+ APOTHEON ONE · Unified. Elevated.
 ------------------------------------------------------------
  dpsr help       control surface
  dpsr up         start the vulnerable training range
@@ -91,7 +92,7 @@ cat <<'BANNER'
  dpsr fuzz       run bounded local fuzzing
  dpsr triage     statically triage an artifact
  dpsr research   manage persistent research cases
- dpsr kali       enter the Kali operator shell
+ dpsr kali       enter the security operator shell
 ============================================================
 
 Run: source ~/.bashrc && dpsr doctor
