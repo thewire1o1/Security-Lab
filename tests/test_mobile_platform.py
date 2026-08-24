@@ -94,7 +94,7 @@ class MobilePlatformTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Node.js 22.13 or newer"):
                 mobile._ensure_react_native_node()
 
-    def test_android_template_targets_current_toolchain_and_external_runner(self) -> None:
+    def test_android_template_targets_available_sdk_and_external_runner(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             base = Path(temp)
             project_root = base / "android-app"
@@ -109,11 +109,14 @@ class MobilePlatformTests(unittest.TestCase):
             workflow = (project_root / ".github" / "workflows" / "android.yml").read_text(encoding="utf-8")
             self.assertIn('id("com.android.application") version "9.3.0"', root_gradle)
             self.assertNotIn("org.jetbrains.kotlin.android", root_gradle)
-            self.assertIn("compileSdk = 37", module_gradle)
+            self.assertIn("compileSdk = 36", module_gradle)
+            self.assertIn("targetSdk = 36", module_gradle)
+            self.assertIn("platforms;android-36", workflow)
+            self.assertIn("build-tools;36.0.0", workflow)
             self.assertIn("gradle-version: '9.5.0'", workflow)
             self.assertIn("ubuntu-latest", workflow)
 
-    def test_ios_template_uses_macos_runner_and_xcodegen(self) -> None:
+    def test_ios_template_generates_info_plist_on_macos_runner(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             base = Path(temp)
             project_root = base / "ios-app"
@@ -124,11 +127,35 @@ class MobilePlatformTests(unittest.TestCase):
 
             self.assertEqual(project.runner, "github-actions")
             self.assertTrue((project_root / "app" / "Sources" / "DpsrApp.swift").is_file())
-            self.assertTrue((project_root / "app" / "project.yml").is_file())
+            spec = (project_root / "app" / "project.yml").read_text(encoding="utf-8")
             workflow = (project_root / ".github" / "workflows" / "ios.yml").read_text(encoding="utf-8")
+            self.assertIn("GENERATE_INFOPLIST_FILE: YES", spec)
+            self.assertIn("INFOPLIST_KEY_CFBundleDisplayName", spec)
             self.assertIn("runs-on: macos-15", workflow)
             self.assertIn("xcodegen generate --spec app/project.yml", workflow)
             self.assertIn("CODE_SIGNING_ALLOWED=NO", workflow)
+
+    def test_mobile_refresh_updates_build_files_without_overwriting_source(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            managed = base / "managed"
+            project_root = managed / "android-app"
+            state = base / "state"
+            with (
+                mock.patch.object(mobile, "PROJECTS_ROOT", managed),
+                mock.patch.object(registry, "STATE_ROOT", state),
+                mock.patch.object(registry, "REGISTRY_PATH", state / "projects.json"),
+            ):
+                project = mobile.init_mobile_project("android-app", "android", project_root)
+                source = next((project_root / "app" / "app" / "src" / "main" / "java").rglob("MainActivity.kt"))
+                source.write_text("custom application source\n", encoding="utf-8")
+                module = project_root / "app" / "app" / "build.gradle.kts"
+                module.write_text("compileSdk = 37\n", encoding="utf-8")
+                refreshed = mobile.refresh_mobile_build_files(project)
+
+            self.assertEqual(refreshed.name, "android-app")
+            self.assertEqual(source.read_text(encoding="utf-8"), "custom application source\n")
+            self.assertIn("compileSdk = 36", module.read_text(encoding="utf-8"))
 
     def test_api_routes_mobile_profiles_to_mobile_engine(self) -> None:
         project = Project(
@@ -144,6 +171,24 @@ class MobilePlatformTests(unittest.TestCase):
             row = api.create_project("demo", "flutter")
         init_mock.assert_called_once_with("demo", "flutter")
         self.assertEqual(row["profile"], "flutter")
+
+    def test_api_refresh_routes_existing_mobile_project(self) -> None:
+        project = Project(
+            name="demo",
+            path=Path("/tmp/demo"),
+            profile="ios",
+            runner="github-actions",
+            commands={},
+            services={},
+            metadata={},
+        )
+        with (
+            mock.patch.object(api, "get_project", return_value=project),
+            mock.patch.object(api, "refresh_mobile_build_files", return_value=project) as refresh_mock,
+        ):
+            row = api.refresh_project_template("demo")
+        refresh_mock.assert_called_once_with(project)
+        self.assertEqual(row["profile"], "ios")
 
 
 if __name__ == "__main__":
