@@ -1,0 +1,216 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VENV="$ROOT/.venv-mcp"
+PYTHON="$VENV/bin/python"
+PIDFILE="$ROOT/.mcp.pid"
+DISABLED="$ROOT/.mcp.disabled"
+LOGFILE="$ROOT/reports/mcp-server.log"
+PORT="${DPSR_MCP_PORT:-8766}"
+
+read_pid() {
+  if [ -f "$PIDFILE" ]; then
+    cat "$PIDFILE" 2>/dev/null || true
+  fi
+}
+
+is_mcp_pid() {
+  local pid="${1:-}"
+  [ -n "$pid" ] || return 1
+  kill -0 "$pid" 2>/dev/null || return 1
+  tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -q 'security_lab.mcp_server'
+}
+
+is_running() {
+  local pid
+  pid="$(read_pid)"
+  is_mcp_pid "$pid"
+}
+
+port_open() {
+  python3 - "$PORT" <<'PY'
+import socket
+import sys
+
+port = int(sys.argv[1])
+try:
+    with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+        pass
+except OSError:
+    raise SystemExit(1)
+PY
+}
+
+healthy() {
+  is_running && port_open
+}
+
+log_tail() {
+  if [ -f "$LOGFILE" ]; then
+    printf '%s\n' '--- recent MCP server log ---' >&2
+    tail -n 80 "$LOGFILE" >&2 || true
+    printf '%s\n' '--- end MCP server log ---' >&2
+  fi
+}
+
+listener_pids() {
+  if command -v fuser >/dev/null 2>&1; then
+    fuser -n tcp "$PORT" 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+$' || true
+    return 0
+  fi
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -nP -t -iTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true
+    return 0
+  fi
+  return 0
+}
+
+stop_pid() {
+  local pid="$1"
+  kill "$pid" 2>/dev/null || true
+  for _ in $(seq 1 30); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      return 0
+    fi
+    sleep 0.1
+  done
+  kill -9 "$pid" 2>/dev/null || true
+}
+
+stop_orphan_mcp_listeners() {
+  local found=0
+  local pid
+  while IFS= read -r pid; do
+    [ -n "$pid" ] || continue
+    found=1
+    if ! is_mcp_pid "$pid"; then
+      printf 'Port %s is owned by non-MCP process pid=%s; refusing to terminate it.\n' "$PORT" "$pid" >&2
+      return 1
+    fi
+    printf 'Stopping orphaned MCP listener: pid=%s port=%s\n' "$pid" "$PORT"
+    stop_pid "$pid"
+  done < <(listener_pids)
+
+  if [ "$found" -eq 1 ] && port_open; then
+    printf 'Port %s is still occupied after MCP cleanup.\n' "$PORT" >&2
+    return 1
+  fi
+  return 0
+}
+
+install_sdk() {
+  if [ ! -x "$PYTHON" ]; then
+    python3 -m venv "$VENV"
+  fi
+  if ! "$PYTHON" -c 'import mcp' >/dev/null 2>&1; then
+    "$PYTHON" -m pip install --disable-pip-version-check -q -r "$ROOT/requirements-mcp.txt"
+  fi
+  "$PYTHON" -c 'import mcp; print("MCP SDK ready")'
+}
+
+start_server() {
+  mkdir -p "$ROOT/reports"
+  rm -f "$DISABLED"
+  if healthy; then
+    status_server
+    return 0
+  fi
+  if is_running; then
+    stop_process
+  fi
+  if port_open; then
+    stop_orphan_mcp_listeners || {
+      log_tail
+      return 1
+    }
+  fi
+  install_sdk
+  rm -f "$PIDFILE"
+  cd "$ROOT"
+  nohup "$PYTHON" -m security_lab.mcp_server >>"$LOGFILE" 2>&1 </dev/null &
+  local pid=$!
+  printf '%s\n' "$pid" > "$PIDFILE"
+
+  for _ in $(seq 1 40); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      rm -f "$PIDFILE"
+      printf 'APOTHEON ONE MCP server failed to start.\n' >&2
+      log_tail
+      return 1
+    fi
+    if port_open; then
+      printf 'APOTHEON ONE MCP server running: pid=%s\n' "$pid"
+      printf 'Local endpoint: http://127.0.0.1:%s/mcp\n' "$PORT"
+      if [ -n "${CODESPACE_NAME:-}" ]; then
+        printf 'Codespaces endpoint: https://%s-%s.app.github.dev/mcp\n' "$CODESPACE_NAME" "$PORT"
+      fi
+      return 0
+    fi
+    sleep 0.5
+  done
+
+  printf 'APOTHEON ONE MCP process is running but port %s is not ready.\n' "$PORT" >&2
+  log_tail
+  return 1
+}
+
+stop_process() {
+  local pid
+  pid="$(read_pid)"
+  if is_mcp_pid "$pid"; then
+    stop_pid "$pid"
+  fi
+  rm -f "$PIDFILE"
+  if port_open; then
+    stop_orphan_mcp_listeners
+  fi
+}
+
+stop_server() {
+  touch "$DISABLED"
+  stop_process
+  printf 'APOTHEON ONE MCP server stopped.\n'
+}
+
+status_server() {
+  if healthy; then
+    printf 'APOTHEON ONE MCP server running: pid=%s\n' "$(read_pid)"
+    printf 'Local endpoint: http://127.0.0.1:%s/mcp\n' "$PORT"
+    if [ -n "${CODESPACE_NAME:-}" ]; then
+      printf 'Codespaces endpoint: https://%s-%s.app.github.dev/mcp\n' "$CODESPACE_NAME" "$PORT"
+    fi
+    return 0
+  fi
+  if is_running; then
+    printf 'APOTHEON ONE MCP server unhealthy: pid=%s port=%s unavailable.\n' "$(read_pid)" "$PORT" >&2
+    log_tail
+    return 1
+  fi
+  rm -f "$PIDFILE"
+  printf 'APOTHEON ONE MCP server stopped.\n' >&2
+  log_tail
+  return 1
+}
+
+test_server() {
+  if ! healthy; then
+    printf 'APOTHEON ONE MCP server is not healthy.\n' >&2
+    log_tail
+    return 1
+  fi
+  "$PYTHON" -m security_lab.mcp_probe
+}
+
+case "${1:-status}" in
+  install) install_sdk ;;
+  start) start_server ;;
+  stop) stop_server ;;
+  restart) stop_process; start_server ;;
+  status) status_server ;;
+  test) test_server ;;
+  *)
+    printf 'Usage: %s {install|start|stop|restart|status|test}\n' "$0" >&2
+    exit 2
+    ;;
+esac

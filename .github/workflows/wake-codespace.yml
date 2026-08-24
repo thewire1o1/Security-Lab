@@ -1,0 +1,307 @@
+name: APOTHEON ONE Wake Controller
+
+on:
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: apotheon-one-codespace-lifecycle-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  wake:
+    if: >-
+      github.event.issue.user.login == github.repository_owner &&
+      (github.event.issue.title == '[DPSR-WAKE] start Codespace' ||
+       github.event.issue.title == '[DPSR-WAKE] restart Codespace' ||
+       github.event.issue.title == '[DPSR-WAKE] refresh Codespace' ||
+       github.event.issue.title == '[DPSR-WAKE] stop Codespace' ||
+       github.event.issue.title == '[DPSR-WAKE] retire Codespace')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      WAKE_TOKEN: ${{ secrets.DPSR_CODESPACES_TOKEN }}
+      REPOSITORY: ${{ github.repository }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_TITLE: ${{ github.event.issue.title }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Apply Codespace lifecycle request
+        id: wake
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [ -z "${WAKE_TOKEN:-}" ]; then
+            printf '%s\n' 'DPSR_CODESPACES_TOKEN is not configured.' >&2
+            exit 2
+          fi
+
+          api() {
+            local method="$1"
+            local path="$2"
+            local data="${3:-}"
+            local -a args=(
+              --fail-with-body
+              --silent
+              --show-error
+              -X "$method"
+              -H 'Accept: application/vnd.github+json'
+              -H "Authorization: Bearer ${WAKE_TOKEN}"
+              -H 'X-GitHub-Api-Version: 2026-03-10'
+            )
+            if [ -n "$data" ]; then
+              args+=(
+                -H 'Content-Type: application/json'
+                --data "$data"
+              )
+            fi
+            curl "${args[@]}" "https://api.github.com${path}"
+          }
+
+          state_of() {
+            api GET "/user/codespaces/$1" | jq -r '.state // "Unknown"'
+          }
+
+          wait_for_state() {
+            local name="$1"
+            local desired="$2"
+            local state='Unknown'
+            for _ in $(seq 1 150); do
+              state="$(state_of "$name")"
+              if [ "$state" = "$desired" ]; then
+                printf '%s\n' "$state"
+                return 0
+              fi
+              sleep 2
+            done
+            printf 'Codespace %s did not reach %s state; final state=%s.\n' "$name" "$desired" "$state" >&2
+            return 1
+          }
+
+          wait_for_stable() {
+            local name="$1"
+            local state='Unknown'
+            for _ in $(seq 1 150); do
+              state="$(state_of "$name")"
+              case "$state" in
+                Available|Shutdown)
+                  printf '%s\n' "$state"
+                  return 0
+                  ;;
+              esac
+              sleep 2
+            done
+            printf 'Codespace %s did not reach a stable state; final state=%s.\n' "$name" "$state" >&2
+            return 1
+          }
+
+          ensure_available() {
+            local name="$1"
+            local state
+            state="$(wait_for_stable "$name")"
+            if [ "$state" = 'Shutdown' ]; then
+              api POST "/user/codespaces/${name}/start" >/dev/null
+              wait_for_state "$name" 'Available' >/dev/null
+            fi
+          }
+
+          ensure_shutdown() {
+            local name="$1"
+            local state
+            state="$(wait_for_stable "$name")"
+            if [ "$state" = 'Available' ]; then
+              api POST "/user/codespaces/${name}/stop" >/dev/null
+              wait_for_state "$name" 'Shutdown' >/dev/null
+            fi
+          }
+
+          requested_name="$(printf '%s\n' "${ISSUE_BODY:-}" | sed -nE 's/^codespace:[[:space:]]*([A-Za-z0-9][A-Za-z0-9-]{0,127})[[:space:]]*$/\1/p' | head -n 1)"
+          payload="$(api GET '/user/codespaces?per_page=100')"
+          if [ -n "$requested_name" ]; then
+            selection="$(printf '%s' "$payload" | jq -c --arg repo "$REPOSITORY" --arg name "$requested_name" '
+              [.codespaces[] | select(.repository.full_name == $repo and .name == $name)]
+              | .[0] // empty
+            ')"
+          else
+            selection="$(printf '%s' "$payload" | jq -c --arg repo "$REPOSITORY" '
+              [.codespaces[] | select(.repository.full_name == $repo)]
+              | sort_by(.last_used_at // .updated_at // .created_at)
+              | reverse
+              | .[0] // empty
+            ')"
+          fi
+
+          action='start'
+          case "$ISSUE_TITLE" in
+            '[DPSR-WAKE] restart Codespace') action='restart' ;;
+            '[DPSR-WAKE] refresh Codespace') action='refresh' ;;
+            '[DPSR-WAKE] stop Codespace') action='stop' ;;
+            '[DPSR-WAKE] retire Codespace') action='retire' ;;
+          esac
+          printf 'action=%s\n' "$action" >> "$GITHUB_OUTPUT"
+
+          if [ "$action" = 'refresh' ]; then
+            old_name=''
+            old_state='none'
+            if [ -n "$selection" ]; then
+              old_name="$(printf '%s' "$selection" | jq -r '.name // empty')"
+              old_state="$(printf '%s' "$selection" | jq -r '.state // "Unknown"')"
+            fi
+
+            machines="$(api GET "/repos/${REPOSITORY}/codespaces/machines")"
+            machine="$(printf '%s' "$machines" | jq -r '
+              [.machines[]
+                | select(
+                    (.cpus // 0) >= 2 and
+                    (.memory_in_bytes // 0) >= 8589934592 and
+                    (.storage_in_bytes // 0) >= 34359738368
+                  )]
+              | sort_by(.cpus, .memory_in_bytes, .storage_in_bytes)
+              | .[0].name // empty
+            ')"
+            if [ -z "$machine" ]; then
+              printf '%s\n' 'No Codespaces machine meets the APOTHEON ONE minimum requirements.' >&2
+              exit 6
+            fi
+
+            create_payload="$(jq -nc \
+              --arg ref 'master' \
+              --arg machine "$machine" \
+              --arg devcontainer '.devcontainer/devcontainer.json' \
+              '{ref:$ref,machine:$machine,devcontainer_path:$devcontainer}')"
+            created="$(api POST "/repos/${REPOSITORY}/codespaces" "$create_payload")"
+            name="$(printf '%s' "$created" | jq -r '.name // empty')"
+            state="$(printf '%s' "$created" | jq -r '.state // "Unknown"')"
+            if [ -z "$name" ]; then
+              printf '%s\n' 'Codespace creation returned no Codespace name.' >&2
+              exit 7
+            fi
+
+            printf 'codespace=%s\n' "$name" >> "$GITHUB_OUTPUT"
+            printf 'previous_state=%s\n' "$old_state" >> "$GITHUB_OUTPUT"
+            ensure_available "$name"
+            printf 'final_state=Available\n' >> "$GITHUB_OUTPUT"
+
+            if [ -n "$old_name" ] && [ "$old_name" != "$name" ]; then
+              safe_to_retire="$(printf '%s' "$selection" | jq -r '
+                (.git_status != null) and
+                (.git_status.has_uncommitted_changes == false) and
+                (.git_status.has_unpushed_changes == false)
+              ')"
+              if [ "$safe_to_retire" = 'true' ]; then
+                if api DELETE "/user/codespaces/${old_name}" >/dev/null; then
+                  printf 'retired_codespace=%s\n' "$old_name" >> "$GITHUB_OUTPUT"
+                else
+                  printf 'preserved_codespace=%s\n' "$old_name" >> "$GITHUB_OUTPUT"
+                fi
+              else
+                printf 'preserved_codespace=%s\n' "$old_name" >> "$GITHUB_OUTPUT"
+              fi
+            fi
+          else
+            if [ -z "$selection" ]; then
+              if [ -n "$requested_name" ]; then
+                printf 'Codespace %s was not found for %s.\n' "$requested_name" "$REPOSITORY" >&2
+              else
+                printf 'No Codespace found for %s.\n' "$REPOSITORY" >&2
+              fi
+              exit 3
+            fi
+
+            name="$(printf '%s' "$selection" | jq -r '.name')"
+            state="$(printf '%s' "$selection" | jq -r '.state // "Unknown"')"
+            printf 'codespace=%s\n' "$name" >> "$GITHUB_OUTPUT"
+            printf 'previous_state=%s\n' "$state" >> "$GITHUB_OUTPUT"
+
+            case "$action" in
+              start)
+                ensure_available "$name"
+                printf 'final_state=Available\n' >> "$GITHUB_OUTPUT"
+                ;;
+              restart)
+                ensure_shutdown "$name"
+                ensure_available "$name"
+                printf 'final_state=Available\n' >> "$GITHUB_OUTPUT"
+                ;;
+              stop)
+                ensure_shutdown "$name"
+                printf 'final_state=Shutdown\n' >> "$GITHUB_OUTPUT"
+                ;;
+              retire)
+                if [ -z "$requested_name" ]; then
+                  printf '%s\n' 'Retirement requires an explicit `codespace: NAME` field.' >&2
+                  exit 9
+                fi
+                if ! printf '%s\n' "${ISSUE_BODY:-}" | grep -Fxq "confirm: ${name}"; then
+                  printf 'Retirement requires exact confirmation: confirm: %s\n' "$name" >&2
+                  exit 10
+                fi
+                safe_to_retire="$(printf '%s' "$selection" | jq -r '
+                  (.git_status != null) and
+                  (.git_status.has_uncommitted_changes == false) and
+                  (.git_status.has_unpushed_changes == false)
+                ')"
+                if [ "$safe_to_retire" != 'true' ] && ! printf '%s\n' "${ISSUE_BODY:-}" | grep -Fxq 'allow-unverified-retire: true'; then
+                  printf '%s\n' 'Codespace working state is not proven clean. Add `allow-unverified-retire: true` only after preserving or independently verifying its work.' >&2
+                  exit 11
+                fi
+                ensure_shutdown "$name"
+                api DELETE "/user/codespaces/${name}" >/dev/null
+                printf 'final_state=Retired\n' >> "$GITHUB_OUTPUT"
+                printf 'retired_codespace=%s\n' "$name" >> "$GITHUB_OUTPUT"
+                ;;
+            esac
+          fi
+
+          if [ "$action" != 'retire' ]; then
+            printf 'web_url=https://%s.github.dev\n' "$name" >> "$GITHUB_OUTPUT"
+            printf 'console_url=https://%s-8765.app.github.dev\n' "$name" >> "$GITHUB_OUTPUT"
+            printf 'mcp_url=https://%s-8766.app.github.dev/mcp\n' "$name" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Report lifecycle request
+        if: success()
+        shell: bash
+        env:
+          ACTION: ${{ steps.wake.outputs.action }}
+          CODESPACE: ${{ steps.wake.outputs.codespace }}
+          PREVIOUS_STATE: ${{ steps.wake.outputs.previous_state }}
+          FINAL_STATE: ${{ steps.wake.outputs.final_state }}
+          RETIRED_CODESPACE: ${{ steps.wake.outputs.retired_codespace }}
+          PRESERVED_CODESPACE: ${{ steps.wake.outputs.preserved_codespace }}
+          WEB_URL: ${{ steps.wake.outputs.web_url }}
+          CONSOLE_URL: ${{ steps.wake.outputs.console_url }}
+          MCP_URL: ${{ steps.wake.outputs.mcp_url }}
+        run: |
+          body=$(cat <<EOF
+          Codespace ${ACTION} request completed.
+
+          Codespace: \`${CODESPACE}\`
+          Previous state: \`${PREVIOUS_STATE}\`
+          Final state: \`${FINAL_STATE}\`
+          EOF
+          )
+          if [ -n "${WEB_URL:-}" ]; then
+            body="${body}\nCodespace: ${WEB_URL}\nAPOTHEON ONE console: ${CONSOLE_URL}\nMCP: ${MCP_URL}"
+          fi
+          if [ -n "${RETIRED_CODESPACE:-}" ]; then
+            body="${body}\nRetired Codespace: \`${RETIRED_CODESPACE}\`"
+          fi
+          if [ -n "${PRESERVED_CODESPACE:-}" ]; then
+            body="${body}\nPreserved predecessor because its working state could not be proven clean: \`${PRESERVED_CODESPACE}\`"
+          fi
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$body"
+          gh issue close "$ISSUE_NUMBER" --repo "$REPOSITORY" --reason completed
+
+      - name: Report lifecycle failure
+        if: failure()
+        shell: bash
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" \
+            --body 'Codespace lifecycle request failed. Check the APOTHEON ONE Wake Controller workflow run and the `DPSR_CODESPACES_TOKEN` repository secret.' || true
+          gh issue close "$ISSUE_NUMBER" --repo "$REPOSITORY" --reason 'not planned' || true

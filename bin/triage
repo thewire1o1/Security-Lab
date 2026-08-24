@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+FILE="${1:-}"
+
+if [ -z "$FILE" ] || [ ! -f "$FILE" ]; then
+  printf '%s\n' 'Usage: sec triage FILE' >&2
+  exit 2
+fi
+FILE="$(realpath -- "$FILE")"
+
+STAMP="$(date -u +%Y%m%d-%H%M%S)"
+BASE="$(basename -- "$FILE" | tr -cs '[:alnum:]._- ' '_' | tr ' ' '_')"
+OUT="$ROOT/reports/triage-$STAMP-$BASE"
+mkdir -p "$OUT"
+
+file -b -- "$FILE" | tee "$OUT/file.txt"
+stat -- "$FILE" >"$OUT/stat.txt"
+strings -a -n 6 -- "$FILE" | head -n 5000 >"$OUT/strings.txt" || true
+
+if command -v exiftool >/dev/null 2>&1; then
+  exiftool "$FILE" >"$OUT/metadata.txt" 2>&1 || true
+fi
+if command -v yara >/dev/null 2>&1 && [ -d "$ROOT/rules" ]; then
+  yara -r "$ROOT/rules" "$FILE" >"$OUT/yara.txt" 2>&1 || true
+fi
+if command -v readelf >/dev/null 2>&1; then
+  readelf -a -- "$FILE" >"$OUT/readelf.txt" 2>&1 || true
+fi
+if command -v objdump >/dev/null 2>&1; then
+  objdump -x -- "$FILE" >"$OUT/objdump.txt" 2>&1 || true
+fi
+if command -v binwalk >/dev/null 2>&1; then
+  binwalk "$FILE" >"$OUT/binwalk.txt" 2>&1 || true
+fi
+
+(
+  cd "$ROOT"
+  python3 -m security_lab.triage_summary "$FILE" "$OUT"
+)
+
+printf '[+] Static triage artifacts: %s\n' "$OUT"

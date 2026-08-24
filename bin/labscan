@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+STAMP="$(date +%Y%m%d-%H%M%S)"
+OUT="reports/lab-${STAMP}"
+mkdir -p "$OUT"
+
+echo "[+] Checking local training targets..."
+docker compose -f lab/docker-compose.yml ps || true
+
+nmap -Pn -sV -p 3000,8080,8081 127.0.0.1 -oA "$OUT/nmap-local" || true
+
+for url in http://127.0.0.1:3000 http://127.0.0.1:8080 http://127.0.0.1:8081; do
+  name="$(printf '%s' "$url" | tr -cs '[:alnum:]' '_')"
+  curl -skI --max-time 10 "$url" > "$OUT/${name}-headers.txt" 2>&1 || true
+  if command -v nuclei >/dev/null 2>&1; then
+    nuclei -silent -u "$url" -severity info,low,medium,high,critical >> "$OUT/nuclei.txt" 2>/dev/null || true
+  fi
+done
+
+echo "[+] Results: $OUT"
