@@ -27,7 +27,7 @@
     "8080": { "label": "DVWA", "onAutoForward": "silent" },
     "8081": { "label": "WebGoat", "onAutoForward": "silent" },
     "8765": { "label": "DPSR Operations Console", "onAutoForward": "notify" },
-    "9090": { "label": "DPSR Web", "onAutoForward": "ignore" }
+    "9090": { "label": "WebWolf", "onAutoForward": "silent" }
   },
   "customizations": {
     "vscode": {
