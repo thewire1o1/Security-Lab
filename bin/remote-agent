@@ -3,4 +3,13 @@ set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+
+if [ "${1:-}" = "start" ]; then
+  python3 -m security_lab.remote_agent_ext start
+  rc=$?
+  bash "$ROOT/bin/mcp-control" start || true
+  bash "$ROOT/bin/dashboard-control" start || true
+  exit "$rc"
+fi
+
 exec python3 -m security_lab.remote_agent_ext "$@"
