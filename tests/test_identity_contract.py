@@ -42,11 +42,14 @@ TEXT_SUFFIXES = {
     ".yml",
 }
 IGNORED_PARTS = {".git", "artifacts", "cases", "reports"}
+THIS_FILE = Path(__file__).resolve()
 
 
 def repository_text_files():
     for path in ROOT.rglob("*"):
-        if not path.is_file() or path.suffix.lower() not in TEXT_SUFFIXES:
+        if not path.is_file() or path.resolve() == THIS_FILE:
+            continue
+        if path.suffix.lower() not in TEXT_SUFFIXES:
             continue
         if IGNORED_PARTS.intersection(path.relative_to(ROOT).parts):
             continue
