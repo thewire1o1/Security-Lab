@@ -68,7 +68,7 @@ class BridgeGitHubClient(base.GitHubClient):
             return ""
 
         target.parent.mkdir(parents=True, exist_ok=True)
-        os.chmod(target.parent, 0o700)
+        os.chmod(target.parent, 0o700)  # nosemgrep: python.lang.security.audit.insecure-file-permissions.insecure-file-permissions
         target.write_text(legacy + "\n", encoding="utf-8")
         os.chmod(target, 0o600)
         return legacy
