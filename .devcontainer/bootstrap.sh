@@ -61,7 +61,6 @@ cat >> "$HOME/.bashrc" <<EOF
 
 # >>> DPSR >>>
 export PATH="/usr/local/go/bin:$GO_BIN:$HOME/.local/bin:$WORKSPACE/bin:\$PATH"
-alias dpsr='dpsr'
 alias recon='bash $WORKSPACE/bin/recon'
 alias headers='bash $WORKSPACE/bin/headers'
 # >>> DPSR >>> END
