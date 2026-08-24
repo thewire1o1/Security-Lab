@@ -9,6 +9,7 @@ usage() {
 Digital Paragon Security Research
 
   dpsr doctor                 validate local dependencies and runtime state
+  dpsr acceptance             exercise the workstation end to end
   dpsr up                     start intentionally vulnerable training targets
   dpsr down                   stop the training range
   dpsr ps                     show container state
@@ -58,6 +59,7 @@ fi
 case "$cmd" in
   help|-h|--help) usage ;;
   doctor) exec bash "$ROOT/bin/doctor" "$@" ;;
+  acceptance) exec bash "$ROOT/bin/acceptance" "$@" ;;
   up) exec "${COMPOSE[@]}" up -d juice-shop dvwa webgoat ;;
   down) exec "${COMPOSE[@]}" --profile operator down ;;
   ps) exec "${COMPOSE[@]}" --profile operator ps ;;
