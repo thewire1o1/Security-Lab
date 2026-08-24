@@ -10,6 +10,7 @@ from .runners import RUNNERS
 from .scaffold import init_project
 
 EXTERNAL_RUNNERS = ("codespace", "github-actions")
+MAX_STRUCTURED_JOB_TIMEOUT = 3600
 
 
 def profile_row(profile: Profile) -> dict[str, Any]:
@@ -84,6 +85,18 @@ def create_project(name: str, profile_name: str) -> dict[str, Any]:
 
 
 def execute_job(project_name: str, command_name: str) -> dict[str, Any]:
+    project_model = get_project(project_name)
+    try:
+        command = project_model.commands[command_name]
+    except KeyError as exc:
+        available = ", ".join(sorted(project_model.commands)) or "none"
+        raise ValueError(
+            f"Project '{project_name}' has no command '{command_name}'. Available: {available}"
+        ) from exc
+    if command.timeout > MAX_STRUCTURED_JOB_TIMEOUT:
+        raise ValueError(
+            f"Command '{command_name}' is long-running ({command.timeout}s) and is not eligible for synchronous MCP execution."
+        )
     return run_job(project_name, command_name)
 
 
