@@ -73,7 +73,7 @@ def snapshot(job_limit: int = 20) -> dict[str, Any]:
     project_rows = projects()
     job_rows = jobs(job_limit)
     return {
-        "platform": "dpsr-v2",
+        "platform": "Digital Paragon",
         "profiles": profile_rows,
         "projects": project_rows,
         "jobs": job_rows,
