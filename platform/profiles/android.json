@@ -1,0 +1,18 @@
+{
+  "profile": {
+    "name": "android",
+    "title": "Native Android",
+    "category": "mobile",
+    "description": "Native Android application profile for Gradle builds, lint, tests, emulator/device workflows, CI, and release automation.",
+    "runner": "local",
+    "stack": ["kotlin", "android", "gradle"],
+    "capabilities": ["android", "testing", "emulator", "ci", "release"],
+    "scaffold": "android"
+  },
+  "commands": {
+    "lint": {"argv": ["./gradlew", "lint"], "cwd": "app", "timeout": 1800},
+    "test": {"argv": ["./gradlew", "test"], "cwd": "app", "timeout": 2400},
+    "build": {"argv": ["./gradlew", "assembleDebug"], "cwd": "app", "timeout": 3600}
+  },
+  "services": {}
+}
