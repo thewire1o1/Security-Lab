@@ -70,7 +70,7 @@ start_console() {
   mkdir -p "$ROOT/reports"
   rm -f "$DISABLED"
   if healthy; then
-    printf 'Digital Paragon console already running: pid=%s\n' "$(read_pid)"
+    printf 'FORGE console already running: pid=%s\n' "$(read_pid)"
     printf 'URL: %s\n' "$(console_url)"
     return 0
   fi
@@ -87,40 +87,40 @@ start_console() {
   for _ in $(seq 1 30); do
     if ! kill -0 "$pid" 2>/dev/null; then
       rm -f "$PIDFILE"
-      printf 'Digital Paragon console failed to start.\n' >&2
+      printf 'FORGE console failed to start.\n' >&2
       tail -n 40 "$LOGFILE" >&2 || true
       return 1
     fi
     if health_check; then
-      printf 'Digital Paragon console running: pid=%s\n' "$pid"
+      printf 'FORGE console running: pid=%s\n' "$pid"
       printf 'URL: %s\n' "$(console_url)"
       return 0
     fi
     sleep 0.5
   done
 
-  printf 'Digital Paragon console process is running but health endpoint is not ready.\n' >&2
+  printf 'FORGE console process is running but health endpoint is not ready.\n' >&2
   return 1
 }
 
 stop_console() {
   touch "$DISABLED"
   stop_process
-  printf 'Digital Paragon console stopped.\n'
+  printf 'FORGE console stopped.\n'
 }
 
 status_console() {
   if healthy; then
-    printf 'Digital Paragon console running: pid=%s\n' "$(read_pid)"
+    printf 'FORGE console running: pid=%s\n' "$(read_pid)"
     printf 'URL: %s\n' "$(console_url)"
     return 0
   fi
   if is_running; then
-    printf 'Digital Paragon console unhealthy: pid=%s health check failed.\n' "$(read_pid)" >&2
+    printf 'FORGE console unhealthy: pid=%s health check failed.\n' "$(read_pid)" >&2
     return 1
   fi
   rm -f "$PIDFILE"
-  printf 'Digital Paragon console stopped.\n'
+  printf 'FORGE console stopped.\n'
   return 1
 }
 
