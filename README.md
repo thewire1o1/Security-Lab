@@ -2,9 +2,9 @@
 
 [![DPSR CI](https://github.com/thewire1o1/Security-Lab/actions/workflows/ci.yml/badge.svg)](https://github.com/thewire1o1/Security-Lab/actions/workflows/ci.yml)
 
-**DPSR** is a reproducible security-research environment maintained by **TheWire1o1**. It combines an isolated vulnerable training range, a disposable Kali operator plane, continuous application-security analysis, bounded fuzzing, static artifact triage, persistent research state, evidence generation, and a private operations console.
+**DPSR** is a reproducible security-research environment maintained by **TheWire1o1**. It combines an isolated vulnerable training range, a disposable Kali operator plane, continuous application-security analysis, bounded fuzzing, static artifact triage, persistent research state, evidence generation, a private operations console, and an MCP control plane.
 
-The environment is intentionally opinionated: control-plane actions are allowlisted, vulnerable services bind to loopback, the training network is isolated from external egress, runtime evidence stays out of source control, and security checks run continuously in CI.
+The environment is intentionally opinionated: control-plane actions are bounded, vulnerable services bind to loopback, the training network is isolated from external egress, runtime evidence stays out of source control, and security checks run continuously in CI.
 
 ## Operating model
 
@@ -14,6 +14,7 @@ dpsr doctor
 dpsr up
 dpsr defend
 dpsr gui
+dpsr mcp status
 ```
 
 `dpsr` is the public control surface. The lower-level `sec` entry point remains available for compatibility.
@@ -22,12 +23,29 @@ dpsr gui
 
 DPSR separates four concerns:
 
-1. **Control plane** — local orchestration, state collection, reporting, and the operations console.
+1. **Control plane** — local orchestration, MCP, state collection, reporting, and the operations console.
 2. **Operator plane** — disposable Kali tooling with explicit network capabilities.
 3. **Training range** — intentionally vulnerable applications on an internal Docker network.
 4. **Evidence plane** — reports, case state, triage output, and validation artifacts kept outside normal source tracking.
 
 The browser console exposes fixed server-side actions only. It does not accept arbitrary shell commands.
+
+## MCP control plane
+
+The MCP sidecar listens on `127.0.0.1:8766/mcp` using Streamable HTTP. It exposes structured tools for health, repository status, bounded repository reads and writes, project command execution, allowlisted DPSR tasks, and service status.
+
+Sensitive repository paths are excluded from MCP file access. The MCP process cannot stop or reload the independent remote-command agent, and destructive Codespace retirement remains outside the MCP task surface.
+
+The GitHub issue-based remote-command agent remains an independent out-of-band control and recovery path. It can install, start, stop, inspect, and test MCP even when the MCP process itself is unavailable. Both control paths start automatically with the Codespace.
+
+```bash
+dpsr mcp install
+dpsr mcp start
+dpsr mcp status
+dpsr mcp test
+dpsr mcp restart
+dpsr mcp stop
+```
 
 ## Defensive pipeline
 
@@ -74,7 +92,9 @@ Executable harnesses placed under `fuzz/harnesses/` are discovered by `dpsr fuzz
 
 ```mermaid
 flowchart LR
-    C[Control Plane] --> P[Defensive Pipeline]
+    M[MCP :8766] --> C[Control Plane]
+    B[Out-of-band Remote Agent] --> C
+    C --> P[Defensive Pipeline]
     C --> O[Kali Operator Plane]
     P --> E[(Evidence + Research State)]
     O --> R[(DPSR Training Range)]
@@ -94,6 +114,7 @@ dpsr down                   stop the training range
 dpsr ps                     show container state
 dpsr scan                   scan the local training range
 dpsr gui                    launch the private operations console
+dpsr mcp ACTION             manage the MCP sidecar
 dpsr report                 generate HTML/JSON evidence from the latest scan
 dpsr defend                 execute the complete defensive pipeline
 dpsr review                 run repository security analysis
@@ -123,7 +144,7 @@ The Kali image contains a focused web, network, identity, reverse-engineering, t
 
 ## Continuous validation
 
-Every pull request compiles the Python package, runs the unit suite, validates shell syntax with ShellCheck, validates Docker Compose, scans for credentials with Gitleaks, scans files and configuration with Trivy, and runs Semgrep and Bandit static analysis.
+Every pull request compiles the Python package, runs the unit suite including MCP discovery and health checks, validates shell syntax with ShellCheck, validates Docker Compose, scans for credentials with Gitleaks, scans files and configuration with Trivy, and runs Semgrep and Bandit static analysis.
 
 ## Scope
 
