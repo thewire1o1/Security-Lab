@@ -22,7 +22,7 @@ print_tool() {
   printf '[OK] %-20s %s\n' "$command" "$version"
 }
 
-printf 'Digital Paragon Security Research diagnostics\n\n'
+printf 'APOTHEON ONE diagnostics\n\n'
 for command in "${TOOLS[@]}"; do
   print_tool "$command"
 done
@@ -53,9 +53,10 @@ else
   printf '  Docker CLI unavailable.\n'
 fi
 
-printf '\nKali operator image:\n'
+printf '\nSecurity operator image:\n'
 if command -v docker >/dev/null 2>&1 && \
-   (docker image inspect ghcr.io/thewire1o1/dpsr-kali:latest >/dev/null 2>&1 || \
+   (docker image inspect ghcr.io/thewire1o1/apotheon-one-kali:latest >/dev/null 2>&1 || \
+    docker image inspect ghcr.io/thewire1o1/dpsr-kali:latest >/dev/null 2>&1 || \
     docker image inspect dpsr-kali:latest >/dev/null 2>&1); then
   printf '  [OK] available\n'
 else
@@ -71,7 +72,7 @@ for file in "${PIPELINE[@]}"; do
   fi
 done
 
-printf '\nDPSR containers:\n'
+printf '\nAPOTHEON ONE containers:\n'
 if command -v docker >/dev/null 2>&1; then
   docker compose -f "$ROOT/lab/docker-compose.yml" --profile operator ps 2>/dev/null || true
 fi
