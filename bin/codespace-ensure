@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -u
 
-REQ_CPUS=4
-REQ_MEMORY=$((16 * 1024 * 1024 * 1024))
-REQ_STORAGE=$((64 * 1024 * 1024 * 1024))
+REQ_CPUS=2
+REQ_MEMORY=$((8 * 1024 * 1024 * 1024))
+REQ_STORAGE=$((32 * 1024 * 1024 * 1024))
 API_VERSION="2026-03-10"
 
 [ "${CODESPACES:-}" = "true" ] || exit 0
@@ -42,7 +42,7 @@ target="$(jq -r --argjson c "$REQ_CPUS" --argjson m "$REQ_MEMORY" --argjson s "$
 ' <<<"$machines")"
 
 target_display="$(jq -r --arg n "$target" '.machines[] | select(.name == $n) | .display_name' <<<"$machines" | head -n1)"
-[ -n "$target" ] || { echo '[--] No Codespaces machine meets the 4-core/16-GB/64-GB minimum'; exit 0; }
+[ -n "$target" ] || { echo '[--] No Codespaces machine meets the 2-core/8-GB/32-GB minimum'; exit 0; }
 
 printf '[+] Scheduling Codespace upgrade: %s -> %s\n' "$name" "$target_display"
 payload="$(jq -nc --arg machine "$target" '{machine:$machine}')"

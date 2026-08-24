@@ -27,6 +27,17 @@ for command in "${TOOLS[@]}"; do
   print_tool "$command"
 done
 
+printf '\nRepository:\n'
+printf '  head=%s\n' "$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || printf unknown)"
+repo_status="$(git -C "$ROOT" status --short --branch 2>/dev/null || true)"
+if [ -n "$repo_status" ]; then
+  while IFS= read -r line; do
+    printf '  %s\n' "$line"
+  done <<<"$repo_status"
+else
+  printf '  [--] Git status unavailable.\n'
+fi
+
 printf '\nPython package:\n'
 if (cd "$ROOT" && python3 -c 'import security_lab, security_lab.remote_agent, security_lab.dashboard'); then
   printf '  [OK] security_lab importable\n'
