@@ -15,6 +15,7 @@ Digital Paragon Security Research
   dpsr scan                   scan the local training range
   dpsr dashboard              launch the operations console on 127.0.0.1:8765
   dpsr gui                    alias for dpsr dashboard
+  dpsr mcp ACTION             manage the MCP sidecar (start|stop|restart|status|test|install)
   dpsr report                 generate HTML/JSON evidence from the latest scan
   dpsr defend                 execute the complete defensive pipeline
   dpsr review                 run repository security analysis
@@ -68,6 +69,7 @@ case "$cmd" in
     cd "$ROOT"
     exec python3 -m security_lab.dashboard "$@"
     ;;
+  mcp) exec bash "$ROOT/bin/mcp-control" "$@" ;;
   report) exec python3 "$ROOT/bin/sec-report" "$@" ;;
   defend) exec bash "$ROOT/bin/defense-run" "$@" ;;
   review) exec bash "$ROOT/bin/code-review" "$@" ;;
