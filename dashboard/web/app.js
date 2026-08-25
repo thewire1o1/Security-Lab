@@ -41,6 +41,11 @@
     orchestrator.src = "/orchestrator.js";
     orchestrator.async = false;
     orchestrator.addEventListener("load", () => {
+      const runPeekBehavior = document.createElement("script");
+      runPeekBehavior.src = "/run-peek-behavior.js";
+      runPeekBehavior.async = false;
+      document.head.appendChild(runPeekBehavior);
+
       const insights = document.createElement("script");
       insights.src = "/insights.js";
       insights.async = false;
