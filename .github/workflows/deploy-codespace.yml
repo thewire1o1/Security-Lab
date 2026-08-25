@@ -66,26 +66,32 @@ jobs:
             gh codespace ssh -c "$name" -- "$@"
           }
 
-          dirty="$(remote bash -lc 'cd /workspaces/Security-Lab && git status --porcelain=v1')"
-          if [ -n "$dirty" ]; then
-            printf '%s\n' 'Codespace has uncommitted changes. Deployment stopped without modifying the working tree.' >&2
-            printf '%s\n' "$dirty" >&2
+          repo_dir="$(remote bash -lc 'for d in /workspaces/*; do if [ -d "$d/.git" ]; then printf "%s\n" "$d"; break; fi; done' | tr -d '\r')"
+          if [ -z "$repo_dir" ]; then
+            printf '%s\n' 'Codespace is reachable over SSH but no checked-out repository was found under /workspaces.' >&2
             exit 5
           fi
 
-          unpushed="$(remote bash -lc 'cd /workspaces/Security-Lab && git rev-list @{upstream}..HEAD 2>/dev/null || true')"
-          if [ -n "$unpushed" ]; then
-            printf '%s\n' 'Codespace has unpushed commits. Deployment stopped without modifying the working tree.' >&2
+          dirty="$(remote bash -lc "cd '$repo_dir' && git status --porcelain=v1")"
+          if [ -n "$dirty" ]; then
+            printf '%s\n' 'Codespace has uncommitted changes. Deployment stopped without modifying the working tree.' >&2
+            printf '%s\n' "$dirty" >&2
             exit 6
           fi
 
-          remote bash -lc 'cd /workspaces/Security-Lab && git fetch origin master && git switch master && git merge --ff-only origin/master'
-          remote bash -lc 'cd /workspaces/Security-Lab && bash bin/dashboard-control restart'
+          unpushed="$(remote bash -lc "cd '$repo_dir' && git rev-list @{upstream}..HEAD 2>/dev/null || true")"
+          if [ -n "$unpushed" ]; then
+            printf '%s\n' 'Codespace has unpushed commits. Deployment stopped without modifying the working tree.' >&2
+            exit 7
+          fi
+
+          remote bash -lc "cd '$repo_dir' && git fetch origin master && git switch master && git merge --ff-only origin/master"
+          remote bash -lc "cd '$repo_dir' && bash bin/dashboard-control restart"
           remote bash -lc 'curl -fsS --max-time 5 http://127.0.0.1:8765/health >/dev/null'
           remote bash -lc 'curl -fsS --max-time 5 http://127.0.0.1:8765/api/catalog >/dev/null'
           remote bash -lc 'curl -fsS --max-time 5 http://127.0.0.1:8765/api/run >/dev/null'
 
-          sha="$(remote bash -lc 'cd /workspaces/Security-Lab && git rev-parse HEAD' | tr -d '\r')"
+          sha="$(remote bash -lc "cd '$repo_dir' && git rev-parse HEAD" | tr -d '\r')"
           printf 'codespace=%s\n' "$name" >> "$GITHUB_OUTPUT"
           printf 'sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
           printf 'console=https://%s-8765.app.github.dev\n' "$name" >> "$GITHUB_OUTPUT"
@@ -105,7 +111,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "APOTHEON ONE in-place deployment failed. The workflow is designed to stop before changing the Codespace when the working tree is dirty, commits are unpushed, SSH is unavailable, or health checks fail. No replacement Codespace was created by this workflow."
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "APOTHEON ONE in-place deployment failed. The workflow is designed to stop before changing the Codespace when the working tree is dirty, commits are unpushed, SSH is unavailable, repository discovery fails, or health checks fail. No replacement Codespace was created by this workflow."
 
       - name: Close request
         if: always()
