@@ -1,20 +1,90 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+
+TARGET="${1:-lab}"
+PROFILE="${2:-standard}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
-OUT="reports/lab-${STAMP}"
+OUT="reports/lab-${STAMP}-${TARGET}"
 mkdir -p "$OUT"
 
-echo "[+] Checking local training targets..."
+stage() {
+  printf 'APOTHEON_STAGE|%s|%s|%s|%s\n' "$1" "$2" "$3" "$4"
+}
+
+case "$PROFILE" in
+  quick|standard|deep) ;;
+  *)
+    printf 'Unsupported scan profile: %s\n' "$PROFILE" >&2
+    exit 2
+    ;;
+esac
+
+declare -a URLS=()
+PORTS=""
+TARGET_LABEL=""
+case "$TARGET" in
+  lab)
+    TARGET_LABEL="Entire Training Lab"
+    PORTS="3000,8080,8081"
+    URLS=("http://127.0.0.1:3000" "http://127.0.0.1:8080" "http://127.0.0.1:8081")
+    ;;
+  juice-shop)
+    TARGET_LABEL="OWASP Juice Shop"
+    PORTS="3000"
+    URLS=("http://127.0.0.1:3000")
+    ;;
+  dvwa)
+    TARGET_LABEL="Vulnerable Web App"
+    PORTS="8080"
+    URLS=("http://127.0.0.1:8080")
+    ;;
+  webgoat)
+    TARGET_LABEL="OWASP WebGoat"
+    PORTS="8081"
+    URLS=("http://127.0.0.1:8081")
+    ;;
+  *)
+    printf 'Unsupported scan target: %s\n' "$TARGET" >&2
+    exit 2
+    ;;
+esac
+
+stage scope running "Confirm target" "Locking this run to ${TARGET_LABEL}."
+printf '[+] Target: %s\n' "$TARGET_LABEL"
+printf '[+] Profile: %s\n' "$PROFILE"
 docker compose -f lab/docker-compose.yml ps || true
+stage scope completed "Confirm target" "Target confirmed inside the local APOTHEON training lab."
 
-nmap -Pn -sV -p 3000,8080,8081 127.0.0.1 -oA "$OUT/nmap-local" || true
+stage discover running "Discover services" "Network Discovery is identifying reachable services with Nmap."
+declare -a NMAP_ARGS=(-Pn -sV)
+if [[ "$PROFILE" == "deep" ]]; then
+  NMAP_ARGS+=(-sC)
+fi
+nmap "${NMAP_ARGS[@]}" -p "$PORTS" 127.0.0.1 -oA "$OUT/nmap-local" || true
+stage discover completed "Discover services" "Service discovery finished. Detailed Nmap output was saved with this run."
 
-for url in http://127.0.0.1:3000 http://127.0.0.1:8080 http://127.0.0.1:8081; do
+stage inspect running "Inspect application" "Reading the selected web application response and collecting HTTP details."
+for url in "${URLS[@]}"; do
   name="$(printf '%s' "$url" | tr -cs '[:alnum:]' '_')"
   curl -skI --max-time 10 "$url" > "$OUT/${name}-headers.txt" 2>&1 || true
-  if command -v nuclei >/dev/null 2>&1; then
-    nuclei -silent -u "$url" -severity info,low,medium,high,critical >> "$OUT/nuclei.txt" 2>/dev/null || true
-  fi
 done
+stage inspect completed "Inspect application" "HTTP inspection finished for the selected target."
 
-echo "[+] Results: $OUT"
+if [[ "$PROFILE" == "quick" ]]; then
+  stage weakness skipped "Check security weaknesses" "Quick Check stops after service and HTTP inspection. Choose Standard or Deep to run vulnerability templates."
+else
+  if command -v nuclei >/dev/null 2>&1; then
+    stage weakness running "Check security weaknesses" "Web Vulnerability Checks are comparing the target against Nuclei templates."
+    for url in "${URLS[@]}"; do
+      nuclei -silent -u "$url" -severity info,low,medium,high,critical >> "$OUT/nuclei.txt" 2>/dev/null || true
+    done
+    stage weakness completed "Check security weaknesses" "Known-pattern vulnerability checks finished and were saved with this run."
+  else
+    stage weakness skipped "Check security weaknesses" "Nuclei is not installed in this runtime, so vulnerability template checks were skipped."
+  fi
+fi
+
+stage summarize running "Organize results" "Saving the run evidence so APOTHEON can present it as a result instead of raw terminal output."
+printf 'target=%s\nprofile=%s\ncompleted=%s\n' "$TARGET" "$PROFILE" "$(date -Iseconds)" > "$OUT/run.txt"
+stage summarize completed "Organize results" "Run evidence is saved and ready for review."
+printf '[+] Results: %s\n' "$OUT"
