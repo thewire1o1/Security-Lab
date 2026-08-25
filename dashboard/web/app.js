@@ -1,7 +1,85 @@
 (() => {
+  const THEME_KEY = "apotheon-theme";
+  const storedTheme = localStorage.getItem(THEME_KEY);
+  let activeTheme = storedTheme === "light" ? "light" : "dark";
+
+  const applyTheme = (theme) => {
+    activeTheme = theme === "light" ? "light" : "dark";
+    document.documentElement.dataset.theme = activeTheme;
+    document.documentElement.style.colorScheme = activeTheme;
+    localStorage.setItem(THEME_KEY, activeTheme);
+
+    const themeColor = document.querySelector('meta[name="theme-color"]');
+    if (themeColor) themeColor.content = activeTheme === "dark" ? "#05070a" : "#f4f6f8";
+
+    document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
+      const dark = activeTheme === "dark";
+      button.classList.toggle("on", dark);
+      button.setAttribute("aria-pressed", String(dark));
+      button.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+      const icon = button.querySelector("[data-theme-icon]");
+      const label = button.querySelector("[data-theme-label]");
+      if (icon) icon.textContent = dark ? "☾" : "☀";
+      if (label) label.textContent = dark ? "Dark" : "Light";
+    });
+  };
+
+  document.documentElement.dataset.theme = activeTheme;
+
   const homeTitle = document.querySelector("#page-home .brand-title");
-  if (homeTitle) homeTitle.textContent = "Unified. Elevated.";
+  if (homeTitle) homeTitle.textContent = "APOTHEON ONE";
+  const homeKicker = document.querySelector("#page-home .brand-kicker");
+  if (homeKicker) homeKicker.innerHTML = '<span class="brand-dot"></span>Unified. Elevated.';
   document.title = "APOTHEON ONE · Unified. Elevated.";
+
+  const homeGrid = document.getElementById("home-grid");
+  const quickStrip = document.querySelector("#page-home .quick-strip");
+  const quickHead = quickStrip?.previousElementSibling;
+  if (homeGrid && quickStrip && quickHead?.classList.contains("section-head")) {
+    quickHead.style.marginTop = "12px";
+    homeGrid.parentNode.insertBefore(quickHead, homeGrid);
+    homeGrid.parentNode.insertBefore(quickStrip, homeGrid);
+  }
+
+  const scanLabel = document.querySelector("#scan-home span");
+  if (scanLabel) scanLabel.textContent = "Security check";
+
+  const platformStatus = document.getElementById("platform-status");
+  if (platformStatus && !document.querySelector("#page-home .topbar-actions")) {
+    const actions = document.createElement("div");
+    actions.className = "topbar-actions";
+    platformStatus.parentNode.insertBefore(actions, platformStatus);
+
+    const themeButton = document.createElement("button");
+    themeButton.type = "button";
+    themeButton.className = "theme-switch";
+    themeButton.dataset.themeToggle = "true";
+    themeButton.innerHTML = '<span data-theme-icon aria-hidden="true">☾</span><span data-theme-label>Dark</span>';
+    actions.appendChild(themeButton);
+    actions.appendChild(platformStatus);
+  }
+
+  const appearanceLabel = Array.from(document.querySelectorAll("#page-settings .setting b"))
+    .find((node) => node.textContent.trim() === "Appearance");
+  const appearanceSetting = appearanceLabel?.closest(".setting");
+  if (appearanceSetting) {
+    appearanceLabel.textContent = "Dark mode";
+    const description = appearanceSetting.querySelector("small");
+    if (description) description.textContent = "Switch between dark and light interface themes.";
+    const oldValue = appearanceSetting.querySelector(".setting-value");
+    const themeToggle = document.createElement("button");
+    themeToggle.type = "button";
+    themeToggle.className = "toggle theme-setting-toggle";
+    themeToggle.dataset.themeToggle = "true";
+    themeToggle.setAttribute("aria-label", "Toggle dark mode");
+    if (oldValue) oldValue.replaceWith(themeToggle);
+    else appearanceSetting.appendChild(themeToggle);
+  }
+
+  document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
+    button.addEventListener("click", () => applyTheme(activeTheme === "dark" ? "light" : "dark"));
+  });
+  applyTheme(activeTheme);
 
   const brandStyles = document.createElement("link");
   brandStyles.rel = "stylesheet";
