@@ -132,6 +132,29 @@ restore_runtime_env() {
   . "$RUNTIME_ENV_FILE"
 }
 
+prefer_isolated_runner_auth() {
+  if [ -n "${DPSR_RUNNER_GITHUB_TOKEN:-}" ]; then
+    return 0
+  fi
+
+  local config
+  config="${DPSR_RUNNER_GH_CONFIG:-}"
+  if [ -z "$config" ]; then
+    config="$(cd "$ROOT" && python3 - <<'PY'
+from security_lab.platform.github_actions import RUNNER_GH_CONFIG
+print(RUNNER_GH_CONFIG)
+PY
+)"
+  fi
+
+  if [ -n "$config" ] && [ -d "$config" ] && \
+     env -u GH_TOKEN -u GITHUB_TOKEN -u DPSR_BRIDGE_TOKEN \
+       GH_CONFIG_DIR="$config" GH_PROMPT_DISABLED=1 \
+       gh auth status --hostname github.com >/dev/null 2>&1; then
+    unset DPSR_BRIDGE_TOKEN
+  fi
+}
+
 stop_process() {
   if ! is_running; then
     rm -f "$PIDFILE"
@@ -166,6 +189,7 @@ start_console() {
 
   trim_log
   restore_runtime_env
+  prefer_isolated_runner_auth
   rm -f "$PIDFILE"
   cd "$ROOT"
   nohup python3 -m security_lab.orchestrator >>"$LOGFILE" 2>&1 </dev/null &
