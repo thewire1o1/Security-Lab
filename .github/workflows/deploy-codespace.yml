@@ -9,7 +9,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: apotheon-one-codespace-mutation-${{ github.repository }}
+  group: apotheon-one-inplace-deploy-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
