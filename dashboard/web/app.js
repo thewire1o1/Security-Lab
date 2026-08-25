@@ -64,6 +64,11 @@
         guided.src = "/guided-ui.js";
         guided.async = false;
         guided.addEventListener("load", () => {
+          const runFlow = document.createElement("script");
+          runFlow.src = "/run-flow.js";
+          runFlow.async = false;
+          document.head.appendChild(runFlow);
+
           const projectOutput = document.createElement("script");
           projectOutput.src = "/project-output.js";
           projectOutput.async = false;
