@@ -1,0 +1,115 @@
+name: APOTHEON ONE In-place Deploy
+
+on:
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: apotheon-one-inplace-deploy-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event.issue.user.login == github.repository_owner &&
+      github.event.issue.title == '[DPSR-DEPLOY] sync Codespace'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      CODESPACES_TOKEN: ${{ secrets.DPSR_CODESPACES_TOKEN }}
+      REPOSITORY: ${{ github.repository }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+      GH_TOKEN: ${{ secrets.DPSR_CODESPACES_TOKEN }}
+    steps:
+      - name: Sync current master into Codespace
+        id: deploy
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [ -z "${CODESPACES_TOKEN:-}" ]; then
+            printf '%s\n' 'DPSR_CODESPACES_TOKEN is not configured.' >&2
+            exit 2
+          fi
+
+          requested="$(printf '%s\n' "${ISSUE_BODY:-}" | sed -nE 's/^codespace:[[:space:]]*([A-Za-z0-9][A-Za-z0-9-]{0,127})[[:space:]]*$/\1/p' | head -n 1)"
+          payload="$(gh api '/user/codespaces?per_page=100')"
+          if [ -n "$requested" ]; then
+            name="$(printf '%s' "$payload" | jq -r --arg repo "$REPOSITORY" --arg name "$requested" '[.codespaces[] | select(.repository.full_name == $repo and .name == $name)] | .[0].name // empty')"
+          else
+            name="$(printf '%s' "$payload" | jq -r --arg repo "$REPOSITORY" '[.codespaces[] | select(.repository.full_name == $repo)] | sort_by(.last_used_at // .updated_at // .created_at) | reverse | .[0].name // empty')"
+          fi
+          if [ -z "$name" ]; then
+            printf '%s\n' 'No matching Codespace was found.' >&2
+            exit 3
+          fi
+
+          state="$(gh api "/user/codespaces/${name}" --jq '.state // "Unknown"')"
+          if [ "$state" = 'Shutdown' ]; then
+            gh api -X POST "/user/codespaces/${name}/start" >/dev/null
+            for _ in $(seq 1 120); do
+              state="$(gh api "/user/codespaces/${name}" --jq '.state // "Unknown"')"
+              [ "$state" = 'Available' ] && break
+              sleep 2
+            done
+          fi
+          if [ "$state" != 'Available' ]; then
+            printf 'Codespace %s is not available; state=%s.\n' "$name" "$state" >&2
+            exit 4
+          fi
+
+          remote() {
+            gh codespace ssh -c "$name" -- "$@"
+          }
+
+          dirty="$(remote bash -lc 'cd /workspaces/Security-Lab && git status --porcelain=v1')"
+          if [ -n "$dirty" ]; then
+            printf '%s\n' 'Codespace has uncommitted changes. Deployment stopped without modifying the working tree.' >&2
+            printf '%s\n' "$dirty" >&2
+            exit 5
+          fi
+
+          unpushed="$(remote bash -lc 'cd /workspaces/Security-Lab && git rev-list @{upstream}..HEAD 2>/dev/null || true')"
+          if [ -n "$unpushed" ]; then
+            printf '%s\n' 'Codespace has unpushed commits. Deployment stopped without modifying the working tree.' >&2
+            exit 6
+          fi
+
+          remote bash -lc 'cd /workspaces/Security-Lab && git fetch origin master && git switch master && git merge --ff-only origin/master'
+          remote bash -lc 'cd /workspaces/Security-Lab && bash bin/dashboard-control restart'
+          remote bash -lc 'curl -fsS --max-time 5 http://127.0.0.1:8765/health >/dev/null'
+          remote bash -lc 'curl -fsS --max-time 5 http://127.0.0.1:8765/api/catalog >/dev/null'
+          remote bash -lc 'curl -fsS --max-time 5 http://127.0.0.1:8765/api/run >/dev/null'
+
+          sha="$(remote bash -lc 'cd /workspaces/Security-Lab && git rev-parse HEAD' | tr -d '\r')"
+          printf 'codespace=%s\n' "$name" >> "$GITHUB_OUTPUT"
+          printf 'sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
+          printf 'console=https://%s-8765.app.github.dev\n' "$name" >> "$GITHUB_OUTPUT"
+          printf 'mcp=https://%s-8766.app.github.dev/mcp\n' "$name" >> "$GITHUB_OUTPUT"
+
+      - name: Report deployment
+        if: success()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "APOTHEON ONE in-place deployment completed.\n\nCodespace: \`${{ steps.deploy.outputs.codespace }}\`\nCommit: \`${{ steps.deploy.outputs.sha }}\`\nConsole: ${{ steps.deploy.outputs.console }}\nMCP: ${{ steps.deploy.outputs.mcp }}\n\nExisting Codespace was updated in place; no Codespace was deleted or replaced."
+
+      - name: Report deployment failure
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "APOTHEON ONE in-place deployment failed. The workflow is designed to stop before changing the Codespace when the working tree is dirty, commits are unpushed, SSH is unavailable, or health checks fail. No replacement Codespace was created by this workflow."
+
+      - name: Close request
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue close "$ISSUE_NUMBER" --repo "$REPOSITORY" --reason completed || true
