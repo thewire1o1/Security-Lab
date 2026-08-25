@@ -23,6 +23,11 @@
   insightStyles.href = "/insights.css";
   document.head.appendChild(insightStyles);
 
+  const guidedStyles = document.createElement("link");
+  guidedStyles.rel = "stylesheet";
+  guidedStyles.href = "/guided-ui.css";
+  document.head.appendChild(guidedStyles);
+
   const core = document.createElement("script");
   core.src = "/app-base.js";
   core.async = false;
@@ -49,6 +54,12 @@
       const insights = document.createElement("script");
       insights.src = "/insights.js";
       insights.async = false;
+      insights.addEventListener("load", () => {
+        const guided = document.createElement("script");
+        guided.src = "/guided-ui.js";
+        guided.async = false;
+        document.head.appendChild(guided);
+      });
       document.head.appendChild(insights);
     });
     document.head.appendChild(orchestrator);
