@@ -1,0 +1,45 @@
+:root{
+  --icon-nmap:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%271.8%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%2712%27%20r%3D%279%27%2F%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%2712%27%20r%3D%275.2%27%2F%3E%3Cpath%20d%3D%27M12%2012l6-4M12%203v2M3%2012h2M19%2012h2M12%2019v2%27%2F%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%2712%27%20r%3D%271%27%20fill%3D%27black%27%20stroke%3D%27none%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+  --icon-key:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Ccircle%20cx%3D%278%27%20cy%3D%2712%27%20r%3D%274%27%2F%3E%3Cpath%20d%3D%27M12%2012h9m-3%200v3m-3-3v2%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+  --icon-terminal:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Crect%20x%3D%273%27%20y%3D%274%27%20width%3D%2718%27%20height%3D%2716%27%20rx%3D%272%27%2F%3E%3Cpath%20d%3D%27m7%209%203%203-3%203m6%200h4%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+  --icon-fuzz:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27black%27%3E%3Ccircle%20cx%3D%276%27%20cy%3D%277%27%20r%3D%272%27%2F%3E%3Ccircle%20cx%3D%2717%27%20cy%3D%276%27%20r%3D%271.5%27%2F%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%2712%27%20r%3D%273%27%2F%3E%3Ccircle%20cx%3D%277%27%20cy%3D%2718%27%20r%3D%271.5%27%2F%3E%3Ccircle%20cx%3D%2718%27%20cy%3D%2717%27%20r%3D%272%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+}
+
+.resource-card[data-brand-icon] .resource-icon::before{
+  width:1.55rem;
+  height:1.55rem;
+}
+.resource-card[data-brand-icon="android"] .resource-icon{--semantic-icon:url("/icons/brands/android.svg");color:#3ddc84}
+.resource-card[data-brand-icon="flutter"] .resource-icon{--semantic-icon:url("/icons/brands/flutter.svg");color:#54c5f8}
+.resource-card[data-brand-icon="react"] .resource-icon{--semantic-icon:url("/icons/brands/react.svg");color:#61dafb}
+.resource-card[data-brand-icon="nextjs"] .resource-icon{--semantic-icon:url("/icons/brands/nextdotjs.svg");color:#f5f7fa}
+.resource-card[data-brand-icon="fastapi"] .resource-icon{--semantic-icon:url("/icons/brands/fastapi.svg");color:#00bfa5}
+.resource-card[data-brand-icon="apple"] .resource-icon{--semantic-icon:url("/icons/brands/apple.svg");color:#f5f7fa}
+.resource-card[data-brand-icon="kali"] .resource-icon{--semantic-icon:url("/icons/brands/kalilinux.svg");color:#6aa9d8}
+.resource-card[data-brand-icon="owasp"] .resource-icon{--semantic-icon:url("/icons/brands/owasp.svg");color:#67a9ff}
+.resource-card[data-brand-icon="vulnweb"] .resource-icon{--semantic-icon:var(--icon-shield);color:var(--red)}
+.resource-card[data-brand-icon="bridge"] .resource-icon{--semantic-icon:var(--icon-infra);color:var(--blue-2)}
+.resource-card[data-brand-icon="mcp"] .resource-icon{--semantic-icon:var(--icon-service);color:var(--teal)}
+.resource-card[data-brand-icon="dashboard"] .resource-icon{--semantic-icon:var(--icon-activity);color:var(--green)}
+
+#tool-list .chip[data-tool-icon]{gap:6px}
+#tool-list .chip[data-tool-icon]::before{
+  content:"";
+  width:12px;
+  height:12px;
+  flex:0 0 12px;
+  background:currentColor;
+  -webkit-mask:var(--tool-icon) center/contain no-repeat;
+  mask:var(--tool-icon) center/contain no-repeat;
+}
+#tool-list .chip[data-tool-icon="nmap"]{--tool-icon:var(--icon-nmap)}
+#tool-list .chip[data-tool-icon="target"]{--tool-icon:var(--icon-scan)}
+#tool-list .chip[data-tool-icon="network"]{--tool-icon:var(--icon-infra)}
+#tool-list .chip[data-tool-icon="search"]{--tool-icon:var(--icon-scan)}
+#tool-list .chip[data-tool-icon="code"]{--tool-icon:var(--icon-code)}
+#tool-list .chip[data-tool-icon="shield"]{--tool-icon:var(--icon-shield)}
+#tool-list .chip[data-tool-icon="key"]{--tool-icon:var(--icon-key)}
+#tool-list .chip[data-tool-icon="fuzz"]{--tool-icon:var(--icon-fuzz)}
+#tool-list .chip[data-tool-icon="pattern"]{--tool-icon:var(--icon-scan)}
+#tool-list .chip[data-tool-icon="binary"]{--tool-icon:var(--icon-code)}
+#tool-list .chip[data-tool-icon="terminal"]{--tool-icon:var(--icon-terminal)}
