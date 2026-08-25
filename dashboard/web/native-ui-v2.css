@@ -1,5 +1,5 @@
 /* APOTHEON:ONE native app typography and mobile density pass.
-   New filename intentionally bypasses stale browser CSS caches. */
+   Mobile destination titles must always remain fully readable. */
 
 :root{
   --font-display:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue","Segoe UI",Arial,sans-serif;
@@ -140,7 +140,6 @@ pre,
   letter-spacing:0!important;
 }
 
-/* Make ordinary metrics feel like app UI, not console output. */
 .telemetry-date,
 .axis,
 .bar-row b,
@@ -149,7 +148,6 @@ pre,
   letter-spacing:0!important;
 }
 
-/* Remove inherited console-style uppercase/tracking throughout ordinary UI. */
 .brand-kicker,
 .status-pill,
 .chip,
@@ -176,24 +174,23 @@ pre,
     font-size:12px!important;
   }
 
-  /* Four destinations become compact dashboard tiles instead of tall cards. */
   #page-home .hero-grid{
     gap:8px!important;
   }
 
   #page-home .hero-card{
     display:grid!important;
-    grid-template-columns:36px minmax(0,1fr) auto!important;
-    grid-template-rows:auto auto!important;
+    grid-template-columns:34px minmax(0,1fr) auto!important;
+    grid-template-rows:minmax(30px,auto) auto!important;
     grid-template-areas:
       "icon title metric"
       "icon status label"!important;
-    column-gap:9px!important;
+    column-gap:8px!important;
     row-gap:2px!important;
     align-items:center!important;
-    min-height:88px!important;
-    height:88px!important;
-    padding:10px 11px!important;
+    min-height:94px!important;
+    height:94px!important;
+    padding:10px!important;
     border-radius:15px!important;
   }
 
@@ -214,11 +211,14 @@ pre,
     grid-area:title!important;
     align-self:end!important;
     margin:0!important;
-    font-size:14px!important;
-    line-height:1.08!important;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
+    min-width:0!important;
+    font-size:12.5px!important;
+    line-height:1.12!important;
+    white-space:normal!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    overflow-wrap:normal!important;
+    word-break:normal!important;
   }
 
   #page-home .hero-card .status-pill{
@@ -244,7 +244,7 @@ pre,
     align-self:end!important;
     justify-self:end!important;
     margin:0!important;
-    font-size:21px!important;
+    font-size:20px!important;
     line-height:1!important;
     font-weight:680!important;
   }
@@ -254,7 +254,7 @@ pre,
     align-self:start!important;
     justify-self:end!important;
     margin:0!important;
-    font-size:8.5px!important;
+    font-size:8px!important;
     line-height:1.05!important;
     white-space:nowrap;
   }
