@@ -18,7 +18,7 @@ is_running() {
   pid="$(read_pid)"
   [ -n "$pid" ] || return 1
   kill -0 "$pid" 2>/dev/null || return 1
-  tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -q 'security_lab.dashboard'
+  tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -Eq 'security_lab\.(orchestrator|dashboard)'
 }
 
 health_check() {
@@ -80,7 +80,7 @@ start_console() {
 
   rm -f "$PIDFILE"
   cd "$ROOT"
-  nohup python3 -m security_lab.dashboard >>"$LOGFILE" 2>&1 </dev/null &
+  nohup python3 -m security_lab.orchestrator >>"$LOGFILE" 2>&1 </dev/null &
   local pid=$!
   printf '%s\n' "$pid" > "$PIDFILE"
 
