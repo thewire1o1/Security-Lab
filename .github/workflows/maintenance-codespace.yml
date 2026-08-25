@@ -95,9 +95,12 @@ jobs:
           remote "cd $repo_q && docker compose -f lab/docker-compose.yml config >/dev/null"
 
           unit_test_result='passed'
-          if ! remote "cd $repo_q && timeout 420 python3 -m unittest discover -s tests -v"; then
+          test_deps="$(remote 'mktemp -d /tmp/apotheon-maintenance-deps.XXXXXX' | tr -d '\r')"
+          printf -v deps_q '%q' "$test_deps"
+          if ! remote "cd $repo_q && python3 -m pip install --disable-pip-version-check -q --target $deps_q -r requirements-mcp.txt && PYTHONPATH=$deps_q\${PYTHONPATH:+:\$PYTHONPATH} timeout 420 python3 -m unittest discover -s tests -v"; then
             unit_test_result='failed'
           fi
+          remote "rm -rf $deps_q"
 
           remote "cd $repo_q && bash bin/disk-guard"
           after="$(remote "df -h / | awk 'NR==2 {printf \"%s used / %s free (%s)\", \$3, \$4, \$5}'" | tr -d '\r')"
@@ -124,7 +127,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "APOTHEON:ONE safe maintenance completed. Repository, Python, shell, Compose, unit tests, runtime, and Cloud automation checks passed. Existing disk-guard cleanup ran only according to its usage threshold and only targets disposable caches/build data.\n\nCodespace: \`${{ steps.maintenance.outputs.codespace }}\`\nCommit: \`${{ steps.maintenance.outputs.sha }}\`\nDisk before: ${{ steps.maintenance.outputs.before }}\nDisk after: ${{ steps.maintenance.outputs.after }}\nUnit tests: \`${{ steps.maintenance.outputs.unit_tests }}\`\nRuntime smoke test: \`${{ steps.maintenance.outputs.smoke }}\`\n\nNo Codespace was created, deleted, or replaced, and repository history was not rewritten."
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "APOTHEON:ONE safe maintenance completed. Repository, Python, shell, Compose, unit tests, runtime, and Cloud automation checks passed. MCP test dependencies were installed only into a temporary directory and removed after testing. Existing disk-guard cleanup ran only according to its usage threshold and only targets disposable caches/build data.\n\nCodespace: \`${{ steps.maintenance.outputs.codespace }}\`\nCommit: \`${{ steps.maintenance.outputs.sha }}\`\nDisk before: ${{ steps.maintenance.outputs.before }}\nDisk after: ${{ steps.maintenance.outputs.after }}\nUnit tests: \`${{ steps.maintenance.outputs.unit_tests }}\`\nRuntime smoke test: \`${{ steps.maintenance.outputs.smoke }}\`\n\nNo Codespace was created, deleted, or replaced, and repository history was not rewritten."
 
       - name: Report maintenance failure
         if: failure()
