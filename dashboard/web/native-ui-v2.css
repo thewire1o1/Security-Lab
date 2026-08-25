@@ -1,0 +1,280 @@
+/* APOTHEON:ONE native app typography and mobile density pass.
+   New filename intentionally bypasses stale browser CSS caches. */
+
+:root{
+  --font-display:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue","Segoe UI",Arial,sans-serif;
+  --font-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","Segoe UI",Arial,sans-serif;
+  --font-tech:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+
+html,body,button,input,select,textarea{
+  font-family:var(--font-ui)!important;
+  font-synthesis:none!important;
+  letter-spacing:0!important;
+}
+
+body{
+  line-height:1.38!important;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+.brand-title,
+.detail-title,
+.section-head h2,
+.panel-head h3,
+.hero-card h3,
+.resource-title,
+.system-card strong,
+.setting b,
+.sheet-head h3,
+#page-settings .panel-body h2,
+.rail-brand strong,
+.apo-panel-title,
+.guided-project-head h2,
+.guided-run-result h3,
+.guided-project-result h3,
+.apo-section h3,
+.apo-run-summary strong,
+.hero-metric,
+.big-stat strong,
+.summary strong,
+.health-line b,
+.quality,
+.mini-stat b,
+.resource-side strong,
+#last-updated,
+#activity-time,
+#activity-stability,
+.apo-run-peek b{
+  font-family:var(--font-display)!important;
+  letter-spacing:-.018em!important;
+}
+
+.brand-title,
+.detail-title,
+.section-head h2,
+.panel-head h3,
+.hero-card h3,
+.resource-title,
+.system-card strong,
+.setting b,
+.sheet-head h3,
+#page-settings .panel-body h2,
+.apo-panel-title,
+.guided-project-head h2,
+.guided-run-result h3,
+.guided-project-result h3,
+.apo-section h3,
+.apo-run-summary strong{
+  font-weight:650!important;
+}
+
+#page-home .brand-title{
+  font-family:var(--font-display)!important;
+  font-weight:760!important;
+  letter-spacing:-.045em!important;
+  line-height:.96!important;
+}
+
+.brand-sub,
+.guided-card-copy,
+.guided-description,
+.guided-sheet-help,
+.apo-section-copy,
+.apo-stage-detail,
+.apo-run-summary span,
+.resource-meta,
+.setting small,
+.system-card small,
+.scan-row small{
+  font-family:var(--font-ui)!important;
+  font-weight:400!important;
+  letter-spacing:0!important;
+  line-height:1.42!important;
+}
+
+.brand-kicker,
+.nav-label,
+.rail-button span,
+.segment,
+.quick-action span,
+.control span,
+.section-link,
+.status-pill,
+.chip,
+.health-label,
+.big-stat>span,
+.summary>span,
+.resource-side small,
+.setting-value,
+.apo-eyebrow,
+.apo-stage-state,
+.guided-eyebrow,
+.scan-row b,
+.scan-row span{
+  font-family:var(--font-ui)!important;
+  font-weight:550!important;
+  letter-spacing:0!important;
+  text-transform:none!important;
+}
+
+button,
+.primary,
+.secondary,
+.guided-primary-action,
+.guided-workspace-action,
+.apo-run-primary,
+.apo-choice{
+  font-family:var(--font-ui)!important;
+  font-weight:600!important;
+  letter-spacing:0!important;
+}
+
+.terminal,
+code,
+pre,
+.apo-technical{
+  font-family:var(--font-tech)!important;
+  font-variant-ligatures:none;
+  letter-spacing:0!important;
+}
+
+/* Make ordinary metrics feel like app UI, not console output. */
+.telemetry-date,
+.axis,
+.bar-row b,
+.scan-row time{
+  font-family:var(--font-ui)!important;
+  letter-spacing:0!important;
+}
+
+/* Remove inherited console-style uppercase/tracking throughout ordinary UI. */
+.brand-kicker,
+.status-pill,
+.chip,
+.health-label,
+.summary span,
+.big-stat>span,
+.resource-side small,
+.setting-value,
+.apo-eyebrow,
+.apo-stage-state,
+.guided-eyebrow,
+.nav-label,
+.segment{
+  text-transform:none!important;
+  letter-spacing:0!important;
+}
+
+@media (max-width:760px){
+  #page-home .brand-title{
+    font-size:clamp(2.05rem,10.4vw,3.05rem)!important;
+  }
+
+  .brand-sub{
+    font-size:12px!important;
+  }
+
+  /* Four destinations become compact dashboard tiles instead of tall cards. */
+  #page-home .hero-grid{
+    gap:8px!important;
+  }
+
+  #page-home .hero-card{
+    display:grid!important;
+    grid-template-columns:36px minmax(0,1fr) auto!important;
+    grid-template-rows:auto auto!important;
+    grid-template-areas:
+      "icon title metric"
+      "icon status label"!important;
+    column-gap:9px!important;
+    row-gap:2px!important;
+    align-items:center!important;
+    min-height:88px!important;
+    height:88px!important;
+    padding:10px 11px!important;
+    border-radius:15px!important;
+  }
+
+  #page-home .hero-icon{
+    grid-area:icon!important;
+    width:34px!important;
+    height:34px!important;
+    border-radius:10px!important;
+    margin:0!important;
+  }
+
+  #page-home .hero-icon::before{
+    width:18px!important;
+    height:18px!important;
+  }
+
+  #page-home .hero-card h3{
+    grid-area:title!important;
+    align-self:end!important;
+    margin:0!important;
+    font-size:14px!important;
+    line-height:1.08!important;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  #page-home .hero-card .status-pill{
+    grid-area:status!important;
+    align-self:start!important;
+    justify-self:start!important;
+    min-height:16px!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+    background:transparent!important;
+    font-size:10px!important;
+    line-height:1.1!important;
+  }
+
+  #page-home .hero-card .status-pill::before{
+    width:5px!important;
+    height:5px!important;
+  }
+
+  #page-home .hero-card .hero-metric{
+    grid-area:metric!important;
+    align-self:end!important;
+    justify-self:end!important;
+    margin:0!important;
+    font-size:21px!important;
+    line-height:1!important;
+    font-weight:680!important;
+  }
+
+  #page-home .hero-card .hero-label{
+    grid-area:label!important;
+    align-self:start!important;
+    justify-self:end!important;
+    margin:0!important;
+    font-size:8.5px!important;
+    line-height:1.05!important;
+    white-space:nowrap;
+  }
+
+  #page-home .hero-card .guided-card-copy,
+  #page-home .hero-card .hero-foot{
+    display:none!important;
+  }
+
+  .nav-label{
+    font-size:9px!important;
+  }
+
+  .quick-action span{
+    font-size:10px!important;
+  }
+
+  .panel-head h3,
+  .section-head h2,
+  .resource-title{
+    letter-spacing:-.016em!important;
+  }
+}

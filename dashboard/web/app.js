@@ -119,10 +119,10 @@
   finalPolishStyles.href = "/final-polish.css";
   document.head.appendChild(finalPolishStyles);
 
-  const consumerTypeStyles = document.createElement("link");
-  consumerTypeStyles.rel = "stylesheet";
-  consumerTypeStyles.href = "/consumer-type.css";
-  document.head.appendChild(consumerTypeStyles);
+  const nativeUiStyles = document.createElement("link");
+  nativeUiStyles.rel = "stylesheet";
+  nativeUiStyles.href = "/native-ui-v2.css";
+  document.head.appendChild(nativeUiStyles);
 
   const core = document.createElement("script");
   core.src = "/app-base.js";
