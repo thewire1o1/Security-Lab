@@ -1,0 +1,183 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap");
+
+/* Consumer-first typography. Keep technical type isolated to raw implementation output. */
+:root{
+  --font-display:"Sora","Avenir Next","Helvetica Neue",Arial,sans-serif;
+  --font-ui:"Manrope","Avenir Next","Helvetica Neue",Arial,sans-serif;
+  --font-nav:"Manrope","Avenir Next","Helvetica Neue",Arial,sans-serif;
+  --font-data:"Manrope","Avenir Next","Helvetica Neue",Arial,sans-serif;
+  --font-tech:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+
+html,body,button,input,select,textarea{
+  font-family:var(--font-ui)!important;
+  font-synthesis:none;
+}
+
+body{
+  letter-spacing:-.012em!important;
+  line-height:1.42;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+.brand-title,
+.detail-title,
+.section-head h2,
+.panel-head h3,
+.hero-card h3,
+.resource-title,
+.system-card strong,
+.setting b,
+.sheet-head h3,
+#page-settings .panel-body h2,
+.rail-brand strong,
+.apo-panel-title,
+.guided-project-head h2,
+.guided-run-result h3,
+.guided-project-result h3,
+.apo-section h3,
+.apo-run-summary strong{
+  font-family:var(--font-display)!important;
+  font-weight:600!important;
+  letter-spacing:-.035em!important;
+}
+
+#page-home .brand-title{
+  font-family:var(--font-display)!important;
+  font-weight:700!important;
+  letter-spacing:-.055em!important;
+  line-height:.96!important;
+}
+
+.brand-sub,
+.guided-card-copy,
+.guided-description,
+.guided-sheet-help,
+.apo-section-copy,
+.apo-stage-detail,
+.apo-run-summary span,
+.resource-meta,
+.setting small,
+.system-card small{
+  font-family:var(--font-ui)!important;
+  font-weight:400!important;
+  letter-spacing:-.008em!important;
+  line-height:1.45!important;
+}
+
+.brand-kicker,
+.nav-label,
+.rail-button span,
+.segment,
+.quick-action span,
+.control span,
+.section-link,
+.status-pill,
+.chip,
+.health-label,
+.big-stat > span,
+.summary > span,
+.resource-side small,
+.setting-value,
+.apo-eyebrow,
+.apo-stage-state,
+.guided-eyebrow{
+  font-family:var(--font-ui)!important;
+  font-weight:600!important;
+  letter-spacing:.012em!important;
+  text-transform:none!important;
+}
+
+.nav-label,
+.rail-button span,
+.segment,
+.quick-action span,
+.control span{
+  letter-spacing:-.005em!important;
+}
+
+.hero-metric,
+.big-stat strong,
+.summary strong,
+.health-line b,
+.quality,
+.mini-stat b,
+.resource-side strong,
+.telemetry-date,
+.axis,
+.bar-row b,
+.scan-row time,
+#last-updated,
+#activity-time,
+#activity-stability,
+.apo-run-peek b{
+  font-family:var(--font-display)!important;
+  font-weight:600!important;
+  letter-spacing:-.035em!important;
+}
+
+.terminal,
+code,
+pre,
+.apo-technical{
+  font-family:var(--font-tech)!important;
+  font-variant-ligatures:none;
+  letter-spacing:0!important;
+}
+
+.guided-tech-row b{
+  font-family:var(--font-ui)!important;
+  font-weight:500!important;
+}
+
+button,
+.primary,
+.secondary,
+.guided-primary-action,
+.guided-workspace-action,
+.apo-run-primary,
+.apo-choice{
+  font-weight:600!important;
+  letter-spacing:-.012em!important;
+}
+
+.status-pill,
+.chip,
+.health-label,
+.setting-value,
+.apo-stage-state{
+  font-size-adjust:.52;
+}
+
+/* Brand lockup */
+.rail-brand strong,
+#page-home .brand-title,
+#page-settings .brand-kicker,
+#page-settings .panel-body h2{
+  white-space:nowrap;
+}
+
+@media (max-width:760px){
+  #page-home .brand-title{
+    font-size:clamp(2.15rem,11vw,3.35rem)!important;
+  }
+
+  .brand-sub{
+    font-size:12px!important;
+  }
+
+  .nav-label{
+    font-size:9px!important;
+  }
+
+  .hero-card h3{
+    font-size:15px!important;
+  }
+
+  .resource-title,
+  .panel-head h3,
+  .section-head h2{
+    letter-spacing:-.03em!important;
+  }
+}
