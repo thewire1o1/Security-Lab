@@ -20,17 +20,42 @@ jobs:
       (github.event.issue.title == '[DPSR-WAKE] start Codespace' ||
        github.event.issue.title == '[DPSR-WAKE] restart Codespace' ||
        github.event.issue.title == '[DPSR-WAKE] refresh Codespace' ||
-       github.event.issue.title == '[DPSR-WAKE] stop Codespace')
+       github.event.issue.title == '[DPSR-WAKE] stop Codespace' ||
+       github.event.issue.title == '[DPSR-FEEDBACK] watch deployment')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
-      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      REQUEST_ISSUE: ${{ github.event.issue.number }}
+      REQUEST_TITLE: ${{ github.event.issue.title }}
+      REQUEST_BODY: ${{ github.event.issue.body }}
       INTERVAL_SECONDS: '45'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Resolve deployment issue
+        id: target
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ "$REQUEST_TITLE" == '[DPSR-FEEDBACK] watch deployment' ]]; then
+            target="$(printf '%s\n' "${REQUEST_BODY:-}" | sed -nE 's/^issue:[[:space:]]*([0-9]+)[[:space:]]*$/\1/p' | head -n 1)"
+            if [[ -z "$target" ]]; then
+              printf '%s\n' 'Feedback request requires `issue: NUMBER`.' >&2
+              exit 2
+            fi
+          else
+            target="$REQUEST_ISSUE"
+          fi
+          printf 'issue_number=%s\n' "$target" >> "$GITHUB_OUTPUT"
+
       - name: Stream deployment feedback
         shell: bash
-        run: bash scripts/apotheon-feedback-watch.sh "$ISSUE_NUMBER"
+        run: bash scripts/apotheon-feedback-watch.sh "${{ steps.target.outputs.issue_number }}"
+
+      - name: Close feedback request
+        if: always() && github.event.issue.title == '[DPSR-FEEDBACK] watch deployment'
+        shell: bash
+        run: gh issue close "$REQUEST_ISSUE" --repo "$REPOSITORY" --reason completed || true
