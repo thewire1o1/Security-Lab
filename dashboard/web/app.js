@@ -13,6 +13,11 @@
   uxStyles.href = "/ux-polish.css";
   document.head.appendChild(uxStyles);
 
+  const orchestratorStyles = document.createElement("link");
+  orchestratorStyles.rel = "stylesheet";
+  orchestratorStyles.href = "/orchestrator.css";
+  document.head.appendChild(orchestratorStyles);
+
   const core = document.createElement("script");
   core.src = "/app-base.js";
   core.async = false;
@@ -26,6 +31,11 @@
     uxBehavior.src = "/ux-behavior.js";
     uxBehavior.async = false;
     document.head.appendChild(uxBehavior);
+
+    const orchestrator = document.createElement("script");
+    orchestrator.src = "/orchestrator.js";
+    orchestrator.async = false;
+    document.head.appendChild(orchestrator);
   });
   document.head.appendChild(core);
 })();
