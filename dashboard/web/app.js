@@ -18,6 +18,11 @@
   orchestratorStyles.href = "/orchestrator.css";
   document.head.appendChild(orchestratorStyles);
 
+  const insightStyles = document.createElement("link");
+  insightStyles.rel = "stylesheet";
+  insightStyles.href = "/insights.css";
+  document.head.appendChild(insightStyles);
+
   const core = document.createElement("script");
   core.src = "/app-base.js";
   core.async = false;
@@ -35,6 +40,12 @@
     const orchestrator = document.createElement("script");
     orchestrator.src = "/orchestrator.js";
     orchestrator.async = false;
+    orchestrator.addEventListener("load", () => {
+      const insights = document.createElement("script");
+      insights.src = "/insights.js";
+      insights.async = false;
+      document.head.appendChild(insights);
+    });
     document.head.appendChild(orchestrator);
   });
   document.head.appendChild(core);
