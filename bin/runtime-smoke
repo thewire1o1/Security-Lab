@@ -4,15 +4,50 @@ set -Eeuo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PORT="${APOTHEON_PORT:-8765}"
 BASE="http://127.0.0.1:${PORT}"
+ATTEMPTS="${APOTHEON_SMOKE_ATTEMPTS:-15}"
+DELAY="${APOTHEON_SMOKE_DELAY_SECONDS:-2}"
 
-bash "$ROOT/bin/dashboard-control" status >/dev/null
-curl -fsS --max-time 5 "$BASE/health" >/dev/null
-curl -fsS --max-time 5 "$BASE/api/catalog" >/dev/null
-curl -fsS --max-time 5 "$BASE/api/run" >/dev/null
+retry() {
+  local label="$1"
+  shift
+  local attempt
+  for attempt in $(seq 1 "$ATTEMPTS"); do
+    if "$@"; then
+      printf 'PASS: %s\n' "$label"
+      return 0
+    fi
+    if [ "$attempt" -lt "$ATTEMPTS" ]; then
+      sleep "$DELAY"
+    fi
+  done
+  printf 'FAIL: %s after %s attempts.\n' "$label" "$ATTEMPTS" >&2
+  return 1
+}
 
-status="$(curl -fsS --max-time 8 "$BASE/api/status")"
-printf '%s' "$status" | jq -e '.platform.runners.github_actions.safe == true' >/dev/null
+check_dashboard() {
+  bash "$ROOT/bin/dashboard-control" status >/dev/null 2>&1
+}
 
-source_name="$(printf '%s' "$status" | jq -r '.platform.runners.github_actions.credential_source // "unknown"')"
-scopes="$(printf '%s' "$status" | jq -r '.platform.runners.github_actions.scopes // [] | join(",")')"
+check_endpoint() {
+  curl -fsS --max-time 5 "$1" >/dev/null
+}
+
+STATUS_PAYLOAD=""
+check_cloud() {
+  local payload
+  payload="$(curl -fsS --max-time 8 "$BASE/api/status")" || return 1
+  if ! printf '%s' "$payload" | jq -e '.platform.runners.github_actions.safe == true' >/dev/null; then
+    return 1
+  fi
+  STATUS_PAYLOAD="$payload"
+}
+
+retry 'dashboard process and health' check_dashboard
+retry 'health endpoint' check_endpoint "$BASE/health"
+retry 'catalog endpoint' check_endpoint "$BASE/api/catalog"
+retry 'run endpoint' check_endpoint "$BASE/api/run"
+retry 'Cloud automation authorization' check_cloud
+
+source_name="$(printf '%s' "$STATUS_PAYLOAD" | jq -r '.platform.runners.github_actions.credential_source // "unknown"')"
+scopes="$(printf '%s' "$STATUS_PAYLOAD" | jq -r '.platform.runners.github_actions.scopes // [] | join(",")')"
 printf 'APOTHEON:ONE runtime healthy. Cloud automation=%s; scopes=%s\n' "$source_name" "$scopes"
