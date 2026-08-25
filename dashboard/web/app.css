@@ -1,1 +1,99 @@
 @import url("/app-base.css");
+
+:root{
+  --icon-home:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cpath%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%20d%3D%27M3%2010.5%2012%203l9%207.5V21a1%201%200%200%201-1%201h-5v-7H9v7H4a1%201%200%200%201-1-1z%27%2F%3E%3C%2Fsvg%3E");
+  --icon-systems:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Crect%20x%3D%273%27%20y%3D%274%27%20width%3D%2718%27%20height%3D%276%27%20rx%3D%272%27%2F%3E%3Crect%20x%3D%273%27%20y%3D%2714%27%20width%3D%2718%27%20height%3D%276%27%20rx%3D%272%27%2F%3E%3Cpath%20d%3D%27M7%207h.01M7%2017h.01M11%207h6M11%2017h6%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+  --icon-activity:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cpath%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%20d%3D%27M3%2012h4l2.2-6%204.2%2012%202.1-6H21%27%2F%3E%3C%2Fsvg%3E");
+  --icon-settings:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%2712%27%20r%3D%273%27%2F%3E%3Cpath%20d%3D%27M19.4%2015a1.7%201.7%200%200%200%20.34%201.88l.06.06-2.83%202.83-.06-.06a1.7%201.7%200%200%200-1.88-.34%201.7%201.7%200%200%200-1.03%201.56V21H10v-.08A1.7%201.7%200%200%200%208.97%2019.4a1.7%201.7%200%200%200-1.88.34l-.06.06-2.83-2.83.06-.06A1.7%201.7%200%200%200%204.6%2015a1.7%201.7%200%200%200-1.56-1.03H3V10h.04A1.7%201.7%200%200%200%204.6%208.97a1.7%201.7%200%200%200-.34-1.88l-.06-.06L7.03%204.2l.06.06A1.7%201.7%200%200%200%208.97%204.6%201.7%201.7%200%200%200%2010%203.04V3h4v.04a1.7%201.7%200%200%200%201.03%201.56%201.7%201.7%200%200%200%201.88-.34l.06-.06%202.83%202.83-.06.06a1.7%201.7%200%200%200-.34%201.88A1.7%201.7%200%200%200%2020.96%2010H21v4h-.04A1.7%201.7%200%200%200%2019.4%2015z%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+  --icon-cloud:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cpath%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%20d%3D%27M7%2018h11a4%204%200%200%200%20.6-7.95A7%207%200%200%200%205.2%208.2%205%205%200%200%200%207%2018z%27%2F%3E%3C%2Fsvg%3E");
+  --icon-code:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cpath%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%20d%3D%27m8%209-4%203%204%203m8-6%204%203-4%203m-3-9-2%2012%27%2F%3E%3C%2Fsvg%3E");
+  --icon-shield:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cpath%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%20d%3D%27M12%203%204%206v5c0%205.2%203.4%208.7%208%2010%204.6-1.3%208-4.8%208-10V6z%27%2F%3E%3Cpath%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%20d%3D%27m9%2012%202%202%204-4%27%2F%3E%3C%2Fsvg%3E");
+  --icon-infra:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Crect%20x%3D%279%27%20y%3D%273%27%20width%3D%276%27%20height%3D%275%27%20rx%3D%271%27%2F%3E%3Crect%20x%3D%273%27%20y%3D%2716%27%20width%3D%276%27%20height%3D%275%27%20rx%3D%271%27%2F%3E%3Crect%20x%3D%2715%27%20y%3D%2716%27%20width%3D%276%27%20height%3D%275%27%20rx%3D%271%27%2F%3E%3Cpath%20d%3D%27M12%208v4m-6%204v-2h12v2%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+  --icon-folder:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cpath%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%20d%3D%27M3%206a2%202%200%200%201%202-2h5l2%202h7a2%202%200%200%201%202%202v10a2%202%200%200%201-2%202H5a2%202%200%200%201-2-2z%27%2F%3E%3Cpath%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%20d%3D%27m9%2011-2%202%202%202m6-4%202%202-2%202m-2-5-2%206%27%2F%3E%3C%2Fsvg%3E");
+  --icon-service:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27m12%203%208%204-8%204-8-4z%27%2F%3E%3Cpath%20d%3D%27m4%2012%208%204%208-4M4%2017l8%204%208-4%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+  --icon-profile:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%278%27%20r%3D%274%27%2F%3E%3Cpath%20d%3D%27M4%2021a8%208%200%200%201%2016%200%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+  --icon-plus:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cpath%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272.2%27%20stroke-linecap%3D%27round%27%20d%3D%27M12%205v14M5%2012h14%27%2F%3E%3C%2Fsvg%3E");
+  --icon-play:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cpath%20d%3D%27M8%205v14l11-7z%27%2F%3E%3C%2Fsvg%3E");
+  --icon-scan:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Ccircle%20cx%3D%2711%27%20cy%3D%2711%27%20r%3D%276%27%2F%3E%3Cpath%20d%3D%27m16%2016%204%204M11%208v3l2%202%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+  --icon-stop:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Crect%20x%3D%276%27%20y%3D%276%27%20width%3D%2712%27%20height%3D%2712%27%20rx%3D%272%27%2F%3E%3C%2Fsvg%3E");
+  --icon-defense:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cpath%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%20d%3D%27M12%203%204%206v5c0%205.2%203.4%208.7%208%2010%204.6-1.3%208-4.8%208-10V6z%27%2F%3E%3Cpath%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20d%3D%27M8%2012h8M12%208v8%27%2F%3E%3C%2Fsvg%3E");
+  --icon-review:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Crect%20x%3D%274%27%20y%3D%273%27%20width%3D%2716%27%20height%3D%2718%27%20rx%3D%272%27%2F%3E%3Cpath%20d%3D%27M8%208h8M8%2012h5M8%2016h3%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+  --icon-report:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M6%203h9l4%204v14H6z%27%2F%3E%3Cpath%20d%3D%27M14%203v5h5M9%2013h6M9%2017h6%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+  --icon-refresh:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cpath%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%20d%3D%27M20%206v5h-5M4%2018v-5h5M6.1%209A7%207%200%200%201%2018%206l2%205M18%2015a7%207%200%200%201-12%203l-2-5%27%2F%3E%3C%2Fsvg%3E");
+  --icon-motion:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M4%2012a8%208%200%200%201%2014-5%27%2F%3E%3Cpath%20d%3D%27M18%203v4h-4M20%2012a8%208%200%200%201-14%205%27%2F%3E%3Cpath%20d%3D%27M6%2021v-4h4%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+  --icon-appearance:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cpath%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%20d%3D%27M20%2015.5A8%208%200%200%201%208.5%204%208.5%208.5%200%201%200%2020%2015.5z%27%2F%3E%3C%2Fsvg%3E");
+  --icon-telemetry:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M4%2018V9M10%2018V5M16%2018v-7M22%2018v-4%27%2F%3E%3Cpath%20d%3D%27M3%2021h19%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+}
+
+#page-home .brand-title{letter-spacing:-.045em}
+
+.rail-button i,
+.nav-icon,
+.hero-icon,
+.qa-icon,
+.resource-card .resource-icon,
+.control-icon,
+.setting-icon{font-size:0!important}
+
+.rail-button i::before,
+.nav-icon::before,
+.hero-icon::before,
+.qa-icon::before,
+.resource-card .resource-icon::before,
+.control-icon::before,
+.setting-icon::before,
+#page-settings header .icon-button::before{
+  content:"";
+  display:block;
+  width:1.15rem;
+  height:1.15rem;
+  background:currentColor;
+  -webkit-mask:var(--semantic-icon) center/contain no-repeat;
+  mask:var(--semantic-icon) center/contain no-repeat;
+}
+
+.hero-icon::before{width:1.35rem;height:1.35rem}
+.resource-card .resource-icon::before{width:1.3rem;height:1.3rem}
+.control-icon::before,.qa-icon::before{width:1.05rem;height:1.05rem}
+.setting-icon::before{width:1.1rem;height:1.1rem}
+
+.rail-button[data-page="home"] i,
+.nav-button[data-page="home"] .nav-icon{--semantic-icon:var(--icon-home)}
+.rail-button[data-page="systems"] i,
+.nav-button[data-page="systems"] .nav-icon{--semantic-icon:var(--icon-systems)}
+.rail-button[data-page="activity"] i,
+.nav-button[data-page="activity"] .nav-icon{--semantic-icon:var(--icon-activity)}
+.rail-button[data-page="settings"] i,
+.nav-button[data-page="settings"] .nav-icon{--semantic-icon:var(--icon-settings)}
+
+.hero-card:nth-child(1) .hero-icon{--semantic-icon:var(--icon-cloud)}
+.hero-card:nth-child(2) .hero-icon{--semantic-icon:var(--icon-code)}
+.hero-card:nth-child(3) .hero-icon{--semantic-icon:var(--icon-shield)}
+.hero-card:nth-child(4) .hero-icon{--semantic-icon:var(--icon-infra)}
+
+#new-project-home .qa-icon{--semantic-icon:var(--icon-plus)}
+#start-home .qa-icon{--semantic-icon:var(--icon-play)}
+#scan-home .qa-icon{--semantic-icon:var(--icon-scan)}
+#activity-home .qa-icon{--semantic-icon:var(--icon-activity)}
+
+.resource-card[data-kind="projects"] .resource-icon{--semantic-icon:var(--icon-folder)}
+.resource-card[data-kind="services"] .resource-icon{--semantic-icon:var(--icon-service)}
+.resource-card[data-kind="profiles"] .resource-icon{--semantic-icon:var(--icon-profile)}
+.resource-card[data-kind="infrastructure"] .resource-icon{--semantic-icon:var(--icon-infra)}
+
+.control:nth-child(1) .control-icon{--semantic-icon:var(--icon-play)}
+.control:nth-child(2) .control-icon{--semantic-icon:var(--icon-stop)}
+.control:nth-child(3) .control-icon{--semantic-icon:var(--icon-scan)}
+.control:nth-child(4) .control-icon{--semantic-icon:var(--icon-defense)}
+.control:nth-child(5) .control-icon{--semantic-icon:var(--icon-review)}
+.control:nth-child(6) .control-icon{--semantic-icon:var(--icon-report)}
+
+.setting:nth-child(1) .setting-icon{--semantic-icon:var(--icon-refresh)}
+.setting:nth-child(2) .setting-icon{--semantic-icon:var(--icon-motion)}
+.setting:nth-child(3) .setting-icon{--semantic-icon:var(--icon-appearance)}
+.setting:nth-child(4) .setting-icon{--semantic-icon:var(--icon-telemetry)}
+
+#page-settings header .icon-button{
+  font-size:0!important;
+  --semantic-icon:var(--icon-settings);
+}
