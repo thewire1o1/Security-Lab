@@ -91,6 +91,7 @@ jobs:
           remote 'curl -fsS --max-time 5 http://127.0.0.1:8765/health >/dev/null'
           remote 'curl -fsS --max-time 5 http://127.0.0.1:8765/api/catalog >/dev/null'
           remote 'curl -fsS --max-time 5 http://127.0.0.1:8765/api/run >/dev/null'
+          remote 'status="$(curl -fsS --max-time 8 http://127.0.0.1:8765/api/status)"; printf "%s" "$status" | jq -e ".platform.runners.github_actions.safe == true" >/dev/null; printf "Cloud automation connected via %s; scopes=%s\n" "$(printf "%s" "$status" | jq -r ".platform.runners.github_actions.credential_source // \"unknown\"")" "$(printf "%s" "$status" | jq -r ".platform.runners.github_actions.scopes // [] | join(\",\")")"'
 
           ports="$(gh codespace ports -c "$name" --json browseUrl,sourcePort,visibility)"
           console="$(printf '%s' "$ports" | jq -r '[.[] | select((.sourcePort | tonumber?) == 8765)] | .[0].browseUrl // empty')"
@@ -128,7 +129,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "APOTHEON ONE in-place deployment completed. Internal runtime health passed and the browser-facing Codespaces gateway responded for port 8765. Private console links require a signed-in GitHub browser session.\n\nCodespace: \`${{ steps.deploy.outputs.codespace }}\`\nCommit: \`${{ steps.deploy.outputs.sha }}\`\nConsole: ${{ steps.deploy.outputs.console }}\nConsole visibility: \`${{ steps.deploy.outputs.visibility }}\`\nMCP: ${{ steps.deploy.outputs.mcp }}\n\nExisting Codespace was updated in place; no Codespace was deleted or replaced."
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "APOTHEON:ONE in-place deployment completed. Internal runtime health, Cloud automation, and the browser-facing Codespaces gateway all passed. Private console links require a signed-in GitHub browser session.\n\nCodespace: \`${{ steps.deploy.outputs.codespace }}\`\nCommit: \`${{ steps.deploy.outputs.sha }}\`\nConsole: ${{ steps.deploy.outputs.console }}\nConsole visibility: \`${{ steps.deploy.outputs.visibility }}\`\nMCP: ${{ steps.deploy.outputs.mcp }}\n\nExisting Codespace was updated in place; no Codespace was deleted or replaced."
 
       - name: Report deployment failure
         if: failure()
@@ -136,7 +137,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "APOTHEON ONE in-place deployment failed. The workflow requires internal runtime health plus a usable response from the browser-facing Codespaces gateway before it reports a console link. It also stops for dirty/unpushed work, SSH failures, or repository discovery failures. No replacement Codespace was created by this workflow."
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "APOTHEON:ONE in-place deployment failed. The workflow now requires internal runtime health, working Cloud automation authorization, and a usable response from the browser-facing Codespaces gateway before it reports a console link. It also stops for dirty/unpushed work, SSH failures, or repository discovery failures. No replacement Codespace was created by this workflow."
 
       - name: Close request
         if: always()
