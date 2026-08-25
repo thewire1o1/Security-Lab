@@ -66,28 +66,31 @@ while :; do
     '[.workflow_runs[] | select(.display_title == $title and .created_at >= $created)] | sort_by(.created_at) | last // empty' \
     <<<"$runs_json")"
 
-  run_status='waiting'
-  run_conclusion=''
   run_id=''
   head_sha=''
-  active_step='Waiting for Wake Controller run'
+  wake_status='waiting'
+  wake_conclusion=''
+  active_step='Waiting for Wake Controller job'
 
   if [[ -n "$run_json" ]]; then
     run_id="$(jq -r '.id' <<<"$run_json")"
-    run_status="$(jq -r '.status // "unknown"' <<<"$run_json")"
-    run_conclusion="$(jq -r '.conclusion // empty' <<<"$run_json")"
     head_sha="$(jq -r '.head_sha // empty' <<<"$run_json")"
-
     jobs_json="$(gh api "repos/${REPOSITORY}/actions/runs/${run_id}/jobs?per_page=100")"
-    active_step="$(jq -r '[.jobs[].steps[]? | select(.status == "in_progress") | .name] | first // empty' <<<"$jobs_json")"
+    wake_json="$(jq -c '[.jobs[] | select(.name == "wake")] | first // empty' <<<"$jobs_json")"
 
-    if [[ -z "$active_step" ]]; then
-      if [[ "$run_status" == 'completed' && "$run_conclusion" == 'success' ]]; then
-        active_step='Wake Controller completed successfully'
-      elif [[ "$run_status" == 'completed' ]]; then
-        active_step="Wake Controller completed: ${run_conclusion:-unknown}"
-      else
-        active_step="Workflow status: ${run_status}"
+    if [[ -n "$wake_json" ]]; then
+      wake_status="$(jq -r '.status // "unknown"' <<<"$wake_json")"
+      wake_conclusion="$(jq -r '.conclusion // empty' <<<"$wake_json")"
+      active_step="$(jq -r '[.steps[]? | select(.status == "in_progress") | .name] | first // empty' <<<"$wake_json")"
+
+      if [[ -z "$active_step" ]]; then
+        if [[ "$wake_status" == 'completed' && "$wake_conclusion" == 'success' ]]; then
+          active_step='Wake Controller completed successfully'
+        elif [[ "$wake_status" == 'completed' ]]; then
+          active_step="Wake Controller completed: ${wake_conclusion:-unknown}"
+        else
+          active_step="Wake job status: ${wake_status}"
+        fi
       fi
     fi
   fi
@@ -103,7 +106,7 @@ ${MARKER}
 ### APOTHEON deployment feedback
 
 Updated: \`${now}\`  
-Workflow: \`${run_status}${run_conclusion:+ / ${run_conclusion}}\`  
+Wake job: \`${wake_status}${wake_conclusion:+ / ${wake_conclusion}}\`  
 Step: \`${active_step}\`  
 Head: \`${head_sha:-pending}\`
 
@@ -116,10 +119,10 @@ EOF
 )
 
   publish_feedback "$body"
-  printf '[%s] %s | %s\n' "$now" "$run_status" "$active_step"
+  printf '[%s] %s | %s\n' "$now" "$wake_status" "$active_step"
 
-  if [[ "$run_status" == 'completed' ]]; then
-    if [[ "$run_conclusion" != 'success' ]]; then
+  if [[ "$wake_status" == 'completed' ]]; then
+    if [[ "$wake_conclusion" != 'success' ]]; then
       exit 1
     fi
     if [[ -n "$console_url" && -n "$codespace_url" && -n "$mcp_url" ]]; then
