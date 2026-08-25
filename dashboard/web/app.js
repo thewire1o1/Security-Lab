@@ -10,7 +10,7 @@
     localStorage.setItem(THEME_KEY, activeTheme);
 
     const themeColor = document.querySelector('meta[name="theme-color"]');
-    if (themeColor) themeColor.content = activeTheme === "dark" ? "#05070a" : "#f4f6f8";
+    if (themeColor) themeColor.content = activeTheme === "dark" ? "#05070a" : "#e7ebef";
 
     document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
       const dark = activeTheme === "dark";
@@ -110,6 +110,11 @@
   projectOutputStyles.rel = "stylesheet";
   projectOutputStyles.href = "/project-output.css";
   document.head.appendChild(projectOutputStyles);
+
+  const finalPolishStyles = document.createElement("link");
+  finalPolishStyles.rel = "stylesheet";
+  finalPolishStyles.href = "/final-polish.css";
+  document.head.appendChild(finalPolishStyles);
 
   const core = document.createElement("script");
   core.src = "/app-base.js";

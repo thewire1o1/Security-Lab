@@ -1,0 +1,287 @@
+/* APOTHEON ONE final density and light-theme refinement.
+   Loaded last so it can safely override earlier visual layers without changing behavior. */
+
+/* A calmer light theme with deliberate surface separation and readable contrast. */
+html[data-theme="light"]{
+  color-scheme:light;
+  --bg:#e7ebef;
+  --bg-soft:#e1e6ea;
+  --surface:#f1f3f5;
+  --surface-2:#e9edf1;
+  --surface-3:#dde3e8;
+  --line:#b9c3cd;
+  --line-soft:#ccd4dc;
+  --text:#17202a;
+  --muted:#556270;
+  --muted-2:#6d7986;
+  --blue:#3e7bea;
+  --blue-2:#2f6fdc;
+  --green:#35b96c;
+  --amber:#c9962b;
+}
+
+html[data-theme="light"] body{
+  background:linear-gradient(180deg,#e9edf1 0%,#e4e8ec 100%)!important;
+  color:var(--text)!important;
+}
+
+html[data-theme="light"] .rail,
+html[data-theme="light"] .bottom-nav{
+  background:#edf0f3!important;
+  border-color:#bcc6cf!important;
+  box-shadow:0 8px 24px rgba(31,42,54,.08)!important;
+}
+
+html[data-theme="light"] .rail-button.active,
+html[data-theme="light"] .hero-card,
+html[data-theme="light"] .panel,
+html[data-theme="light"] .resource-card,
+html[data-theme="light"] .system-card,
+html[data-theme="light"] .health-card,
+html[data-theme="light"] .summary,
+html[data-theme="light"] .settings-list,
+html[data-theme="light"] .quick-action,
+html[data-theme="light"] .control,
+html[data-theme="light"] .theme-switch,
+html[data-theme="light"] .sheet,
+html[data-theme="light"] .guided-project-panel,
+html[data-theme="light"] .guided-workspace-intro,
+html[data-theme="light"] .guided-output-card,
+html[data-theme="light"] .guided-run-result,
+html[data-theme="light"] .apo-object-intro,
+html[data-theme="light"] .apo-stage,
+html[data-theme="light"] .apo-run-summary{
+  background:#f1f3f5!important;
+  border-color:#bdc7d0!important;
+  color:var(--text)!important;
+}
+
+html[data-theme="light"] .summary,
+html[data-theme="light"] .mini-stat,
+html[data-theme="light"] .resource-icon,
+html[data-theme="light"] .hero-icon,
+html[data-theme="light"] .setting-icon,
+html[data-theme="light"] .quick-action .qa-icon,
+html[data-theme="light"] .control-icon{
+  background:#e3e8ed!important;
+}
+
+html[data-theme="light"] .hero-card:hover,
+html[data-theme="light"] .resource-card:hover,
+html[data-theme="light"] .quick-action:hover,
+html[data-theme="light"] .control:hover{
+  background:#eceff2!important;
+  border-color:#aeb9c4!important;
+}
+
+html[data-theme="light"] .segmented{
+  background:#dfe5ea!important;
+  border-color:#b8c2cb!important;
+}
+
+html[data-theme="light"] .segment{
+  color:#566474!important;
+}
+
+html[data-theme="light"] .segment.active,
+html[data-theme="light"] .nav-button.active{
+  color:#245fb8!important;
+}
+
+html[data-theme="light"] .nav-button{
+  color:#647180!important;
+}
+
+html[data-theme="light"] .brand-sub,
+html[data-theme="light"] .section-head p,
+html[data-theme="light"] .resource-meta,
+html[data-theme="light"] .setting small,
+html[data-theme="light"] .system-card small,
+html[data-theme="light"] .guided-card-copy,
+html[data-theme="light"] .guided-description,
+html[data-theme="light"] .guided-workspace-intro p,
+html[data-theme="light"] .guided-output-card p,
+html[data-theme="light"] .apo-section-copy,
+html[data-theme="light"] .apo-object-intro p{
+  color:#596675!important;
+}
+
+html[data-theme="light"] .terminal,
+html[data-theme="light"] code,
+html[data-theme="light"] pre,
+html[data-theme="light"] .apo-technical{
+  background:#dde3e8!important;
+  color:#26323e!important;
+  border-color:#bcc6cf!important;
+}
+
+html[data-theme="light"] input,
+html[data-theme="light"] select,
+html[data-theme="light"] textarea,
+html[data-theme="light"] .form-row input,
+html[data-theme="light"] .form-row select{
+  background:#eef1f4!important;
+  color:#17202a!important;
+  border-color:#aeb9c4!important;
+}
+
+html[data-theme="light"] .toggle{
+  background:#cbd3da!important;
+}
+
+html[data-theme="light"] .toggle.on{
+  background:#3e7bea!important;
+}
+
+html[data-theme="light"] .sheet-backdrop,
+html[data-theme="light"] .guided-overlay{
+  background:rgba(42,51,60,.28)!important;
+}
+
+/* Homepage cards: keep the four destinations visible without sacrificing a phone screen. */
+#page-home .hero-card{
+  height:auto!important;
+  min-height:0!important;
+  align-content:start;
+}
+
+#page-home .hero-card h3{
+  margin:14px 0 5px!important;
+}
+
+#page-home .hero-card .hero-metric{
+  margin-top:9px!important;
+}
+
+#page-home .hero-card .hero-foot{
+  margin-top:10px!important;
+  padding-top:9px!important;
+}
+
+/* Bottom navigation should anchor the interface, not dominate it. */
+.bottom-nav{
+  min-height:68px!important;
+  padding:5px 8px!important;
+  border-radius:17px!important;
+}
+
+.nav-button{
+  min-height:54px!important;
+  padding:4px 5px!important;
+  gap:3px!important;
+}
+
+.nav-icon{
+  width:27px!important;
+  height:27px!important;
+}
+
+.nav-label{
+  font-size:9px!important;
+}
+
+@media (max-width:760px){
+  #page-home .hero-grid{
+    gap:8px!important;
+  }
+
+  #page-home .hero-card{
+    padding:11px 12px!important;
+    border-radius:16px!important;
+  }
+
+  #page-home .hero-icon{
+    width:34px!important;
+    height:34px!important;
+    border-radius:10px!important;
+  }
+
+  #page-home .hero-icon::before{
+    width:18px!important;
+    height:18px!important;
+  }
+
+  #page-home .hero-card h3{
+    margin:10px 0 4px!important;
+    font-size:15px!important;
+    line-height:1.12!important;
+  }
+
+  #page-home .hero-card .guided-card-copy,
+  #page-home .hero-card .hero-foot{
+    display:none!important;
+  }
+
+  #page-home .hero-card .status-pill{
+    min-height:20px!important;
+    margin-top:1px!important;
+    padding:2px 0!important;
+    font-size:9px!important;
+  }
+
+  #page-home .hero-card .hero-metric{
+    margin-top:7px!important;
+    font-size:26px!important;
+    line-height:1!important;
+  }
+
+  #page-home .hero-card .hero-label{
+    margin-top:3px!important;
+    font-size:9px!important;
+  }
+
+  #page-home .quick-strip{
+    margin-bottom:10px!important;
+  }
+
+  #page-home .section-head{
+    margin:4px 0 7px!important;
+  }
+
+  #page-home #home-grid + .section-head,
+  #page-home .system-card{
+    margin-top:10px!important;
+  }
+
+  .bottom-nav{
+    min-height:62px!important;
+    padding:4px 7px!important;
+    border-radius:15px!important;
+  }
+
+  .nav-button{
+    min-height:48px!important;
+    padding:3px 4px!important;
+  }
+
+  .nav-icon{
+    width:24px!important;
+    height:24px!important;
+  }
+
+  .nav-label{
+    font-size:8.5px!important;
+  }
+
+  .stack,
+  .settings-grid,
+  .activity-layout{
+    gap:8px!important;
+  }
+
+  .panel,
+  .settings-list,
+  .system-card,
+  .resource-card,
+  .health-card{
+    border-radius:15px!important;
+  }
+
+  .settings-list .setting{
+    min-height:0!important;
+  }
+
+  .section-head h2{
+    font-size:18px!important;
+  }
+}
