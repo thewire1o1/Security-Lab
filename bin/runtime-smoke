@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PORT="${APOTHEON_PORT:-8765}"
+BASE="http://127.0.0.1:${PORT}"
+
+bash "$ROOT/bin/dashboard-control" status >/dev/null
+curl -fsS --max-time 5 "$BASE/health" >/dev/null
+curl -fsS --max-time 5 "$BASE/api/catalog" >/dev/null
+curl -fsS --max-time 5 "$BASE/api/run" >/dev/null
+
+status="$(curl -fsS --max-time 8 "$BASE/api/status")"
+printf '%s' "$status" | jq -e '.platform.runners.github_actions.safe == true' >/dev/null
+
+source_name="$(printf '%s' "$status" | jq -r '.platform.runners.github_actions.credential_source // "unknown"')"
+scopes="$(printf '%s' "$status" | jq -r '.platform.runners.github_actions.scopes // [] | join(",")')"
+printf 'APOTHEON:ONE runtime healthy. Cloud automation=%s; scopes=%s\n' "$source_name" "$scopes"
