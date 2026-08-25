@@ -22,7 +22,7 @@ RUNNER_GIT_CONFIG = Path(
 ).expanduser()
 REPOSITORY_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 REQUIRED_SCOPES = frozenset({"repo", "workflow"})
-ALLOWED_SCOPES = frozenset({"repo", "workflow", "read:org", "gist"})
+ALLOWED_SCOPES = frozenset({"repo", "workflow", "read:org", "gist", "codespace"})
 WORKFLOW_BY_PROFILE = {
     "flutter": "flutter.yml",
     "react-native": "react-native.yml",
@@ -53,12 +53,25 @@ def _parse_utc(value: str) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
+def _credential_source() -> tuple[str, str]:
+    dedicated = os.environ.get("DPSR_RUNNER_GITHUB_TOKEN", "").strip()
+    if dedicated:
+        return dedicated, "runner-secret"
+    bridge = os.environ.get("DPSR_BRIDGE_TOKEN", "").strip()
+    if bridge:
+        return bridge, "codespace-bridge"
+    return "", "isolated-config"
+
+
 def _runner_env() -> dict[str, str]:
     RUNNER_GH_CONFIG.mkdir(parents=True, exist_ok=True)
     os.chmod(RUNNER_GH_CONFIG, 0o700)  # nosemgrep: python.lang.security.audit.insecure-file-permissions.insecure-file-permissions
     env = os.environ.copy()
     env.pop("GH_TOKEN", None)
     env.pop("GITHUB_TOKEN", None)
+    token, _source = _credential_source()
+    if token:
+        env["GH_TOKEN"] = token
     env["GH_CONFIG_DIR"] = str(RUNNER_GH_CONFIG)
     env["GH_PROMPT_DISABLED"] = "1"
     env["GIT_CONFIG_GLOBAL"] = str(RUNNER_GIT_CONFIG)
@@ -120,12 +133,14 @@ def auth_status() -> dict[str, Any]:
     unexpected = sorted(scopes - ALLOWED_SCOPES)
     authenticated = result["returncode"] == 0
     safe = authenticated and not missing and not unexpected
+    _token, source = _credential_source()
     return {
         "authenticated": authenticated,
         "safe": safe,
         "scopes": sorted(scopes),
         "missing_scopes": missing,
         "unexpected_scopes": unexpected,
+        "credential_source": source,
         "config_dir": str(RUNNER_GH_CONFIG),
     }
 
