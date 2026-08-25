@@ -1,0 +1,180 @@
+@import url("https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Sans:wght@400;500;600;700&display=swap");
+
+/* Final visual polish layer. Loaded after the base design system and brand icons. */
+:root{
+  --font-display:"Instrument Sans","Helvetica Neue",Arial,sans-serif;
+  --font-ui:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;
+  --font-nav:"Barlow Semi Condensed","Arial Narrow","Helvetica Neue",sans-serif;
+  --font-data:"IBM Plex Mono","SFMono-Regular",Menlo,Consolas,monospace;
+}
+
+body{
+  font-family:var(--font-ui);
+  letter-spacing:-.004em;
+}
+
+/* Titles should read like product identity, not default system UI. */
+.brand-title,
+.detail-title,
+.section-head h2,
+.panel-head h3,
+.hero-card h3,
+.resource-title,
+.system-card strong,
+.setting b,
+.sheet-head h3,
+#page-settings .panel-body h2,
+.rail-brand strong{
+  font-family:var(--font-display);
+  font-synthesis:none;
+}
+
+.brand-title{
+  font-weight:500;
+  letter-spacing:-.042em;
+  line-height:.98;
+}
+
+#page-home .brand-title{
+  font-weight:500;
+  letter-spacing:-.047em;
+}
+
+#page-systems .brand-title,
+#page-activity .brand-title,
+#page-settings .brand-title{
+  font-weight:500;
+  letter-spacing:-.038em;
+}
+
+.hero-card h3,
+.resource-title,
+.section-head h2{
+  font-weight:500;
+  letter-spacing:-.024em;
+}
+
+.brand-kicker,
+.nav-label,
+.rail-button span,
+.segment,
+.quick-action span,
+.control span,
+.section-link,
+.status-pill,
+.chip,
+.health-label,
+.big-stat > span,
+.summary > span,
+.resource-side small,
+.setting-value{
+  font-family:var(--font-nav);
+}
+
+.terminal,
+code,
+pre,
+.big-stat strong,
+.summary strong,
+.health-line b,
+.quality,
+.mini-stat b,
+.resource-side strong,
+.telemetry-date,
+.axis,
+.bar-row b,
+.scan-row time,
+#last-updated,
+#activity-time,
+#activity-stability{
+  font-family:var(--font-data);
+}
+
+/* Geometric and optical centering for every icon tile. */
+.hero-icon,
+.resource-icon,
+.system-mark,
+.quick-action .qa-icon,
+.control-icon,
+.setting-icon,
+.nav-icon,
+.rail-button i{
+  display:grid!important;
+  place-items:center!important;
+  padding:0!important;
+  line-height:0!important;
+  text-align:center!important;
+}
+
+.hero-icon{
+  width:44px;
+  height:44px;
+}
+
+.hero-icon::before,
+.resource-card .resource-icon::before,
+.quick-action .qa-icon::before,
+.control-icon::before,
+.setting-icon::before,
+.nav-icon::before,
+.rail-button i::before,
+.system-mark::before{
+  display:block;
+  margin:0!important;
+  align-self:center;
+  justify-self:center;
+  transform:none!important;
+  transform-origin:center;
+}
+
+.hero-icon::before{
+  width:22px;
+  height:22px;
+}
+
+.resource-card .resource-icon::before{
+  width:22px;
+  height:22px;
+}
+
+.resource-card[data-brand-icon] .resource-icon::before{
+  width:23px;
+  height:23px;
+}
+
+/* Empty project state should tell the user what to do next. */
+.empty-projects{
+  display:grid;
+  justify-items:start;
+  gap:8px;
+  min-height:150px;
+  padding:22px;
+  border:1px dashed #22303d;
+  border-radius:14px;
+  color:var(--muted);
+  text-align:left;
+}
+
+.empty-projects strong{
+  font-family:var(--font-display);
+  font-size:18px;
+  font-weight:500;
+  color:var(--text);
+  letter-spacing:-.02em;
+}
+
+.empty-projects span{
+  max-width:36rem;
+  font-family:var(--font-ui);
+  font-size:12px;
+  line-height:1.5;
+}
+
+.empty-projects .secondary{
+  margin-top:4px;
+  min-height:38px;
+  padding:8px 12px;
+  font-family:var(--font-nav);
+  font-weight:600;
+  letter-spacing:.03em;
+}
