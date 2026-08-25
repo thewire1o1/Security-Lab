@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -24,7 +25,7 @@ class GitHubActionsRunnerTests(unittest.TestCase):
         self.assertEqual(status["missing_scopes"], [])
         self.assertEqual(status["unexpected_scopes"], [])
 
-    def test_auth_status_rejects_codespace_or_other_unexpected_scope(self) -> None:
+    def test_auth_status_accepts_codespace_bridge_scope_with_repo_workflow(self) -> None:
         result = {
             "returncode": 0,
             "stdout": "",
@@ -32,8 +33,49 @@ class GitHubActionsRunnerTests(unittest.TestCase):
         }
         with mock.patch.object(github_actions, "_gh", return_value=result):
             status = github_actions.auth_status()
+        self.assertTrue(status["safe"])
+        self.assertEqual(status["unexpected_scopes"], [])
+
+    def test_auth_status_rejects_unexpected_admin_scope(self) -> None:
+        result = {
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "Logged in to github.com\n  - Token scopes: 'admin:org', 'repo', 'workflow'\n",
+        }
+        with mock.patch.object(github_actions, "_gh", return_value=result):
+            status = github_actions.auth_status()
         self.assertFalse(status["safe"])
-        self.assertEqual(status["unexpected_scopes"], ["codespace"])
+        self.assertEqual(status["unexpected_scopes"], ["admin:org"])
+
+    def test_runner_env_prefers_dedicated_secret_and_falls_back_to_bridge(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            with (
+                mock.patch.object(github_actions, "RUNNER_GH_CONFIG", root / "gh"),
+                mock.patch.object(github_actions, "RUNNER_GIT_CONFIG", root / "gitconfig"),
+                mock.patch.dict(
+                    os.environ,
+                    {
+                        "GH_TOKEN": "ambient",
+                        "GITHUB_TOKEN": "ambient-github",
+                        "DPSR_BRIDGE_TOKEN": "bridge-token",
+                        "DPSR_RUNNER_GITHUB_TOKEN": "runner-token",
+                    },
+                    clear=True,
+                ),
+            ):
+                env = github_actions._runner_env()
+                self.assertEqual(env["GH_TOKEN"], "runner-token")
+                self.assertEqual(github_actions._credential_source()[1], "runner-secret")
+
+            with (
+                mock.patch.object(github_actions, "RUNNER_GH_CONFIG", root / "gh-fallback"),
+                mock.patch.object(github_actions, "RUNNER_GIT_CONFIG", root / "gitconfig-fallback"),
+                mock.patch.dict(os.environ, {"DPSR_BRIDGE_TOKEN": "bridge-token"}, clear=True),
+            ):
+                env = github_actions._runner_env()
+                self.assertEqual(env["GH_TOKEN"], "bridge-token")
+                self.assertEqual(github_actions._credential_source()[1], "codespace-bridge")
 
     def test_repository_table_roundtrip_is_structured_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
