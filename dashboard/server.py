@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from security_lab.orchestrator import main  # noqa: E402
+from security_lab.product_orchestrator import main  # noqa: E402
 
 
 if __name__ == "__main__":

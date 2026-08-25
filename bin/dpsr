@@ -43,7 +43,10 @@ case "$cmd" in
   platform)
     exec python3 -m security_lab.platform.cli status "$@"
     ;;
-  profile|project|job|runner)
+  job)
+    exec python3 -m security_lab.platform.guided_cli "$@"
+    ;;
+  profile|project|runner)
     exec python3 -m security_lab.platform.cli "$cmd" "$@"
     ;;
   *)

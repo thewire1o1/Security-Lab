@@ -28,6 +28,11 @@
   guidedStyles.href = "/guided-ui.css";
   document.head.appendChild(guidedStyles);
 
+  const projectOutputStyles = document.createElement("link");
+  projectOutputStyles.rel = "stylesheet";
+  projectOutputStyles.href = "/project-output.css";
+  document.head.appendChild(projectOutputStyles);
+
   const core = document.createElement("script");
   core.src = "/app-base.js";
   core.async = false;
@@ -58,6 +63,12 @@
         const guided = document.createElement("script");
         guided.src = "/guided-ui.js";
         guided.async = false;
+        guided.addEventListener("load", () => {
+          const projectOutput = document.createElement("script");
+          projectOutput.src = "/project-output.js";
+          projectOutput.async = false;
+          document.head.appendChild(projectOutput);
+        });
         document.head.appendChild(guided);
       });
       document.head.appendChild(insights);
