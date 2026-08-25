@@ -1,0 +1,311 @@
+/* APOTHEON ONE visual system
+   Intentional typography and flatter product UI. No external font dependency. */
+
+:root{
+  --font-display:"Avenir Next","Avenir","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --font-ui:"SF Pro Text","Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --font-nav:"DIN Alternate","Avenir Next Condensed","Arial Narrow","Helvetica Neue",sans-serif;
+  --font-data:"SFMono-Regular","SF Mono",Menlo,Monaco,Consolas,"Liberation Mono",monospace;
+
+  --bg:#05070a;
+  --surface:#0a0f14;
+  --surface-2:#0f151c;
+  --surface-3:#141c25;
+  --line:#1c2733;
+  --line-soft:#141d26;
+  --text:#f3f6f8;
+  --muted:#8f9baa;
+  --muted-2:#687482;
+  --radius:18px;
+  --radius-sm:12px;
+  --shadow:none;
+}
+
+body{
+  font-family:var(--font-ui);
+  background:var(--bg);
+  letter-spacing:-.006em;
+}
+
+/* Display type: identity, page names, section hierarchy. */
+.brand-title,
+.detail-title,
+.section-head h2,
+.panel-head h3,
+.hero-card h3,
+.resource-title,
+.system-card strong,
+.setting b,
+.sheet-head h3,
+#page-settings .panel-body h2{
+  font-family:var(--font-display);
+  font-weight:600;
+  font-synthesis:none;
+}
+
+.brand-title{
+  font-size:clamp(2rem,7vw,3.35rem);
+  line-height:.96;
+  letter-spacing:-.055em;
+  font-weight:600;
+}
+
+.section-head h2{
+  font-size:1.42rem;
+  line-height:1.05;
+  letter-spacing:-.035em;
+}
+
+.hero-card h3,
+.resource-title{
+  letter-spacing:-.022em;
+}
+
+/* Navigation and structural labels use a narrower face. */
+.brand-kicker,
+.nav-label,
+.rail-button span,
+.segment,
+.quick-action span,
+.control span,
+.section-link,
+.status-pill,
+.chip,
+.health-label,
+.big-stat > span,
+.summary > span,
+.resource-side small,
+.setting-value{
+  font-family:var(--font-nav);
+  font-weight:600;
+  letter-spacing:.035em;
+}
+
+.brand-kicker,
+.health-label,
+.big-stat > span,
+.summary > span{
+  text-transform:uppercase;
+  letter-spacing:.11em;
+}
+
+.brand-kicker{
+  font-size:11px;
+}
+
+.brand-sub,
+.section-head p,
+.resource-meta,
+.setting small,
+.system-card small,
+.chart-title span,
+.scan-row small{
+  font-family:var(--font-ui);
+  font-weight:400;
+  letter-spacing:-.004em;
+}
+
+/* Telemetry, status values, timestamps, and machine-facing content. */
+.terminal,
+code,
+pre,
+.big-stat strong,
+.summary strong,
+.health-line b,
+.quality,
+.mini-stat b,
+.resource-side strong,
+.telemetry-date,
+.axis,
+.bar-row b,
+.scan-row time,
+#last-updated,
+#activity-time,
+#activity-stability{
+  font-family:var(--font-data);
+  font-variant-numeric:tabular-nums slashed-zero;
+  font-feature-settings:"tnum" 1,"zero" 1;
+  letter-spacing:-.025em;
+}
+
+/* Remove the generic glossy-dashboard look. */
+.hero-card,
+.panel,
+.resource-card,
+.system-card,
+.health-card,
+.summary,
+.settings-list,
+.quick-action,
+.control{
+  box-shadow:none;
+  background-image:none;
+}
+
+.hero-card{
+  border-radius:18px;
+  background:#0b1117;
+  border-color:#19232e;
+}
+
+.hero-card::after{
+  display:none;
+}
+
+.hero-card:hover,
+.resource-card:hover{
+  transform:none;
+  background:#0d141b;
+  border-color:#2a3949;
+}
+
+.panel,
+.settings-list{
+  border-radius:16px;
+  background:#090e13;
+}
+
+.panel-head{
+  padding:15px 17px;
+}
+
+.resource-card{
+  border-radius:16px;
+  background:#0a1016;
+  padding:15px 16px;
+}
+
+.resource-icon,
+.hero-icon,
+.system-mark{
+  border-radius:12px;
+}
+
+.quick-action,
+.control,
+.summary,
+.health-card{
+  border-radius:14px;
+}
+
+/* Controls are compact and engineered rather than pill-heavy. */
+.segmented{
+  padding:3px;
+  border-radius:13px;
+  background:#070b0f;
+}
+
+.segment{
+  border-radius:9px;
+  min-height:38px;
+}
+
+.segment.active{
+  background:#1f5fbf;
+  box-shadow:none;
+}
+
+.status-pill,
+.chip{
+  border-radius:8px;
+  background:#080d12;
+  min-height:26px;
+  padding:4px 8px;
+}
+
+.primary,
+.secondary,
+.form-row input,
+.form-row select{
+  border-radius:10px;
+}
+
+.project-actions button{
+  border-radius:8px;
+}
+
+.icon-button{
+  border-radius:12px;
+}
+
+/* Bottom navigation: lighter frame, typography-led selection. */
+.bottom-nav{
+  border-radius:20px;
+  background:#0a0f15;
+  border-color:#263342;
+  box-shadow:0 8px 24px rgba(0,0,0,.22);
+}
+
+.nav-button{
+  border-radius:14px;
+}
+
+.nav-button.active{
+  background:#1a2430;
+  box-shadow:none;
+}
+
+.nav-label{
+  font-size:11px;
+}
+
+/* Desktop rail uses the same hierarchy without looking like a template. */
+.rail{
+  background:#070b10;
+  border-right:1px solid #151e27;
+}
+
+.rail-brand strong{
+  font-family:var(--font-display);
+  letter-spacing:-.03em;
+}
+
+.rail-brand span,
+.rail-status{
+  font-family:var(--font-ui);
+}
+
+.rail-button{
+  border-radius:10px;
+}
+
+.rail-button.active{
+  background:#111923;
+}
+
+/* Data views get a denser rhythm than general UI. */
+.telemetry-summary,
+.chart-block,
+#scan-history,
+#activity-log,
+#control-plane-list{
+  font-family:var(--font-data);
+}
+
+.timeline{
+  border-color:#18232d;
+}
+
+.progress,
+.bar-rail{
+  border-radius:3px;
+}
+
+.progress > span,
+.bar-fill{
+  border-radius:inherit;
+}
+
+@media (max-width:760px){
+  .content{padding-left:20px;padding-right:20px}
+  .topbar{padding-top:16px;padding-bottom:24px}
+  .brand-sub{font-size:13px;line-height:1.45;max-width:34rem}
+  .resource-card{grid-template-columns:52px minmax(0,1fr) auto;gap:14px}
+  .resource-icon{width:52px;height:52px}
+  .bottom-nav{left:20px;right:20px;bottom:calc(14px + env(safe-area-inset-bottom))}
+}
+
+@media (min-width:900px){
+  .brand-title{font-size:3.6rem}
+  .section-head h2{font-size:1.6rem}
+}
