@@ -21,7 +21,8 @@ RUNNER_GIT_CONFIG = Path(
     os.environ.get("DPSR_RUNNER_GIT_CONFIG", str(PERSISTENT_ROOT / ".dpsr" / "runner-gitconfig"))
 ).expanduser()
 REPOSITORY_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
-REQUIRED_SCOPES = frozenset({"repo", "workflow"})
+RUNTIME_REQUIRED_SCOPES = frozenset({"repo"})
+PUBLISH_REQUIRED_SCOPES = frozenset({"repo", "workflow"})
 ALLOWED_SCOPES = frozenset({"repo", "workflow", "read:org", "gist", "codespace"})
 WORKFLOW_BY_PROFILE = {
     "flutter": "flutter.yml",
@@ -125,11 +126,12 @@ def _parse_scopes(text: str) -> set[str]:
     return {item.strip(" '\"\t") for item in match.group(1).split(",") if item.strip(" '\"\t")}
 
 
-def auth_status() -> dict[str, Any]:
+def auth_status(required_scopes: Iterable[str] = RUNTIME_REQUIRED_SCOPES) -> dict[str, Any]:
     result = _gh("auth", "status", "--hostname", "github.com", timeout=20)
     output = "\n".join(part for part in (result["stdout"].strip(), result["stderr"].strip()) if part)
     scopes = _parse_scopes(output)
-    missing = sorted(REQUIRED_SCOPES - scopes)
+    required = frozenset(str(scope).strip() for scope in required_scopes if str(scope).strip())
+    missing = sorted(required - scopes)
     unexpected = sorted(scopes - ALLOWED_SCOPES)
     authenticated = result["returncode"] == 0
     safe = authenticated and not missing and not unexpected
@@ -145,8 +147,8 @@ def auth_status() -> dict[str, Any]:
     }
 
 
-def require_auth() -> dict[str, Any]:
-    status = auth_status()
+def require_auth(required_scopes: Iterable[str] = RUNTIME_REQUIRED_SCOPES) -> dict[str, Any]:
+    status = auth_status(required_scopes)
     if not status["authenticated"]:
         raise ValueError("Dedicated GitHub Actions runner credential is not authorized.")
     if status["missing_scopes"]:
@@ -297,7 +299,7 @@ def publish_project(
     visibility: str = "private",
 ) -> dict[str, Any]:
     _managed_project(project)
-    require_auth()
+    require_auth(PUBLISH_REQUIRED_SCOPES)
     if visibility not in {"private", "public"}:
         raise ValueError("Repository visibility must be private or public.")
     owner = _authenticated_owner()
