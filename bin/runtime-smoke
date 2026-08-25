@@ -36,17 +36,32 @@ STATUS_PAYLOAD=""
 check_cloud() {
   local payload
   payload="$(curl -fsS --max-time 8 "$BASE/api/status")" || return 1
-  if ! printf '%s' "$payload" | jq -e '.platform.runners.github_actions.safe == true' >/dev/null; then
-    return 1
-  fi
   STATUS_PAYLOAD="$payload"
+  printf '%s' "$payload" | jq -e '.platform.runners.github_actions.safe == true' >/dev/null
+}
+
+cloud_diagnostic() {
+  local payload="$STATUS_PAYLOAD"
+  if [ -z "$payload" ]; then
+    payload="$(curl -fsS --max-time 8 "$BASE/api/status" 2>/dev/null || true)"
+  fi
+  [ -n "$payload" ] || return 0
+  printf 'Cloud auth diagnostic: source=%s authenticated=%s missing=%s unexpected=%s scopes=%s\n' \
+    "$(printf '%s' "$payload" | jq -r '.platform.runners.github_actions.credential_source // "unknown"')" \
+    "$(printf '%s' "$payload" | jq -r '.platform.runners.github_actions.authenticated // false')" \
+    "$(printf '%s' "$payload" | jq -r '.platform.runners.github_actions.missing_scopes // [] | join(",")')" \
+    "$(printf '%s' "$payload" | jq -r '.platform.runners.github_actions.unexpected_scopes // [] | join(",")')" \
+    "$(printf '%s' "$payload" | jq -r '.platform.runners.github_actions.scopes // [] | join(",")')" >&2
 }
 
 retry 'dashboard process and health' check_dashboard
 retry 'health endpoint' check_endpoint "$BASE/health"
 retry 'catalog endpoint' check_endpoint "$BASE/api/catalog"
 retry 'run endpoint' check_endpoint "$BASE/api/run"
-retry 'Cloud automation authorization' check_cloud
+if ! retry 'Cloud automation authorization' check_cloud; then
+  cloud_diagnostic
+  exit 1
+fi
 
 source_name="$(printf '%s' "$STATUS_PAYLOAD" | jq -r '.platform.runners.github_actions.credential_source // "unknown"')"
 scopes="$(printf '%s' "$STATUS_PAYLOAD" | jq -r '.platform.runners.github_actions.scopes // [] | join(",")')"
