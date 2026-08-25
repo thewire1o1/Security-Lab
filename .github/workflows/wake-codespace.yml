@@ -9,7 +9,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: apotheon-one-codespace-lifecycle-${{ github.repository }}
+  group: apotheon-one-codespace-mutation-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
@@ -165,7 +165,7 @@ jobs:
               | .[0].name // empty
             ')"
             if [ -z "$machine" ]; then
-              printf '%s\n' 'No Codespaces machine meets the APOTHEON ONE minimum requirements.' >&2
+              printf '%s\n' 'No Codespaces machine meets the APOTHEON:ONE minimum requirements.' >&2
               exit 6
             fi
 
@@ -187,21 +187,11 @@ jobs:
             ensure_available "$name"
             printf 'final_state=Available\n' >> "$GITHUB_OUTPUT"
 
+            # Refresh is intentionally non-destructive. A predecessor is never
+            # retired automatically, even when GitHub reports its worktree clean.
+            # Retirement remains a separate, explicitly confirmed action below.
             if [ -n "$old_name" ] && [ "$old_name" != "$name" ]; then
-              safe_to_retire="$(printf '%s' "$selection" | jq -r '
-                (.git_status != null) and
-                (.git_status.has_uncommitted_changes == false) and
-                (.git_status.has_unpushed_changes == false)
-              ')"
-              if [ "$safe_to_retire" = 'true' ]; then
-                if api DELETE "/user/codespaces/${old_name}" >/dev/null; then
-                  printf 'retired_codespace=%s\n' "$old_name" >> "$GITHUB_OUTPUT"
-                else
-                  printf 'preserved_codespace=%s\n' "$old_name" >> "$GITHUB_OUTPUT"
-                fi
-              else
-                printf 'preserved_codespace=%s\n' "$old_name" >> "$GITHUB_OUTPUT"
-              fi
+              printf 'preserved_codespace=%s\n' "$old_name" >> "$GITHUB_OUTPUT"
             fi
           else
             if [ -z "$selection" ]; then
@@ -287,13 +277,13 @@ jobs:
           EOF
           )
           if [ -n "${WEB_URL:-}" ]; then
-            body="${body}\nCodespace: ${WEB_URL}\nAPOTHEON ONE console: ${CONSOLE_URL}\nMCP: ${MCP_URL}"
+            body="${body}\nCodespace: ${WEB_URL}\nAPOTHEON:ONE console: ${CONSOLE_URL}\nMCP: ${MCP_URL}"
           fi
           if [ -n "${RETIRED_CODESPACE:-}" ]; then
             body="${body}\nRetired Codespace: \`${RETIRED_CODESPACE}\`"
           fi
           if [ -n "${PRESERVED_CODESPACE:-}" ]; then
-            body="${body}\nPreserved predecessor because its working state could not be proven clean: \`${PRESERVED_CODESPACE}\`"
+            body="${body}\nPreserved predecessor by policy: \`${PRESERVED_CODESPACE}\`"
           fi
           gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$body"
           gh issue close "$ISSUE_NUMBER" --repo "$REPOSITORY" --reason completed
