@@ -91,11 +91,7 @@ jobs:
           deployed_sha="$(remote "cd $repo_q && git rev-parse HEAD" | tr -d '\r')"
 
           verify_runtime() {
-            remote "cd $repo_q && bash bin/dashboard-control restart" &&
-            remote 'curl -fsS --max-time 5 http://127.0.0.1:8765/health >/dev/null' &&
-            remote 'curl -fsS --max-time 5 http://127.0.0.1:8765/api/catalog >/dev/null' &&
-            remote 'curl -fsS --max-time 5 http://127.0.0.1:8765/api/run >/dev/null' &&
-            remote 'status="$(curl -fsS --max-time 8 http://127.0.0.1:8765/api/status)"; printf "%s" "$status" | jq -e ".platform.runners.github_actions.safe == true" >/dev/null; printf "Cloud automation connected via %s; scopes=%s\n" "$(printf "%s" "$status" | jq -r ".platform.runners.github_actions.credential_source // \"unknown\"")" "$(printf "%s" "$status" | jq -r ".platform.runners.github_actions.scopes // [] | join(\",\")")"'
+            remote "cd $repo_q && bash bin/dashboard-control restart && bash bin/runtime-smoke"
           }
 
           if ! verify_runtime; then
