@@ -72,9 +72,10 @@ trim_log() {
 }
 
 capture_runtime_env() {
-  is_running || return 0
-  local pid
-  pid="$(read_pid)"
+  local pid=""
+  if is_running; then
+    pid="$(read_pid)"
+  fi
   mkdir -p "$STATE_DIR"
   chmod 700 "$STATE_DIR"
   python3 - "$pid" "$RUNTIME_ENV_FILE" <<'PY'
@@ -90,22 +91,28 @@ allowed = {
     "DPSR_RUNNER_GH_CONFIG",
     "DPSR_RUNNER_GIT_CONFIG",
 }
-try:
-    entries = Path(f"/proc/{pid}/environ").read_bytes().split(b"\0")
-except OSError:
-    raise SystemExit(0)
 
-captured = {}
-for entry in entries:
-    if b"=" not in entry:
-        continue
-    key_raw, value_raw = entry.split(b"=", 1)
-    key = key_raw.decode("utf-8", "ignore")
-    if key not in allowed:
-        continue
-    value = value_raw.decode("utf-8", "surrogateescape")
-    if value:
-        captured[key] = value
+captured = {
+    key: value
+    for key in allowed
+    if (value := os.environ.get(key, ""))
+}
+
+if pid:
+    try:
+        entries = Path(f"/proc/{pid}/environ").read_bytes().split(b"\0")
+    except OSError:
+        entries = []
+    for entry in entries:
+        if b"=" not in entry:
+            continue
+        key_raw, value_raw = entry.split(b"=", 1)
+        key = key_raw.decode("utf-8", "ignore")
+        if key not in allowed:
+            continue
+        value = value_raw.decode("utf-8", "surrogateescape")
+        if value:
+            captured[key] = value
 
 if not captured:
     raise SystemExit(0)
