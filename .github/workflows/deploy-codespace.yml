@@ -63,7 +63,7 @@ jobs:
           fi
 
           remote() {
-            gh codespace ssh -c "$name" -- "$1"
+            gh codespace ssh -c "$name" -- bash -lc "$1"
           }
 
           repo_dir="$(remote "find /workspaces -mindepth 2 -maxdepth 2 -type d -name .git -print -quit | sed 's#/.git\$##'" | tr -d '\r')"
