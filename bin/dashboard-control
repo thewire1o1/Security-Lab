@@ -6,6 +6,8 @@ PIDFILE="$ROOT/.dashboard.pid"
 DISABLED="$ROOT/.dashboard.disabled"
 LOGFILE="$ROOT/reports/dashboard.log"
 PORT=8765
+LOG_MAX_BYTES="${DASHBOARD_LOG_MAX_BYTES:-5242880}"
+LOG_KEEP_BYTES="${DASHBOARD_LOG_KEEP_BYTES:-2097152}"
 
 read_pid() {
   if [ -f "$PIDFILE" ]; then
@@ -47,6 +49,26 @@ console_url() {
   fi
 }
 
+trim_log() {
+  [ -f "$LOGFILE" ] || return 0
+  local size tmp
+  size="$(wc -c < "$LOGFILE" 2>/dev/null || printf '0')"
+  case "$size" in
+    ''|*[!0-9]*) return 0 ;;
+  esac
+  if [ "$size" -le "$LOG_MAX_BYTES" ]; then
+    return 0
+  fi
+
+  tmp="${LOGFILE}.trim.$$"
+  if tail -c "$LOG_KEEP_BYTES" "$LOGFILE" > "$tmp" 2>/dev/null; then
+    mv "$tmp" "$LOGFILE"
+    printf 'APOTHEON:ONE dashboard log trimmed from %s to approximately %s bytes.\n' "$size" "$LOG_KEEP_BYTES"
+  else
+    rm -f "$tmp"
+  fi
+}
+
 stop_process() {
   if ! is_running; then
     rm -f "$PIDFILE"
@@ -70,7 +92,7 @@ start_console() {
   mkdir -p "$ROOT/reports"
   rm -f "$DISABLED"
   if healthy; then
-    printf 'APOTHEON ONE console already running: pid=%s\n' "$(read_pid)"
+    printf 'APOTHEON:ONE console already running: pid=%s\n' "$(read_pid)"
     printf 'URL: %s\n' "$(console_url)"
     return 0
   fi
@@ -78,6 +100,7 @@ start_console() {
     stop_process
   fi
 
+  trim_log
   rm -f "$PIDFILE"
   cd "$ROOT"
   nohup python3 -m security_lab.orchestrator >>"$LOGFILE" 2>&1 </dev/null &
@@ -87,40 +110,40 @@ start_console() {
   for _ in $(seq 1 30); do
     if ! kill -0 "$pid" 2>/dev/null; then
       rm -f "$PIDFILE"
-      printf 'APOTHEON ONE console failed to start.\n' >&2
+      printf 'APOTHEON:ONE console failed to start.\n' >&2
       tail -n 40 "$LOGFILE" >&2 || true
       return 1
     fi
     if health_check; then
-      printf 'APOTHEON ONE console running: pid=%s\n' "$pid"
+      printf 'APOTHEON:ONE console running: pid=%s\n' "$pid"
       printf 'URL: %s\n' "$(console_url)"
       return 0
     fi
     sleep 0.5
   done
 
-  printf 'APOTHEON ONE console process is running but health endpoint is not ready.\n' >&2
+  printf 'APOTHEON:ONE console process is running but health endpoint is not ready.\n' >&2
   return 1
 }
 
 stop_console() {
   touch "$DISABLED"
   stop_process
-  printf 'APOTHEON ONE console stopped.\n'
+  printf 'APOTHEON:ONE console stopped.\n'
 }
 
 status_console() {
   if healthy; then
-    printf 'APOTHEON ONE console running: pid=%s\n' "$(read_pid)"
+    printf 'APOTHEON:ONE console running: pid=%s\n' "$(read_pid)"
     printf 'URL: %s\n' "$(console_url)"
     return 0
   fi
   if is_running; then
-    printf 'APOTHEON ONE console unhealthy: pid=%s health check failed.\n' "$(read_pid)" >&2
+    printf 'APOTHEON:ONE console unhealthy: pid=%s health check failed.\n' "$(read_pid)" >&2
     return 1
   fi
   rm -f "$PIDFILE"
-  printf 'APOTHEON ONE console stopped.\n'
+  printf 'APOTHEON:ONE console stopped.\n'
   return 1
 }
 

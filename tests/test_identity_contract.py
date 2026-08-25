@@ -18,6 +18,10 @@ PUBLIC_SURFACES = (
     ROOT / "bin" / "repair-tools",
     ROOT / "bin" / "update-all",
 )
+ACCEPTED_APOTHEON_IDENTITIES = (
+    "APOTHEON:ONE",
+    "APOTHEON ONE",
+)
 FORBIDDEN_PUBLIC_IDENTITIES = (
     "Digital Paragon Security Research",
     "DPSR Platform",
@@ -64,7 +68,10 @@ class IdentityContractTests(unittest.TestCase):
         for path in PUBLIC_SURFACES:
             with self.subTest(path=path.relative_to(ROOT)):
                 text = path.read_text(encoding="utf-8")
-                self.assertIn("APOTHEON ONE", text)
+                self.assertTrue(
+                    any(identity in text for identity in ACCEPTED_APOTHEON_IDENTITIES),
+                    f"APOTHEON identity missing from {path.relative_to(ROOT)}",
+                )
 
     def test_retired_product_names_do_not_reappear_in_source(self) -> None:
         violations: list[str] = []

@@ -9,7 +9,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: apotheon-one-inplace-deploy-${{ github.repository }}
+  group: apotheon-one-codespace-mutation-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
@@ -86,12 +86,25 @@ jobs:
             exit 7
           fi
 
+          previous_sha="$(remote "cd $repo_q && git rev-parse HEAD" | tr -d '\r')"
           remote "cd $repo_q && git fetch origin master && git switch master && git merge --ff-only origin/master"
-          remote "cd $repo_q && bash bin/dashboard-control restart"
-          remote 'curl -fsS --max-time 5 http://127.0.0.1:8765/health >/dev/null'
-          remote 'curl -fsS --max-time 5 http://127.0.0.1:8765/api/catalog >/dev/null'
-          remote 'curl -fsS --max-time 5 http://127.0.0.1:8765/api/run >/dev/null'
-          remote 'status="$(curl -fsS --max-time 8 http://127.0.0.1:8765/api/status)"; printf "%s" "$status" | jq -e ".platform.runners.github_actions.safe == true" >/dev/null; printf "Cloud automation connected via %s; scopes=%s\n" "$(printf "%s" "$status" | jq -r ".platform.runners.github_actions.credential_source // \"unknown\"")" "$(printf "%s" "$status" | jq -r ".platform.runners.github_actions.scopes // [] | join(\",\")")"'
+          deployed_sha="$(remote "cd $repo_q && git rev-parse HEAD" | tr -d '\r')"
+
+          verify_runtime() {
+            remote "cd $repo_q && bash bin/dashboard-control restart && bash bin/runtime-smoke"
+          }
+
+          if ! verify_runtime; then
+            printf 'Runtime verification failed after deploying %s. Restoring %s.\n' "$deployed_sha" "$previous_sha" >&2
+            remote "cd $repo_q && git reset --hard $previous_sha"
+            if remote "cd $repo_q && bash bin/dashboard-control restart" && \
+               remote 'curl -fsS --max-time 5 http://127.0.0.1:8765/health >/dev/null'; then
+              printf 'Previous runtime %s restored successfully.\n' "$previous_sha" >&2
+            else
+              printf 'Rollback to %s was attempted but the previous runtime did not pass health verification.\n' "$previous_sha" >&2
+            fi
+            exit 10
+          fi
 
           ports="$(gh codespace ports -c "$name" --json browseUrl,sourcePort,visibility)"
           console="$(printf '%s' "$ports" | jq -r '[.[] | select((.sourcePort | tonumber?) == 8765)] | .[0].browseUrl // empty')"
@@ -137,11 +150,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "APOTHEON:ONE in-place deployment failed. The workflow now requires internal runtime health, working Cloud automation authorization, and a usable response from the browser-facing Codespaces gateway before it reports a console link. It also stops for dirty/unpushed work, SSH failures, or repository discovery failures. No replacement Codespace was created by this workflow."
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "APOTHEON:ONE in-place deployment failed. The workflow requires internal runtime health, working Cloud automation authorization, and a usable Codespaces gateway response. It stops for dirty/unpushed work or repository discovery failures. If internal runtime verification fails after advancing the code, it now attempts to restore the previously running commit and re-check health. No replacement Codespace is created or deleted by this workflow."
 
-      - name: Close request
-        if: always()
+      - name: Close successful request
+        if: success()
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh issue close "$ISSUE_NUMBER" --repo "$REPOSITORY" --reason completed || true
+
+      - name: Close failed request
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue close "$ISSUE_NUMBER" --repo "$REPOSITORY" --reason 'not planned' || gh issue close "$ISSUE_NUMBER" --repo "$REPOSITORY" || true
