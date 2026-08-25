@@ -1,0 +1,91 @@
+#page-home .apo-quick-top{margin-top:14px!important}
+#page-home .apo-quick-top + .quick-strip{margin-bottom:24px}
+
+.apo-insight{
+  display:grid;
+  gap:14px;
+  padding:16px;
+  border:1px solid #21303c;
+  border-left:3px solid var(--blue);
+  border-radius:11px;
+  background:#091017;
+}
+.apo-insight-attention{border-left-color:var(--red)}
+.apo-insight-review{border-left-color:var(--amber)}
+.apo-insight-low{border-left-color:var(--teal)}
+.apo-insight-clear{border-left-color:var(--green)}
+.apo-insight-limited{border-left-color:var(--amber)}
+.apo-insight-failed{border-left-color:var(--red)}
+.apo-insight-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.apo-insight-label{
+  font-family:var(--font-nav);
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--blue-2);
+}
+.apo-insight-attention .apo-insight-label,.apo-insight-failed .apo-insight-label{color:#ff8e8e}
+.apo-insight-review .apo-insight-label,.apo-insight-limited .apo-insight-label{color:#f0bd69}
+.apo-insight-low .apo-insight-label{color:var(--teal)}
+.apo-insight-clear .apo-insight-label{color:var(--green)}
+.apo-insight-check{color:var(--muted);font-family:var(--font-nav);font-size:9px;letter-spacing:.03em}
+.apo-insight-title{
+  margin:0;
+  font-family:var(--font-display);
+  font-size:18px;
+  font-weight:500;
+  line-height:1.15;
+  letter-spacing:-.025em;
+}
+.apo-insight-summary{margin:0;color:var(--muted);font-size:11px;line-height:1.55}
+.apo-insight-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.apo-insight-metric{
+  min-width:0;
+  padding:10px;
+  border:1px solid #182631;
+  border-radius:8px;
+  background:#070d12;
+}
+.apo-insight-metric span{display:block;color:var(--muted);font-family:var(--font-nav);font-size:8px;letter-spacing:.035em}
+.apo-insight-metric strong{display:block;margin-top:5px;overflow:hidden;text-overflow:ellipsis;font-family:var(--font-data);font-size:13px;font-weight:500;white-space:nowrap}
+.apo-insight-block{display:grid;gap:4px;padding-top:2px}
+.apo-insight-block b{font-family:var(--font-ui);font-size:10px;font-weight:600}
+.apo-insight-block p{margin:0;color:var(--muted);font-size:10px;line-height:1.55}
+.apo-insight-actions{display:flex;gap:7px;flex-wrap:wrap}
+.apo-insight-actions button{
+  min-height:38px;
+  padding:8px 12px;
+  border:1px solid #263744;
+  border-radius:8px;
+  background:#0b1218;
+  color:var(--text);
+  font-family:var(--font-nav);
+  font-size:10px;
+  font-weight:600;
+  cursor:pointer;
+}
+.apo-insight-actions button.primary{border-color:#326fb9;background:#0c1a28;color:#a9ccff}
+.apo-insight-technical{border-top:1px solid #17242e;padding-top:10px}
+.apo-insight-technical summary{color:var(--muted);font-family:var(--font-nav);font-size:9px;cursor:pointer}
+.apo-insight-technical pre{
+  margin:10px 0 0;
+  padding:10px;
+  overflow:auto;
+  border-radius:7px;
+  background:#060a0e;
+  color:var(--muted);
+  font-family:var(--font-data);
+  font-size:9px;
+  line-height:1.5;
+  white-space:pre-wrap;
+}
+
+@media (max-width:640px){
+  #page-home .apo-quick-top{margin-top:10px!important}
+  #page-home .apo-quick-top + .quick-strip{margin-bottom:18px}
+  .apo-insight{padding:14px}
+  .apo-insight-title{font-size:17px}
+  .apo-insight-metrics{grid-template-columns:1fr 1fr 1fr}
+  .apo-insight-actions button{flex:1 1 130px}
+}
