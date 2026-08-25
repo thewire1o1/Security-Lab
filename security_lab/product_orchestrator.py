@@ -3,15 +3,14 @@ from __future__ import annotations
 import json
 import mimetypes
 import re
-import time
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from security_lab import dashboard as base
 from security_lab import orchestrator as core
-from security_lab.platform import guided_jobs
 from security_lab.platform import api as platform_api
+from security_lab.platform import guided_jobs
 
 SAFE_FILENAME = re.compile(r"[^A-Za-z0-9_.-]+")
 
@@ -113,11 +112,12 @@ def _project_metadata(name: str, argv: tuple[str, ...]) -> tuple[dict[str, Any],
             },
         ]
 
-    return core._generic_metadata(name), [
+    metadata = core._generic_metadata(name)
+    return metadata, [
         {
             "id": "execute",
-            "title": core._generic_metadata(name)["title"],
-            "detail": core._generic_metadata(name)["description"],
+            "title": metadata["title"],
+            "detail": metadata["description"],
             "state": "pending",
         }
     ]
@@ -143,17 +143,6 @@ class ProductActionManager(core.OrchestratorActionManager):
         elif self._run.get("state") == "failed":
             value = min(95, value)
         self._run["progress"] = max(0, min(100, round(value)))
-
-    def _worker_run(self, name: str, argv: tuple[str, ...]) -> None:
-        super()._worker_run(name, argv)
-        with self._run_lock:
-            if self._run is None:
-                return
-            if self._run.get("state") == "succeeded":
-                self._run["summary"] = "The requested action completed successfully."
-            else:
-                self._run["summary"] = "The requested action needs attention."
-            self._recalculate_progress_locked()
 
 
 class ProductDashboardState(core.OrchestratorDashboardState):
