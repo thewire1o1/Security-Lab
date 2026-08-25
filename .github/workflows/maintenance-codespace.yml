@@ -1,0 +1,153 @@
+name: APOTHEON ONE Safe Maintenance
+
+on:
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: apotheon-one-codespace-mutation-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  maintenance:
+    if: >-
+      github.event.issue.user.login == github.repository_owner &&
+      github.event.issue.title == '[DPSR-MAINTENANCE] safe Codespace'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CODESPACES_TOKEN: ${{ secrets.DPSR_CODESPACES_TOKEN }}
+      REPOSITORY: ${{ github.repository }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+      GH_TOKEN: ${{ secrets.DPSR_CODESPACES_TOKEN }}
+    steps:
+      - name: Run non-destructive maintenance
+        id: maintenance
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [ -z "${CODESPACES_TOKEN:-}" ]; then
+            printf '%s\n' 'DPSR_CODESPACES_TOKEN is not configured.' >&2
+            exit 2
+          fi
+
+          requested="$(printf '%s\n' "${ISSUE_BODY:-}" | sed -nE 's/^codespace:[[:space:]]*([A-Za-z0-9][A-Za-z0-9-]{0,127})[[:space:]]*$/\1/p' | head -n 1)"
+          payload="$(gh api '/user/codespaces?per_page=100')"
+          if [ -n "$requested" ]; then
+            name="$(printf '%s' "$payload" | jq -r --arg repo "$REPOSITORY" --arg name "$requested" '[.codespaces[] | select(.repository.full_name == $repo and .name == $name)] | .[0].name // empty')"
+          else
+            name="$(printf '%s' "$payload" | jq -r --arg repo "$REPOSITORY" '[.codespaces[] | select(.repository.full_name == $repo)] | sort_by(.last_used_at // .updated_at // .created_at) | reverse | .[0].name // empty')"
+          fi
+          if [ -z "$name" ]; then
+            printf '%s\n' 'No matching Codespace was found.' >&2
+            exit 3
+          fi
+
+          state="$(gh api "/user/codespaces/${name}" --jq '.state // "Unknown"')"
+          if [ "$state" = 'Shutdown' ]; then
+            gh api -X POST "/user/codespaces/${name}/start" >/dev/null
+            for _ in $(seq 1 120); do
+              state="$(gh api "/user/codespaces/${name}" --jq '.state // "Unknown"')"
+              [ "$state" = 'Available' ] && break
+              sleep 2
+            done
+          fi
+          if [ "$state" != 'Available' ]; then
+            printf 'Codespace %s is not available; state=%s.\n' "$name" "$state" >&2
+            exit 4
+          fi
+
+          remote() {
+            gh codespace ssh -c "$name" -- "$1"
+          }
+
+          repo_dir="$(remote "find /workspaces -mindepth 2 -maxdepth 2 -type d -name .git -print -quit | sed 's#/.git\$##'" | tr -d '\r')"
+          if [ -z "$repo_dir" ]; then
+            printf '%s\n' 'Codespace is reachable over SSH but no checked-out repository was found under /workspaces.' >&2
+            exit 5
+          fi
+          printf -v repo_q '%q' "$repo_dir"
+
+          dirty="$(remote "cd $repo_q && git status --porcelain=v1")"
+          if [ -n "$dirty" ]; then
+            printf '%s\n' 'Codespace has uncommitted changes. Maintenance stopped without modifying the working tree or caches.' >&2
+            printf '%s\n' "$dirty" >&2
+            exit 6
+          fi
+
+          unpushed="$(remote "cd $repo_q && git rev-list @{upstream}..HEAD 2>/dev/null || true")"
+          if [ -n "$unpushed" ]; then
+            printf '%s\n' 'Codespace has unpushed commits. Maintenance stopped without modifying the working tree or caches.' >&2
+            exit 7
+          fi
+
+          head_sha="$(remote "cd $repo_q && git rev-parse HEAD" | tr -d '\r')"
+          before="$(remote "df -h / | awk 'NR==2 {printf \"%s used / %s free (%s)\", \$3, \$4, \$5}'" | tr -d '\r')"
+
+          remote "cd $repo_q && bash bin/doctor"
+          remote "cd $repo_q && bash -n bin/dashboard-control bin/disk-guard bin/doctor bin/runtime-smoke"
+          remote "cd $repo_q && python3 -m compileall -q security_lab"
+          remote "cd $repo_q && docker compose -f lab/docker-compose.yml config >/dev/null"
+
+          pytest_result='not available'
+          if remote "cd $repo_q && python3 -c 'import pytest' >/dev/null 2>&1"; then
+            if remote "cd $repo_q && timeout 420 python3 -m pytest -q"; then
+              pytest_result='passed'
+            else
+              pytest_result='failed'
+            fi
+          fi
+
+          remote "cd $repo_q && bash bin/disk-guard"
+          after="$(remote "df -h / | awk 'NR==2 {printf \"%s used / %s free (%s)\", \$3, \$4, \$5}'" | tr -d '\r')"
+
+          smoke_result='passed'
+          if ! remote "cd $repo_q && bash bin/runtime-smoke"; then
+            smoke_result='failed'
+          fi
+
+          printf 'codespace=%s\n' "$name" >> "$GITHUB_OUTPUT"
+          printf 'sha=%s\n' "$head_sha" >> "$GITHUB_OUTPUT"
+          printf 'before=%s\n' "$before" >> "$GITHUB_OUTPUT"
+          printf 'after=%s\n' "$after" >> "$GITHUB_OUTPUT"
+          printf 'pytest=%s\n' "$pytest_result" >> "$GITHUB_OUTPUT"
+          printf 'smoke=%s\n' "$smoke_result" >> "$GITHUB_OUTPUT"
+
+          if [ "$pytest_result" = 'failed' ] || [ "$smoke_result" = 'failed' ]; then
+            exit 11
+          fi
+
+      - name: Report maintenance
+        if: success()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "APOTHEON:ONE safe maintenance completed. Repository, Python, shell, Compose, runtime, and Cloud automation checks passed. Existing disk-guard cleanup ran only according to its usage threshold and only targets disposable caches/build data.\n\nCodespace: \`${{ steps.maintenance.outputs.codespace }}\`\nCommit: \`${{ steps.maintenance.outputs.sha }}\`\nDisk before: ${{ steps.maintenance.outputs.before }}\nDisk after: ${{ steps.maintenance.outputs.after }}\nRuntime pytest: \`${{ steps.maintenance.outputs.pytest }}\`\nRuntime smoke test: \`${{ steps.maintenance.outputs.smoke }}\`\n\nNo Codespace was created, deleted, or replaced, and repository history was not rewritten."
+
+      - name: Report maintenance failure
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "APOTHEON:ONE safe maintenance stopped because a guard or verification failed. The workflow refuses dirty/unpushed repositories and never creates, deletes, or replaces a Codespace. Review the Actions run before making any corrective change."
+
+      - name: Close successful request
+        if: success()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue close "$ISSUE_NUMBER" --repo "$REPOSITORY" --reason completed || true
+
+      - name: Close failed request
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue close "$ISSUE_NUMBER" --repo "$REPOSITORY" --reason 'not planned' || gh issue close "$ISSUE_NUMBER" --repo "$REPOSITORY" || true
