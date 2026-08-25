@@ -63,35 +63,36 @@ jobs:
           fi
 
           remote() {
-            gh codespace ssh -c "$name" -- "$@"
+            gh codespace ssh -c "$name" -- "$1"
           }
 
-          repo_dir="$(remote bash -lc 'for d in /workspaces/*; do if [ -d "$d/.git" ]; then printf "%s\n" "$d"; break; fi; done' | tr -d '\r')"
+          repo_dir="$(remote "find /workspaces -mindepth 2 -maxdepth 2 -type d -name .git -print -quit | sed 's#/.git\$##'" | tr -d '\r')"
           if [ -z "$repo_dir" ]; then
             printf '%s\n' 'Codespace is reachable over SSH but no checked-out repository was found under /workspaces.' >&2
             exit 5
           fi
+          printf -v repo_q '%q' "$repo_dir"
 
-          dirty="$(remote bash -lc "cd '$repo_dir' && git status --porcelain=v1")"
+          dirty="$(remote "cd $repo_q && git status --porcelain=v1")"
           if [ -n "$dirty" ]; then
             printf '%s\n' 'Codespace has uncommitted changes. Deployment stopped without modifying the working tree.' >&2
             printf '%s\n' "$dirty" >&2
             exit 6
           fi
 
-          unpushed="$(remote bash -lc "cd '$repo_dir' && git rev-list @{upstream}..HEAD 2>/dev/null || true")"
+          unpushed="$(remote "cd $repo_q && git rev-list @{upstream}..HEAD 2>/dev/null || true")"
           if [ -n "$unpushed" ]; then
             printf '%s\n' 'Codespace has unpushed commits. Deployment stopped without modifying the working tree.' >&2
             exit 7
           fi
 
-          remote bash -lc "cd '$repo_dir' && git fetch origin master && git switch master && git merge --ff-only origin/master"
-          remote bash -lc "cd '$repo_dir' && bash bin/dashboard-control restart"
-          remote bash -lc 'curl -fsS --max-time 5 http://127.0.0.1:8765/health >/dev/null'
-          remote bash -lc 'curl -fsS --max-time 5 http://127.0.0.1:8765/api/catalog >/dev/null'
-          remote bash -lc 'curl -fsS --max-time 5 http://127.0.0.1:8765/api/run >/dev/null'
+          remote "cd $repo_q && git fetch origin master && git switch master && git merge --ff-only origin/master"
+          remote "cd $repo_q && bash bin/dashboard-control restart"
+          remote 'curl -fsS --max-time 5 http://127.0.0.1:8765/health >/dev/null'
+          remote 'curl -fsS --max-time 5 http://127.0.0.1:8765/api/catalog >/dev/null'
+          remote 'curl -fsS --max-time 5 http://127.0.0.1:8765/api/run >/dev/null'
 
-          sha="$(remote bash -lc "cd '$repo_dir' && git rev-parse HEAD" | tr -d '\r')"
+          sha="$(remote "cd $repo_q && git rev-parse HEAD" | tr -d '\r')"
           printf 'codespace=%s\n' "$name" >> "$GITHUB_OUTPUT"
           printf 'sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
           printf 'console=https://%s-8765.app.github.dev\n' "$name" >> "$GITHUB_OUTPUT"
