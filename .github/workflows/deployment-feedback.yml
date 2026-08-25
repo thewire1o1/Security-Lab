@@ -1,0 +1,36 @@
+name: APOTHEON ONE Deployment Feedback
+
+on:
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+concurrency:
+  group: apotheon-one-feedback-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  feedback:
+    if: >-
+      github.event.issue.user.login == github.repository_owner &&
+      (github.event.issue.title == '[DPSR-WAKE] start Codespace' ||
+       github.event.issue.title == '[DPSR-WAKE] restart Codespace' ||
+       github.event.issue.title == '[DPSR-WAKE] refresh Codespace' ||
+       github.event.issue.title == '[DPSR-WAKE] stop Codespace')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      INTERVAL_SECONDS: '45'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Stream deployment feedback
+        shell: bash
+        run: bash scripts/apotheon-feedback-watch.sh "$ISSUE_NUMBER"
