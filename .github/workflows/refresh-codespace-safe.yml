@@ -1,0 +1,146 @@
+name: APOTHEON ONE Verified Performance Refresh
+
+on:
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: apotheon-one-verified-refresh-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: >-
+      github.event.issue.user.login == github.repository_owner &&
+      github.event.issue.title == '[DPSR-REFRESH] performance Codespace'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      CODESPACES_TOKEN: ${{ secrets.DPSR_CODESPACES_TOKEN }}
+      REPOSITORY: ${{ github.repository }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      GH_TOKEN: ${{ secrets.DPSR_CODESPACES_TOKEN }}
+    steps:
+      - name: Create and verify performance Codespace
+        id: refresh
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [ -z "${CODESPACES_TOKEN:-}" ]; then
+            printf '%s\n' 'DPSR_CODESPACES_TOKEN is not configured.' >&2
+            exit 2
+          fi
+
+          existing="$(gh api '/user/codespaces?per_page=100')"
+          predecessor="$(printf '%s' "$existing" | jq -r --arg repo "$REPOSITORY" '[.codespaces[] | select(.repository.full_name == $repo)] | sort_by(.last_used_at // .updated_at // .created_at) | reverse | .[0].name // empty')"
+
+          machines="$(gh api "/repos/${REPOSITORY}/codespaces/machines")"
+          machine="$(printf '%s' "$machines" | jq -r '
+            [.machines[]
+              | select(
+                  (.cpus // 0) >= 4 and
+                  (.memory_in_bytes // 0) >= 17179869184 and
+                  (.storage_in_bytes // 0) >= 34359738368
+                )]
+            | sort_by(.cpus, .memory_in_bytes, .storage_in_bytes)
+            | .[0].name // empty
+          ')"
+          if [ -z "$machine" ]; then
+            printf '%s\n' 'No Codespaces machine meets the 4 CPU / 16 GB APOTHEON demo baseline.' >&2
+            exit 3
+          fi
+
+          create_payload="$(jq -nc \
+            --arg ref 'master' \
+            --arg machine "$machine" \
+            --arg devcontainer '.devcontainer/devcontainer.json' \
+            '{ref:$ref,machine:$machine,devcontainer_path:$devcontainer}')"
+          created="$(gh api -X POST "/repos/${REPOSITORY}/codespaces" --input - <<<"$create_payload")"
+          name="$(printf '%s' "$created" | jq -r '.name // empty')"
+          if [ -z "$name" ]; then
+            printf '%s\n' 'Codespace creation returned no name.' >&2
+            exit 4
+          fi
+
+          state="$(printf '%s' "$created" | jq -r '.state // "Unknown"')"
+          for _ in $(seq 1 180); do
+            state="$(gh api "/user/codespaces/${name}" --jq '.state // "Unknown"')"
+            [ "$state" = 'Available' ] && break
+            sleep 2
+          done
+          if [ "$state" != 'Available' ]; then
+            printf 'Codespace %s did not become Available; final state=%s.\n' "$name" "$state" >&2
+            exit 5
+          fi
+
+          ssh_ready='false'
+          for _ in $(seq 1 90); do
+            if gh codespace ssh -c "$name" -- true >/dev/null 2>&1; then
+              ssh_ready='true'
+              break
+            fi
+            sleep 4
+          done
+          if [ "$ssh_ready" != 'true' ]; then
+            printf '%s\n' 'Fresh Codespace became Available but SSH management did not become ready.' >&2
+            exit 6
+          fi
+
+          remote() {
+            gh codespace ssh -c "$name" -- "$@"
+          }
+
+          remote bash -lc 'cd /workspaces/Security-Lab && bash bin/dashboard-control restart'
+          remote bash -lc 'curl -fsS --max-time 8 http://127.0.0.1:8765/health >/dev/null'
+          remote bash -lc 'curl -fsS --max-time 8 http://127.0.0.1:8765/api/catalog >/dev/null'
+          remote bash -lc 'curl -fsS --max-time 8 http://127.0.0.1:8765/api/run >/dev/null'
+          sha="$(remote bash -lc 'cd /workspaces/Security-Lab && git rev-parse HEAD' | tr -d '\r')"
+
+          printf 'codespace=%s\n' "$name" >> "$GITHUB_OUTPUT"
+          printf 'predecessor=%s\n' "$predecessor" >> "$GITHUB_OUTPUT"
+          printf 'machine=%s\n' "$machine" >> "$GITHUB_OUTPUT"
+          printf 'sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
+          printf 'web=https://%s.github.dev\n' "$name" >> "$GITHUB_OUTPUT"
+          printf 'console=https://%s-8765.app.github.dev\n' "$name" >> "$GITHUB_OUTPUT"
+          printf 'mcp=https://%s-8766.app.github.dev/mcp\n' "$name" >> "$GITHUB_OUTPUT"
+
+      - name: Report verified refresh
+        if: success()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          body=$(cat <<EOF
+          Verified APOTHEON ONE performance Codespace is ready.
+
+          Codespace: \`${{ steps.refresh.outputs.codespace }}\`
+          Machine: \`${{ steps.refresh.outputs.machine }}\`
+          Commit: \`${{ steps.refresh.outputs.sha }}\`
+          Codespace URL: ${{ steps.refresh.outputs.web }}
+          APOTHEON ONE: ${{ steps.refresh.outputs.console }}
+          MCP: ${{ steps.refresh.outputs.mcp }}
+          EOF
+          )
+          if [ -n "${{ steps.refresh.outputs.predecessor }}" ]; then
+            body="${body}\nPrevious Codespace preserved and not deleted: \`${{ steps.refresh.outputs.predecessor }}\`"
+          fi
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body "$body"
+
+      - name: Report refresh failure
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "$REPOSITORY" --body 'Verified performance refresh failed. No predecessor Codespace is deleted by this workflow. Check the workflow log for the exact provisioning, SSH, or health-check failure.' || true
+
+      - name: Close request
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue close "$ISSUE_NUMBER" --repo "$REPOSITORY" --reason completed || true
