@@ -27,10 +27,13 @@
   document.documentElement.dataset.theme = activeTheme;
 
   const homeTitle = document.querySelector("#page-home .brand-title");
-  if (homeTitle) homeTitle.textContent = "APOTHEON ONE";
+  if (homeTitle) homeTitle.textContent = "APOTHEON:ONE";
   const homeKicker = document.querySelector("#page-home .brand-kicker");
   if (homeKicker) homeKicker.innerHTML = '<span class="brand-dot"></span>Unified. Elevated.';
-  document.title = "APOTHEON ONE · Unified. Elevated.";
+  document.querySelectorAll(".rail-brand strong, #page-settings .brand-kicker, #page-settings .panel-body h2").forEach((node) => {
+    node.textContent = "APOTHEON:ONE";
+  });
+  document.title = "APOTHEON:ONE · Unified. Elevated.";
 
   const homeGrid = document.getElementById("home-grid");
   const quickStrip = document.querySelector("#page-home .quick-strip");
@@ -115,6 +118,11 @@
   finalPolishStyles.rel = "stylesheet";
   finalPolishStyles.href = "/final-polish.css";
   document.head.appendChild(finalPolishStyles);
+
+  const consumerTypeStyles = document.createElement("link");
+  consumerTypeStyles.rel = "stylesheet";
+  consumerTypeStyles.href = "/consumer-type.css";
+  document.head.appendChild(consumerTypeStyles);
 
   const core = document.createElement("script");
   core.src = "/app-base.js";
