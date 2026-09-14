@@ -1,4 +1,4 @@
-FROM kalilinux/kali-rolling@sha256:1a2eb0501a2dbe8aa8f513b0791699dbd9b539696768f40b2cbe1dead2fb0d67
+FROM kalilinux/kali-rolling@sha256:49d174981a2a211e76acdde22a2e4978ea19bc0433487292cd9ad865da24ee42
 
 LABEL org.opencontainers.image.source="https://github.com/thewire1o1/Security-Lab"
 LABEL org.opencontainers.image.description="APOTHEON ONE security research Kali operator image by Digital Paragon"
